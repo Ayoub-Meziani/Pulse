@@ -1,0 +1,136 @@
+"""Deterministic alert rules. Pure functions, independent of any ML model.
+
+Prototype policy only; thresholds and wording need clinician review.
+
+Rule ids:
+  R-EMG-1  any red-flag symptom reported                       -> emergency
+  R-SEV-1  systolic >= 180 or diastolic >= 120                 -> severe (symptom check, recheck 60 s)
+  R-SEV-2  recheck within 15 min still >= 180 / >= 120         -> severe, persistent (attach)
+  R-SEV-3  recheck within 15 min below 180 / 120               -> severe alert stays open (attach)
+  R-TGT-1  reading >= target                                   -> notice (one active notice per patient)
+  R-TRD-1  >= 3 valid readings in 7 days, mean >= target       -> trend (one active trend per patient)
+"""
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from statistics import mean
+
+from . import texts
+from .types import ActiveAlert, Evaluation, Reading, Target
+
+SEVERE_SYSTOLIC = 180
+SEVERE_DIASTOLIC = 120
+RECHECK_SECONDS = 60
+RECHECK_WINDOW = timedelta(minutes=15)
+TREND_WINDOW = timedelta(days=7)
+TREND_MIN_READINGS = 3
+
+RED_FLAG_SYMPTOMS = frozenset(texts.SYMPTOM_LABELS)
+
+
+def is_severe(systolic: int, diastolic: int) -> bool:
+    return systolic >= SEVERE_SYSTOLIC or diastolic >= SEVERE_DIASTOLIC
+
+
+def is_above_target(systolic: float, diastolic: float, target: Target) -> bool:
+    return systolic >= target.systolic or diastolic >= target.diastolic
+
+
+def _recent_severe(reading: Reading, active: list[ActiveAlert]) -> ActiveAlert | None:
+    """Active severe/emergency alert triggered within the recheck window before this reading."""
+    candidates = [
+        a for a in active
+        if a.level in ("severe", "emergency")
+        and timedelta(0) <= reading.measured_at - a.triggered_at <= RECHECK_WINDOW
+    ]
+    return max(candidates, key=lambda a: a.triggered_at, default=None)
+
+
+def _active(active: list[ActiveAlert], level: str) -> ActiveAlert | None:
+    found = [a for a in active if a.level == level]
+    return max(found, key=lambda a: a.triggered_at, default=None)
+
+
+def evaluate_measurement(reading: Reading, target: Target,
+                         active_alerts: list[ActiveAlert]) -> Evaluation:
+    """Primary evaluation shown to the patient right after a reading."""
+    s, d = reading.systolic, reading.diastolic
+    previous_severe = _recent_severe(reading, active_alerts)
+
+    if is_severe(s, d):
+        if previous_severe is not None:
+            return Evaluation(
+                level="severe", rule_id="R-SEV-2",
+                reason=f"Recheck {s}/{d} is still at or above 180/120.",
+                next_step=texts.NEXT_STEP["R-SEV-2"],
+                alert_action="attach", target_alert_id=previous_severe.id,
+                requires_symptom_check=True, persistent=True)
+        which = f"Systolic {s} is at or above 180" if s >= SEVERE_SYSTOLIC \
+            else f"Diastolic {d} is at or above 120"
+        return Evaluation(
+            level="severe", rule_id="R-SEV-1", reason=f"{which}.",
+            next_step=texts.NEXT_STEP["R-SEV-1"], alert_action="create",
+            requires_symptom_check=True, recheck_after_seconds=RECHECK_SECONDS)
+
+    if previous_severe is not None:
+        return Evaluation(
+            level="severe", rule_id="R-SEV-3",
+            reason=f"Recheck {s}/{d} is below 180/120.",
+            next_step=texts.NEXT_STEP["R-SEV-3"],
+            alert_action="attach", target_alert_id=previous_severe.id)
+
+    if is_above_target(s, d, target):
+        label = texts.target_label(target.is_default)
+        open_notice = _active(active_alerts, "notice")
+        return Evaluation(
+            level="notice", rule_id="R-TGT-1",
+            reason=f"{s}/{d} is at or above {label} ({target.systolic}/{target.diastolic}).",
+            next_step=texts.NEXT_STEP["R-TGT-1"].format(target_label=label),
+            alert_action="attach" if open_notice else "create",
+            target_alert_id=open_notice.id if open_notice else None)
+
+    return Evaluation(level="none", rule_id=None, reason="Below target.",
+                      next_step=texts.NEXT_STEP[None], alert_action="none")
+
+
+def evaluate_trend(readings: list[Reading], target: Target, active_alerts: list[ActiveAlert],
+                   now: datetime) -> Evaluation | None:
+    """Weekly trend check over VALID readings only. Returns None when no trend alert applies."""
+    window = [r for r in readings
+              if r.validation_status == "valid" and timedelta(0) <= now - r.measured_at <= TREND_WINDOW]
+    if len(window) < TREND_MIN_READINGS:
+        return None
+    ms, md = mean(r.systolic for r in window), mean(r.diastolic for r in window)
+    if not is_above_target(ms, md, target):
+        return None
+    label = texts.target_label(target.is_default)
+    open_trend = _active(active_alerts, "trend")
+    return Evaluation(
+        level="trend", rule_id="R-TRD-1",
+        reason=f"7-day average {ms:.0f}/{md:.0f} over {len(window)} readings is at or above {label} "
+               f"({target.systolic}/{target.diastolic}).",
+        next_step=texts.NEXT_STEP["R-TRD-1"].format(target_label=label),
+        alert_action="attach" if open_trend else "create",
+        target_alert_id=open_trend.id if open_trend else None)
+
+
+def evaluate_symptoms(symptoms: list[str], active_alerts: list[ActiveAlert],
+                      now: datetime) -> Evaluation:
+    """Symptom check. Any red-flag symptom means emergency, whatever the reading."""
+    unknown = [s for s in symptoms if s not in RED_FLAG_SYMPTOMS]
+    if unknown:
+        raise ValueError(f"Unknown symptom codes: {unknown}")
+    if not symptoms:
+        return Evaluation(level="none", rule_id=None, reason="No red-flag symptoms reported.",
+                          next_step="Follow the instructions for your reading.", alert_action="none")
+    labels = ", ".join(texts.SYMPTOM_LABELS[s] for s in symptoms)
+    # Raise the most recent active severe alert (from the last hour) instead of creating a second one.
+    recent = [a for a in active_alerts
+              if a.level in ("severe", "emergency") and now - a.triggered_at <= timedelta(hours=1)]
+    target_alert = max(recent, key=lambda a: a.triggered_at, default=None)
+    return Evaluation(
+        level="emergency", rule_id="R-EMG-1", reason=f"Reported: {labels}.",
+        next_step=texts.NEXT_STEP["R-EMG-1"],
+        alert_action="raise" if target_alert else "create",
+        target_alert_id=target_alert.id if target_alert else None,
+        show_emergency=True)
