@@ -11,9 +11,11 @@ import json
 from collections.abc import Iterator
 from uuid import UUID
 
-from fastapi import Request
+from fastapi import Depends, Request
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+
+from .errors import ApiError
 
 
 class Base(DeclarativeBase):
@@ -51,3 +53,10 @@ def get_db(request: Request) -> Iterator[Session | None]:
         yield db
     finally:
         db.close()
+
+
+def require_session(db: Session | None = Depends(get_db)) -> Session:
+    """For handlers that need the database: 503 instead of a crash when none is configured."""
+    if db is None:
+        raise ApiError(503, "database_unavailable", "Database is not configured.")
+    return db

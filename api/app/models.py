@@ -53,7 +53,8 @@ class PatientProfile(Base):
     regular_doctor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     regular_clinic: Mapped[str | None] = mapped_column(Text)
     consent_location: Mapped[bool] = _server(Boolean)
-    birth_year: Mapped[int | None] = mapped_column(SmallInteger)  # migration M5
+    # birth_year (migration M5) is deliberately NOT mapped until M5 is verified on the live project:
+    # mapping it would break every patient_profiles query on the live schema (M1-M4).
 
 
 class Assignment(Base):
@@ -71,7 +72,7 @@ class CarePlan(Base):
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     clinician_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     status: Mapped[str] = _server(Text)
-    effective_from: Mapped[date] = _server(Date)
+    effective_from: Mapped[date] = mapped_column(Date)  # NOT NULL, no DB default: the API sets it
     review_date: Mapped[date | None] = mapped_column(Date)
     target_systolic: Mapped[int | None] = mapped_column(SmallInteger)
     target_diastolic: Mapped[int | None] = mapped_column(SmallInteger)

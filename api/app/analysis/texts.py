@@ -20,7 +20,18 @@ NEXT_STEP = {
                "If you feel unwell, call emergency services.",
     "R-TGT-1": "This is above {target_label}. Rest 5 minutes, sitting, and measure again.",
     "R-TRD-1": "Your readings this week are above {target_label}. Your doctor will review them.",
+    "DATA-INVALID": "Check the cuff and the numbers, then measure again. If you feel unwell, "
+                    "use the Urgence button or call emergency services.",
     None: "Reading saved.",
+}
+
+# Plain words for the database's `invalid` flags (policy pulse-v1), shown with DATA-INVALID.
+INVALID_FLAG_TEXT = {
+    "systolic_not_above_diastolic": "the top number must be higher than the bottom number",
+    "systolic_implausible": "the top number is outside the possible range",
+    "diastolic_implausible": "the bottom number is outside the possible range",
+    "pulse_implausible": "the pulse is outside the possible range",
+    "measured_in_future": "the time of the reading is in the future",
 }
 
 # Codes match the database CHECK on symptom_reports.symptoms (supabase/migrations, branch AI).

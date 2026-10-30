@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app.analysis.rules import RED_FLAG_SYMPTOMS
 from app.auth import CurrentUser, current_user
 from app.config import Settings
+from app.db import require_session
 from app.main import create_app
 
 API = "/api/v1"
@@ -59,7 +60,8 @@ PROTECTED = [
 
 SETTINGS = Settings(demo_mode=True, demo_number="+213 555 12 34 56")
 FAKE_PATIENT = CurrentUser(id=PID, role="patient", full_name="Test", email="t@pulse.test", timezone="Africa/Algiers")
-BUILT = {("GET", "/me")}  # implemented and tested against the database in test_auth.py
+# Implemented and tested against the database (test_auth.py, test_measurements.py).
+BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/patients/{PID}/measurements")}
 UNBUILT = [p for p in PROTECTED if (p[0], p[1]) not in BUILT]
 
 
@@ -73,6 +75,16 @@ def client():
 @pytest.fixture
 def anon_client():
     return TestClient(create_app(SETTINGS))
+
+
+@pytest.fixture
+def validating_client():
+    """For request-validation checks only: the session dependency returns a sentinel, so validation
+    (which FastAPI runs after dependencies) decides. A handler reached with the sentinel would 500."""
+    app = create_app(SETTINGS)
+    app.dependency_overrides[current_user] = lambda: FAKE_PATIENT
+    app.dependency_overrides[require_session] = lambda: object()
+    return TestClient(app)
 
 
 def test_health(client):
@@ -98,6 +110,12 @@ def test_token_without_database_is_503_not_a_crash(anon_client):
     assert r.status_code == 503 and r.json()["error"]["code"] == "database_unavailable"
 
 
+@pytest.mark.parametrize("method,path,body", [p for p in PROTECTED if (p[0], p[1]) in BUILT and p[1] != "/me"])
+def test_built_routes_without_database_answer_503_not_a_crash(client, method, path, body):
+    r = client.request(method, API + path, json=body, headers=AUTH)
+    assert r.status_code == 503 and r.json()["error"]["code"] == "database_unavailable"
+
+
 @pytest.mark.parametrize("path", ["/auth/login", "/auth/refresh"])
 def test_auth_routes_without_supabase_config_answer_503(anon_client, path):
     body = {"email": "a@b.c", "password": "x"} if path.endswith("login") else {"refresh_token": "x"}
@@ -105,7 +123,8 @@ def test_auth_routes_without_supabase_config_answer_503(anon_client, path):
     assert r.status_code == 503 and r.json()["error"]["code"] == "auth_unavailable"
 
 
-def test_bad_ids_and_bodies_are_rejected_before_handlers(client):
+def test_bad_ids_and_bodies_are_rejected_before_handlers(validating_client):
+    client = validating_client
     assert client.get(f"{API}/patients/123/summary", headers=AUTH).status_code == 422
     r = client.post(f"{API}/patients/{PID}/symptom-reports", headers=AUTH, json={"symptoms": ["short_breath"]})
     assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_request"
@@ -238,8 +257,8 @@ def test_s1_evaluation_and_event_replay_are_documented(client):
     {"systolic": 120, "diastolic": 0}, {"systolic": 120, "diastolic": 301},
     {"systolic": 120, "diastolic": 80, "pulse": 0}, {"systolic": 120, "diastolic": 80, "pulse": 401},
 ])
-def test_s3_values_outside_database_storage_limits_get_invalid_request(client, body):
-    r = client.post(f"{API}/patients/{PID}/measurements", headers=AUTH, json=body)
+def test_s3_values_outside_database_storage_limits_get_invalid_request(validating_client, body):
+    r = validating_client.post(f"{API}/patients/{PID}/measurements", headers=AUTH, json=body)
     assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_request"
 
 
@@ -248,9 +267,11 @@ def test_s3_values_outside_database_storage_limits_get_invalid_request(client, b
     {"systolic": 310, "diastolic": 205},                # implausible but storable -> DATA-INVALID + symptom check
     {"systolic": 250, "diastolic": 150},                # severe, needs_review -> still evaluated by the rules
 ])
-def test_s3_storable_extreme_readings_reach_the_handler(client, body):
+def test_s3_storable_extreme_readings_pass_request_validation(client, body):
+    # Passes validation and reaches the handler (503 here: no database). The clinical behaviour of these
+    # readings (DATA-INVALID + symptom check, R-SEV-1 on needs_review) is tested in test_measurements.py.
     r = client.post(f"{API}/patients/{PID}/measurements", headers=AUTH, json=body)
-    assert r.status_code == 501  # reaches the handler: no clinical value is rejected by the API layer
+    assert r.status_code == 503 and r.json()["error"]["code"] == "database_unavailable"
 
 
 def test_m3_live_symptom_report_is_always_returned(client):

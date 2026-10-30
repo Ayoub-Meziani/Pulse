@@ -84,3 +84,19 @@ def assign(conn, doctor: uuid.UUID, patient: uuid.UUID, status: str = "active") 
     conn.execute(text("insert into public.doctor_patient_assignments (doctor_id, patient_id, status, ended_at) "
                       "values (:d, :p, :s, case when :s = 'ended' then now() end)"),
                  {"d": doctor, "p": patient, "s": status})
+
+
+@pytest.fixture
+def api(session_factory):
+    """TestClient on the real app: real token verification (test JWKS) and the test-transaction DB."""
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.main import create_app
+    app = create_app(Settings(supabase_url=SUPABASE_URL, jwks=TEST_JWKS, demo_number="+213 555 12 34 56"))
+    app.state.session_factory = session_factory
+    return TestClient(app)
+
+
+def auth_header(user_id) -> dict:
+    return {"Authorization": f"Bearer {mint(user_id)}"}

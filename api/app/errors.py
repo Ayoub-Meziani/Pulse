@@ -6,6 +6,7 @@ from typing import NoReturn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import DBAPIError, OperationalError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .schemas import ErrorOut
@@ -51,3 +52,30 @@ def install_error_handlers(app: FastAPI) -> None:
     async def _http(_: Request, exc: StarletteHTTPException):
         return JSONResponse(status_code=exc.status_code,
                             content=_body(f"http_{exc.status_code}", str(exc.detail)))
+
+    @app.exception_handler(DBAPIError)
+    async def _database(_: Request, exc: DBAPIError):
+        status, code, message, details = database_error(exc)
+        return JSONResponse(status_code=status, content=_body(code, message, details))
+
+
+# SQLSTATE -> API error. Never include the SQL statement or its parameters (they hold health values).
+_SQLSTATE = {
+    "23514": (422, "validation_failed", "A value was rejected by the database."),
+    "23503": (422, "invalid_reference", "A referenced record does not exist or belongs to another patient."),
+    "23505": (409, "conflict", "This record already exists."),
+    "22001": (422, "validation_failed", "A value is too long."),
+    "22003": (422, "validation_failed", "A number is out of range."),
+    "22P02": (422, "validation_failed", "A value has the wrong format."),
+    "42501": (403, "forbidden", "Not allowed."),
+}
+
+
+def database_error(exc: DBAPIError) -> tuple[int, str, str, dict | None]:
+    if isinstance(exc, OperationalError):
+        return 503, "database_unavailable", "Database is unavailable. Try again shortly.", None
+    orig = exc.orig
+    sqlstate = getattr(orig, "sqlstate", None)
+    status, code, message = _SQLSTATE.get(sqlstate, (500, "internal_error", "Unexpected database error."))
+    constraint = getattr(getattr(orig, "diag", None), "constraint_name", None)
+    return status, code, message, {"sqlstate": sqlstate, "constraint": constraint}
