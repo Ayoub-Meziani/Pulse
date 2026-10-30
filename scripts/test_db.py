@@ -16,12 +16,15 @@ Then run the backend tests with PULSE_TEST_DATABASE_URL set to the printed URL.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-IMAGE = "public.ecr.aws/supabase/postgres:17.11.0.003"  # build of the live project (PULSE_DATABASE_SYNC_POLICY.md)
+# Build of the live project (PULSE_DATABASE_SYNC_POLICY.md). Same official image, two registries:
+# the second is tried when the first refuses (e.g. anonymous rate limits on shared CI runners).
+IMAGES = ("public.ecr.aws/supabase/postgres:17.11.0.003", "supabase/postgres:17.11.0.003")
 PASSWORD = "pulse-test-only"
 MIGRATIONS = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
 # Last migration VERIFIED on the live project `pulse` (sync policy §5). Update only after verification.
@@ -38,6 +41,28 @@ def psql(name: str, sql: bytes, user: str = "postgres") -> subprocess.CompletedP
                   "-v", "ON_ERROR_STOP=1", "-q", "-f", "-", input=sql, check=False)
 
 
+def fail(message: str) -> None:
+    if os.getenv("GITHUB_ACTIONS"):  # visible as a public annotation on the CI run
+        print(f"::error title=test_db.py::{message.replace(chr(10), ' | ')[:900]}")
+    sys.exit(message)
+
+
+def ensure_image() -> str:
+    """Use a local copy if present; otherwise pull, retrying each registry."""
+    for image in IMAGES:
+        if docker("image", "inspect", image, check=False).returncode == 0:
+            return image
+    errors = []
+    for attempt in range(3):
+        for image in IMAGES:
+            r = docker("pull", "--quiet", image, check=False)
+            if r.returncode == 0:
+                return image
+            errors.append(f"{image}: {r.stderr.decode(errors='replace').strip()[:200]}")
+        time.sleep(5 * (attempt + 1))
+    fail("could not pull the test database image; " + " || ".join(errors[-2:]))
+
+
 def wait_ready(name: str, timeout: float = 180) -> None:
     # The image restarts Postgres once after its init scripts, so wait until auth.users is queryable twice.
     deadline, ok = time.monotonic() + timeout, 0
@@ -46,7 +71,8 @@ def wait_ready(name: str, timeout: float = 180) -> None:
         if ok >= 2:
             return
         time.sleep(2)
-    sys.exit("test database did not become ready")
+    logs = docker("logs", "--tail", "20", name, check=False)
+    fail("test database did not become ready; " + logs.stderr.decode(errors="replace")[-600:])
 
 
 def migrations(until: str | None) -> list[Path]:
@@ -59,19 +85,23 @@ def up(profile: str) -> None:
     files = migrations(until)
     if not files:
         sys.exit(f"no migrations in {MIGRATIONS}")
+    image = ensure_image()
     docker("rm", "-f", name, check=False)
-    docker("run", "-d", "--name", name, "-e", f"POSTGRES_PASSWORD={PASSWORD}",
-           "-p", f"127.0.0.1:{port}:5432", IMAGE)
+    r = docker("run", "-d", "--name", name, "-e", f"POSTGRES_PASSWORD={PASSWORD}",
+               "-p", f"127.0.0.1:{port}:5432", image, check=False)
+    if r.returncode != 0:
+        fail(f"docker run failed: {r.stderr.decode(errors='replace').strip()[:600]}")
+    print(f"[{profile}] {image}")
     wait_ready(name)
     compat = Path(__file__).with_name("test_db_auth_live.sql")  # live auth.uid()/jwt() definitions
     r = psql(name, compat.read_bytes(), user="supabase_admin")  # auth schema is not owned by postgres
     if r.returncode != 0:
-        sys.exit(f"{compat.name} failed:\n{r.stderr.decode(errors='replace')}")
+        fail(f"{compat.name} failed:\n{r.stderr.decode(errors='replace')}")
     print(f"[{profile}] applied {compat.name}")
     for f in files:
         r = psql(name, f.read_bytes())
         if r.returncode != 0:
-            sys.exit(f"migration {f.name} failed:\n{r.stderr.decode(errors='replace')}")
+            fail(f"migration {f.name} failed:\n{r.stderr.decode(errors='replace')}")
         print(f"[{profile}] applied {f.name}")
     print(f"PULSE_TEST_DATABASE_URL=postgresql+psycopg://postgres:{PASSWORD}@127.0.0.1:{port}/postgres")
 
