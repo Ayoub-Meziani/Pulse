@@ -26,7 +26,7 @@
     "dow_5",
     "dow_6"
   ],
-  "eligibility": "≥6 valid readings on ≥4 local days in the 7 days before the target day, ≥1 morning reading",
+  "eligibility": "\u22656 valid readings on \u22654 local days in the 7 days before the target day, \u22651 morning reading",
   "split": {
     "method": "patient-level 70/15/15",
     "seed": 7,
@@ -135,5 +135,46 @@
     "file": "readings.csv",
     "generator_version": "pulse-sim-v1",
     "generator_seed": 7
+  },
+  "real_tests": {
+    "mendeley_hbpm": {
+      "source": "real:mendeley_hbpm",
+      "credit": "Dvornik O, Chuiko G, Baganov Y, Shyian I (2017), Mendeley Data v1, doi:10.17632/pjcv33hpp7.1",
+      "licence": "CC BY-NC 3.0 (non-commercial, attribution)",
+      "patient": "1 treated 67-year-old man (dataset description), Microlife BP 3AG1, mean of 3 trials, 1 measurement every 3 days over 384 days",
+      "mbp_v1_applicable": false,
+      "why_not": "mbp-v1 needs >= 6 valid readings on >= 4 days in the 7 days before the target day and a morning reading; this series has 1 measurement every 3 days and no clock times",
+      "real_systolic": {
+        "n": 128,
+        "mean": 158.3,
+        "sd": 11.7,
+        "persistence_mae": 9.97,
+        "mean_last3_mae": 8.6,
+        "lag1_correlation": 0.399
+      },
+      "real_diastolic": {
+        "n": 128,
+        "mean": 84.7,
+        "sd": 6.4,
+        "persistence_mae": 5.13,
+        "mean_last3_mae": 4.67,
+        "lag1_correlation": 0.367
+      },
+      "real_pulse": {
+        "n": 128,
+        "mean": 85.6,
+        "sd": 9.7,
+        "persistence_mae": 5.46,
+        "mean_last3_mae": 4.85,
+        "lag1_correlation": 0.711
+      },
+      "synthetic_systolic_same_sampling_median_patient": {
+        "patients": 121,
+        "sd": 6.7,
+        "persistence_mae": 6.45,
+        "mean_last3_mae": 5.46,
+        "lag1_correlation": 0.24
+      }
+    }
   }
 }

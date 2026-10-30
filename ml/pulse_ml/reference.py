@@ -6,6 +6,12 @@ Nothing here decides an emergency: the deterministic backend rules do (review H6
 """
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+from pathlib import Path
+
+import numpy as np
+
 PENDING_CLINICIAN_REVIEW = True
 
 # Home BP categories [review H4]: the HOME (HBPM) column of ACC/AHA 2017 Table 11, which maps office
@@ -73,6 +79,34 @@ CONDITION_ADJUSTMENTS = {
 # Atrial fibrillation: beat-to-beat intervals are irregular, so a ring's HRV (RMSSD) says nothing about stress or
 # recovery, and wrist / finger PPG may report an irregular pulse instead (Apple Heart Study, 2019).
 NOT_INTERPRETABLE = {"atrial_fibrillation": ("hrv_rmssd",)}
+
+
+NHANES_BANDS_FILE = Path(__file__).resolve().parent / "reference_nhanes.json"   # real:nhanes (real_bands.py)
+
+
+@lru_cache(maxsize=1)
+def nhanes_bands() -> dict | None:
+    return json.loads(NHANES_BANDS_FILE.read_text(encoding="utf-8")) if NHANES_BANDS_FILE.exists() else None
+
+
+def pulse_vs_population(sex: str | None, age: int | None, mean_cuff_pulse: float | None) -> dict | None:
+    """Where a patient's mean SEATED cuff pulse sits among US adults of the same sex and age (NHANES, weighted).
+    Context for the doctor, not a threshold. Never applied to ring night heart rate (different measurement)."""
+    ref = nhanes_bands()
+    if ref is None or sex not in ("female", "male") or age is None or mean_cuff_pulse is None:
+        return None
+    groups = ref["bands"]["pulse"].get(sex, {})
+    key = next((k for k in groups if (k.endswith("+") and age >= int(k[:-1]))
+                or ("-" in k and int(k.split("-")[0]) <= age <= int(k.split("-")[1]))), None)
+    if key is None:
+        return None
+    g = groups[key]
+    qs = ref["percentiles"]
+    values = [g[f"p{q:g}"] for q in qs]
+    pct = float(np.interp(mean_cuff_pulse, values, qs, left=0.0, right=100.0))
+    return {"mean_cuff_pulse": round(float(mean_cuff_pulse), 1), "percentile": round(pct, 1), "age_band": key,
+            "band_p2_5_p97_5": [g["p2.5"], g["p97.5"]], "source": "real:nhanes 2017-2020 (US adults, weighted)",
+            "note": "seated cuff pulse vs US adults of the same sex and age band; context, not a threshold"}
 
 
 def reference_for(metric: str, conditions=()) -> dict | None:

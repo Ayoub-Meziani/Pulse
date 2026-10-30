@@ -68,6 +68,19 @@ def bp_part(conn, patient: str, start: datetime, end: datetime) -> tuple[dict, s
     return part, reference.home_bp_category(s, d), status
 
 
+def pulse_part(conn, patient: str, start: datetime, end: datetime) -> dict | None:
+    """The week's mean seated cuff pulse placed among US adults of the same sex / age (real:nhanes bands)."""
+    row = conn.execute("""
+        select avg(m.pulse), count(m.pulse), pp.sex, pp.birth_year from public.measurements m
+        join public.patient_profiles pp on pp.user_id = m.patient_id
+        where m.patient_id = %s and m.validation_status = 'valid' and m.pulse is not null
+          and m.measured_at >= %s and m.measured_at < %s group by pp.sex, pp.birth_year""",
+                       (patient, start, end)).fetchone()
+    if not row or row[1] < MIN_WEEK_READINGS or row[3] is None:
+        return None
+    return reference.pulse_vs_population(row[2], start.year - row[3], float(row[0]))
+
+
 def classifier_prob(conn, bundle, patient: str, tz: str, start: datetime, end: datetime, nights,
                     target: list) -> float | None:
     """P(next week above target) from the classifier, built with the SAME week_examples() as training."""
@@ -127,6 +140,9 @@ def run(conn, week: date | None = None) -> dict:
                            " order by target_date desc, created_at desc limit 1", (patient,)).fetchone()
         summary = {"bp_home": bp, "ring": ring_summary, "reference": "home-BP category: ACC/AHA 2017 Table 11 "
                    "(home column); pending clinician review"}
+        pulse = pulse_part(conn, patient, start, end)
+        if pulse:
+            summary["pulse_vs_population"] = pulse
         if mbp:
             summary["mbp_estimate"] = {"target_date": mbp[1].isoformat(), "systolic": float(mbp[2]),
                                        "diastolic": float(mbp[3])}
