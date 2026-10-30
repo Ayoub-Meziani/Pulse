@@ -15,13 +15,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import os
 from pathlib import Path
 
-import psycopg
-
 from . import ring
-from .predict import LOCAL_DB
+from .predict import connect
 from .train import ARTIFACTS, ROOT
 
 MIN_LABELS = 30          # reviewed personal_anomaly flags needed before any threshold change
@@ -60,7 +57,7 @@ def main() -> None:
         ok, why = gate(json.loads(a.gate.read_text(encoding="utf-8")), current)
         print(json.dumps({"gate_passed": ok, "detail": why, "deploy": "manual only"}))
         raise SystemExit(0 if ok else 1)
-    with psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB)) as conn:
+    with connect() as conn:
         print(json.dumps(export(conn, a.out)))
 
 

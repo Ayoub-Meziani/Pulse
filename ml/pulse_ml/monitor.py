@@ -11,16 +11,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import time
 from datetime import datetime, timedelta, timezone
 
 import joblib
 import pandas as pd
-import psycopg
 
 from . import ring
-from .predict import LOCAL_DB, PATIENTS
+from .predict import PATIENTS, connect
 from .train import ARTIFACTS
 
 OVERLAP = timedelta(minutes=5)
@@ -112,7 +110,7 @@ def main() -> None:
     ap.add_argument("--days", type=int, default=35)
     ap.add_argument("--every", type=float, default=5.0, help="seconds between polls in --follow")
     a = ap.parse_args()
-    with psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB), autocommit=True) as conn:
+    with connect(autocommit=True) as conn:
         if a.nights:
             print(json.dumps({"mode": "nights", "flags_written": run_nights(conn, load_forest(), a.days)}))
             return

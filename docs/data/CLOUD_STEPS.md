@@ -1,6 +1,6 @@
 # Your steps for the cloud (project `pulse`)
 
-**Status, 30 Oct 2026:** step 1 is done (the team approved; Claude ran it, and the check matched). Steps 2–5 remain. Step 2 needs the database password, so only the project owner can do it. Everything was tested on the local copy first. Open a terminal in VS Code (**Terminal → New Terminal**); it starts in `C:\Users\Lenovo\Desktop\pulse`.
+**Status, 30 Oct 2026:** steps 1–3 are done (team approved; Claude ran them and checked the cloud). Cloud: 10 BP estimates + 1 insufficient_history, 33 ring flags, 11 weekly reports (all with the classifier), 43 proposed bands; demo data unchanged. Step 5 remains. Everything was tested on the local copy first. Open a terminal in VS Code (**Terminal → New Terminal**); it starts in `C:\Users\Lenovo\Desktop\pulse`.
 
 ## Step 1: chronic conditions (M8) + ring demo data (about 2 minutes)
 ```
@@ -16,16 +16,17 @@ powershell -ExecutionPolicy Bypass -File scripts\cloud_update.ps1
 
 **If it stops:** it prints `STOPPED at: …`. Nothing is lost, so just run the same command again. It deletes only the *simulated* ring samples of the demo rings.
 
-## Step 2: give the jobs a way to reach the cloud database (once)
+## Step 2 (optional): give the jobs a way to reach the cloud database
+Not needed if the Supabase CLI is linked (`supabase link`): `run_cloud_jobs.ps1` then takes a short-lived login from the CLI, the same one `db push` uses, and never prints it. Use a `.env` line only on a machine without the CLI login.
 1. Open https://supabase.com/dashboard/project/nfmfdhpxipdndggxtqho and click **Connect** (top of the page).
 2. Choose **Session pooler**, then copy the URI. It looks like:
-   `postgresql://postgres.nfmfdhpxipdndggxtqho:[YOUR-PASSWORD]@aws-0-eu-west-3.pooler.supabase.com:5432/postgres`
+   `postgresql://postgres.nfmfdhpxipdndggxtqho:[YOUR-PASSWORD]@aws-1-eu-west-3.pooler.supabase.com:5432/postgres`
 3. Replace `[YOUR-PASSWORD]` with your **database password**.
    - Forgot it? Go to **Project Settings → Database → Reset database password**.
    - If the password has special characters (`@ : / ? # %`), use only letters and numbers when you reset it, to avoid escaping problems.
 4. Open the secrets file: `notepad .env`. Add **one line** at the end, then save:
    ```
-   DATABASE_URL=postgresql://postgres.nfmfdhpxipdndggxtqho:THE-PASSWORD@aws-0-eu-west-3.pooler.supabase.com:5432/postgres
+   DATABASE_URL=postgresql://postgres.nfmfdhpxipdndggxtqho:THE-PASSWORD@aws-1-eu-west-3.pooler.supabase.com:5432/postgres
    ```
    `.env` is git-ignored, so it never goes to GitHub. **Never paste it in chat.**
 

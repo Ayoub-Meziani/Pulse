@@ -11,17 +11,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import joblib
 import pandas as pd
-import psycopg
 from psycopg.types.json import Jsonb
 
 from . import bands, classify, reference, ring
-from .predict import LOCAL_DB, PATIENTS
+from .predict import PATIENTS, connect
 from .train import ARTIFACTS
 
 DEFAULT_TARGET = (140, 90)  # contract default when there is no active care plan
@@ -163,7 +161,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--week", type=date.fromisoformat, help="any day of the week to report (default: last full week)")
     a = ap.parse_args()
-    with psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB), autocommit=True) as conn:
+    with connect(autocommit=True) as conn:
         print(json.dumps(run(conn, a.week)))
 
 

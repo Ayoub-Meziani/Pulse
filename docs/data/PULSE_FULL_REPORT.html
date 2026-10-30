@@ -99,7 +99,7 @@
 <tr><th style="width:27%">Part</th><th style="width:13%">Status</th><th>Details</th></tr>
 <tr><td>Cloud database <code>pulse</code></td><td><span class="pill live">LIVE</span></td><td>Migrations M1–M8 applied and in sync (checked 30 Oct). 24 tables, row-level security (RLS) on every table, 52 policies, nothing granted to logged-out users, public sign-up off.</td></tr>
 <tr><td>Demo data in the cloud</td><td><span class="pill live">LIVE</span></td><td>14 accounts; 730 readings (727 valid, 2 needs_review, 1 invalid, on purpose); 316 lifestyle logs; 154 dose events; 11 care plans; 24 body measurements; 24 devices; 20,832 ring samples for all 12 patients. All labelled <code>simulated</code>. Password only in the local, git-ignored <code>.env</code>.</td></tr>
-<tr><td>ML outputs in the cloud</td><td><span class="pill none">EMPTY</span></td><td><code>ml_predictions</code>, <code>wearable_flags</code>, <code>weekly_reports</code>, <code>patient_bands</code>: 0 rows. The jobs need the cloud connection string (<code>DATABASE_URL</code>) in <code>.env</code>, then <code>scripts\run_cloud_jobs.ps1</code>. On the local copy they produce 11 predictions, 34 ring flags, 11 weekly reports and 43 band proposals.</td></tr>
+<tr><td>ML outputs in the cloud</td><td><span class="pill live">LIVE</span></td><td>Jobs ran on the cloud on 30 Oct (<code>scripts\run_cloud_jobs.ps1</code>): 10 next-day BP estimates + 1 <code>insufficient_history</code>; 33 ring flags (22 outside reference, 10 personal, 1 multivariate); 11 weekly reports, all with the classifier probability; 43 proposed bands waiting for the doctor.</td></tr>
 <tr><td>Alerts in the cloud</td><td><span class="pill prop">TO BUILD</span></td><td>0 rows. The alert rules live in the backend (FastAPI, teammate), which still runs on SQLite. The tables and the episode logic (M3) are ready.</td></tr>
 <tr><td>5 models (<code>ml/</code>, Python)</td><td><span class="pill built">BUILT</span></td><td><code>mbp-v1.1</code> next-day BP (served), <code>ring-v1.1</code> ring flags, <code>wcls-v1.1</code> weekly classifier, <code>mbp-v2.1</code> (experiment), <code>wrisk-v1</code> on real NHANES people (evaluated, not shown). Section 6.</td></tr>
 <tr><td>Real public data</td><td><span class="pill built">BUILT</span></td><td>NHANES 2017–2020 (CDC), Mendeley home-BP series, PhysioNet Apnea-ECG. Downloaded to git-ignored <code>data/external/</code> with a manifest, never committed or uploaded. Section 5.6.</td></tr>
@@ -784,7 +784,7 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <tr><td><code>... -m pulse_ml.predict --all</code> · <code>monitor --nights</code> · <code>weekly</code></td><td>The three jobs (local by default; <code>DATABASE_URL</code> for the cloud)</td></tr>
 <tr><td><code>... -m pulse_data.stream --scenario spo2_dip --minutes 1</code></td><td>Simulated live ring (refuses the cloud without <code>--i-confirmed-cloud</code>)</td></tr>
 <tr><td><code>scripts\cloud_update.ps1</code></td><td>Cloud: pending migrations + ring demo refresh + check (<span class="pill live">DONE</span> 30 Oct)</td></tr>
-<tr><td><code>scripts\run_cloud_jobs.ps1</code></td><td>Cloud: run the 3 jobs (needs <code>DATABASE_URL</code> in <code>.env</code>)</td></tr>
+<tr><td><code>scripts\run_cloud_jobs.ps1</code></td><td>Cloud: run the 3 jobs (<code>DATABASE_URL</code> from <code>.env</code>, or a temporary login from the linked Supabase CLI) (<span class="pill live">DONE</span> 30 Oct)</td></tr>
 <tr><td><code>.venv\Scripts\python -m pytest</code></td><td>All tests (local stack running)</td></tr>
 </table>
 
@@ -801,7 +801,7 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <h2>12. Next steps</h2>
 <table class="small">
 <tr><th style="width:4%">#</th><th style="width:56%">Step</th><th style="width:18%">Who</th><th>Status</th></tr>
-<tr><td>1</td><td>Add the cloud <code>DATABASE_URL</code> (Session pooler) to <code>.env</code>, then run <code>scripts\run_cloud_jobs.ps1</code> to fill the 4 ML tables; then a read-only "verify cloud"</td><td>You (password), then data/AI</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>1</td><td>Run the 3 ML jobs on the cloud to fill the 4 ML tables, then a read-only check</td><td>Data/AI</td><td><span class="pill live">DONE</span> 30 Oct</td></tr>
 <tr><td>2</td><td>Share the demo password privately; send the backend the message in <code>docs/data/CLOUD_STEPS.md</code></td><td>You</td><td><span class="pill none">OPEN</span></td></tr>
 <tr><td>3</td><td>Backend: alert rules writing to Supabase; weekly report, flag review and band approval endpoints; R-RING-1</td><td>Backend</td><td><span class="pill prop">TO BUILD</span></td></tr>
 <tr><td>4</td><td>Frontend: doctor panels for the BP estimate, ring flags, weekly report, band approval; profile fields</td><td>Frontend</td><td><span class="pill prop">TO BUILD</span></td></tr>
