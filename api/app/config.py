@@ -37,6 +37,13 @@ def _bool(value: str | None, default: bool) -> bool:
 def load_settings() -> Settings:
     env = os.getenv("PULSE_ENV", "dev")
     numbers = os.getenv("PULSE_EMERGENCY_NUMBERS")
+    if numbers:
+        try:
+            parsed = json.loads(numbers)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"PULSE_EMERGENCY_NUMBERS is not valid JSON: {exc}") from exc
+        if not isinstance(parsed, list) or not all(isinstance(n, dict) for n in parsed):
+            raise RuntimeError("PULSE_EMERGENCY_NUMBERS must be a JSON list of objects.")
     settings = Settings(
         env=env,
         database_url=os.getenv("PULSE_DATABASE_URL"),
@@ -44,7 +51,7 @@ def load_settings() -> Settings:
         supabase_anon_key=os.getenv("SUPABASE_ANON_KEY"),
         demo_mode=_bool(os.getenv("PULSE_DEMO_MODE"), True),
         demo_number=os.getenv("PULSE_DEMO_NUMBER"),
-        emergency_numbers=tuple(json.loads(numbers)) if numbers else DEFAULT_EMERGENCY_NUMBERS,
+        emergency_numbers=tuple(parsed) if numbers else DEFAULT_EMERGENCY_NUMBERS,
         primary_number_id=os.getenv("PULSE_PRIMARY_NUMBER_ID", "dz-14"),
     )
     if env != "dev" and settings.demo_mode and not settings.demo_number:

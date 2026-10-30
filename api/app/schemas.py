@@ -64,9 +64,12 @@ class SessionOut(BaseModel):
 
 # ---------------------------------------------------------------- measurements
 class MeasurementIn(BaseModel):
-    systolic: int
-    diastolic: int
-    pulse: int | None = None
+    """Bounds below are the database storage limits only (CHECK constraints), so impossible input gets
+    one consistent 422. Plausibility (e.g. systolic > 300 = invalid) is decided by the database policy
+    pulse-v1 after the reading is stored, and reported in measurement.validation_status."""
+    systolic: int = Field(ge=1, le=400)
+    diastolic: int = Field(ge=1, le=300)
+    pulse: int | None = Field(None, ge=1, le=400)
     measured_at: AwareDatetime | None = Field(None, description="Defaults to server time when omitted.")
     measured_tz: str | None = Field(None, description="IANA zone where the reading was taken; defaults to the profile time zone.")
     body_position: Position | None = None
@@ -97,13 +100,18 @@ class MeasurementOut(ORM):
 
 
 class EvaluationOut(BaseModel):
-    level: Level
-    rule_id: str | None = Field(description="Rule that decided the level, e.g. R-SEV-1, or DATA-INVALID.")
+    """Deterministic rule result, always returned in the same response as the reading or symptom report.
+
+    Reading flagged invalid by the database: level="none", rule_id="DATA-INVALID", no alert, next_step asks
+    to measure again; if the reading is above the plausibility limits (systolic > 300 or diastolic > 200)
+    requires_symptom_check is true so a typo never hides a possible crisis."""
+    level: Level = Field(description="none | notice (above target) | trend | severe (>= 180 or >= 120) | emergency (red-flag symptom).")
+    rule_id: str | None = Field(description="Rule that decided the level: R-EMG-1, R-SEV-1/2/3, R-TGT-1, R-TRD-1, or DATA-INVALID.")
     reason: str
     next_step: str
-    requires_symptom_check: bool
-    recheck_after_seconds: int | None
-    show_emergency: bool
+    requires_symptom_check: bool = Field(description="Show the symptom checklist now and POST symptom-reports.")
+    recheck_after_seconds: int | None = Field(description="If set and no red-flag symptom: show a timer, then ask for a new reading.")
+    show_emergency: bool = Field(description="Open the emergency screen immediately.")
 
 
 class AlertBrief(BaseModel):
@@ -242,14 +250,16 @@ class ProfileOut(BaseModel):
 
 
 class ProfileIn(BaseModel):
+    """PUT replaces the whole profile: every field is required (send null or [] to clear a value), so a
+    partial form can never silently erase allergies, conditions or location consent."""
     full_name: str = Field(min_length=1, max_length=120)
-    timezone: str = "Africa/Algiers"
-    birth_year: int | None = Field(None, ge=1900, le=2100)
-    relevant_conditions: list[str] = Field(default_factory=list)
-    allergies: str | None = None
-    medication_context: str | None = Field(None, description="As entered by the patient; PULSE never interprets it.")
-    regular_clinic: str | None = None
-    consent_location: bool = False
+    timezone: str = Field(description="IANA time zone, e.g. Africa/Algiers.")
+    birth_year: int | None = Field(ge=1900, le=2100)
+    relevant_conditions: list[str]
+    allergies: str | None
+    medication_context: str | None = Field(description="As entered by the patient; PULSE never interprets it.")
+    regular_clinic: str | None
+    consent_location: bool
 
 
 class TrustedContactIn(BaseModel):
@@ -281,7 +291,7 @@ class CarePlanOut(BaseModel):
     target_systolic: int
     target_diastolic: int
     is_default: bool
-    effective_from: datetime | None
+    effective_from: date | None
     review_date: date | None
     monitoring_readings_per_day: int | None
     clinician_guidance: str | None
@@ -300,7 +310,8 @@ class EmergencyNumber(BaseModel):
     id: str
     label_fr: str
     label_ar: str
-    number: str
+    number: str | None = Field(description="Null = not configured (demo mode without PULSE_DEMO_NUMBER, dev only): "
+                                           "disable the call button and show a configuration warning.")
     verified: bool = Field(description="False until the team has confirmed the number (decision D3).")
     source: str
 
@@ -430,14 +441,17 @@ class NoteOut(BaseModel):
     follow_up_at: datetime | None
 
 
+JournalCategory = Literal["symptoms", "food", "activity", "medication", "question", "other"]
+
+
 class JournalIn(BaseModel):
-    category: str = Field(min_length=1, max_length=40)
+    category: JournalCategory
     entry_text: str = Field(min_length=1, max_length=4000)
 
 
 class JournalOut(BaseModel):
     id: UUID
-    category: str
+    category: JournalCategory
     entry_text: str
     created_at: datetime
     doctor_review_status: Literal["not_reviewed", "reviewed"]

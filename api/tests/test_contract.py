@@ -24,7 +24,9 @@ PROTECTED = [
     ("GET", f"/patients/{PID}/alerts", None),
     ("GET", f"/patients/{PID}/predictions/latest", None),
     ("GET", f"/patients/{PID}/profile", None),
-    ("PUT", f"/patients/{PID}/profile", {"full_name": "Test"}),
+    ("PUT", f"/patients/{PID}/profile", {
+        "full_name": "Test", "timezone": "Africa/Algiers", "birth_year": None, "relevant_conditions": [],
+        "allergies": None, "medication_context": None, "regular_clinic": None, "consent_location": False}),
     ("GET", f"/patients/{PID}/trusted-contacts", None),
     ("POST", f"/patients/{PID}/trusted-contacts", {"name": "A", "phone": "+213 555 00 00 00", "contact_consented": True}),
     ("PATCH", f"/trusted-contacts/{CID}", {"active": False}),
@@ -129,3 +131,98 @@ def test_demo_mode_requires_a_demo_number_outside_dev(monkeypatch):
     monkeypatch.delenv("PULSE_DEMO_NUMBER", raising=False)
     with pytest.raises(RuntimeError):
         load_settings()
+
+
+# ---------------------------------------------------------------- review fixes (C1-C5, S1, S3)
+def _cfg(**kw):
+    return create_app(Settings(**kw)).state.emergency_config
+
+
+def test_c1_demo_mode_without_number_reports_null_not_empty_string():
+    c = TestClient(create_app(Settings(demo_mode=True, demo_number=None)))
+    cfg = c.get(f"{API}/config/emergency").json()
+    demo = next(n for n in cfg["numbers"] if n["id"] == "demo")
+    assert cfg["primary_number_id"] == "demo" and demo["number"] is None
+
+
+def test_c2_unknown_primary_number_id_stops_startup():
+    with pytest.raises(RuntimeError, match="matches none"):
+        _cfg(demo_mode=False, primary_number_id="nope")
+
+
+def test_c2_malformed_numbers_stop_startup():
+    with pytest.raises(RuntimeError, match="Invalid PULSE_EMERGENCY_NUMBERS"):
+        _cfg(demo_mode=False, emergency_numbers=({"id": "x"},))
+    with pytest.raises(RuntimeError, match="Duplicate"):
+        _cfg(demo_mode=False, primary_number_id="a", emergency_numbers=(
+            {"id": "a", "label_fr": "A", "label_ar": "A", "number": "1", "verified": False, "source": "s"},
+            {"id": "a", "label_fr": "B", "label_ar": "B", "number": "2", "verified": False, "source": "s"}))
+
+
+def test_c2_primary_without_number_outside_demo_stops_startup():
+    with pytest.raises(RuntimeError, match="has no number"):
+        _cfg(demo_mode=False, primary_number_id="a", emergency_numbers=(
+            {"id": "a", "label_fr": "A", "label_ar": "A", "number": None, "verified": False, "source": "s"},))
+
+
+def test_c2_demo_mode_without_number_stops_startup_outside_dev():
+    with pytest.raises(RuntimeError, match="PULSE_DEMO_NUMBER"):
+        _cfg(env="prod", demo_mode=True, demo_number=None)
+
+
+def test_c2_invalid_json_env_stops_startup(monkeypatch):
+    from app.config import load_settings
+    monkeypatch.setenv("PULSE_EMERGENCY_NUMBERS", "{not json")
+    with pytest.raises(RuntimeError, match="not valid JSON"):
+        load_settings()
+
+
+def _schema(client, name):
+    return client.get(f"{API}/openapi.json").json()["components"]["schemas"][name]
+
+
+def test_c3_care_plan_effective_from_is_a_date(client):
+    prop = _schema(client, "CarePlanOut")["properties"]["effective_from"]
+    assert {"type": "string", "format": "date"} in prop["anyOf"]
+
+
+def test_c4_journal_category_matches_database_values(client):
+    cats = set(_schema(client, "JournalIn")["properties"]["category"]["enum"])
+    assert cats == {"symptoms", "food", "activity", "medication", "question", "other"}
+    r = client.post(f"{API}/patients/{PID}/journal", headers=AUTH, json={"category": "worry", "entry_text": "x"})
+    assert r.status_code == 422
+
+
+def test_c5_profile_put_rejects_partial_bodies(client):
+    r = client.put(f"{API}/patients/{PID}/profile", headers=AUTH, json={"full_name": "Only a name"})
+    assert r.status_code == 422
+    missing = {d["field"] for d in r.json()["error"]["details"]}
+    assert {"allergies", "relevant_conditions", "consent_location", "timezone"} <= missing
+
+
+def test_s1_evaluation_and_event_replay_are_documented(client):
+    spec = client.get(f"{API}/openapi.json").json()
+    ev = spec["components"]["schemas"]["EvaluationOut"]
+    assert "DATA-INVALID" in ev["description"] and "requires_symptom_check" in ev["description"]
+    responses = spec["paths"][f"{API}/patients/{{patient_id}}/emergency-events"]["post"]["responses"]
+    assert {"200", "201"} <= set(responses)
+
+
+@pytest.mark.parametrize("body", [
+    {"systolic": 0, "diastolic": 80}, {"systolic": 401, "diastolic": 80},
+    {"systolic": 120, "diastolic": 0}, {"systolic": 120, "diastolic": 301},
+    {"systolic": 120, "diastolic": 80, "pulse": 0}, {"systolic": 120, "diastolic": 80, "pulse": 401},
+])
+def test_s3_values_outside_database_storage_limits_get_invalid_request(client, body):
+    r = client.post(f"{API}/patients/{PID}/measurements", headers=AUTH, json=body)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_request"
+
+
+@pytest.mark.parametrize("body", [
+    {"systolic": 400, "diastolic": 300, "pulse": 400},  # storable; the DB marks it invalid, rules still prompt
+    {"systolic": 310, "diastolic": 205},                # implausible but storable -> DATA-INVALID + symptom check
+    {"systolic": 250, "diastolic": 150},                # severe, needs_review -> still evaluated by the rules
+])
+def test_s3_storable_extreme_readings_reach_the_handler(client, body):
+    r = client.post(f"{API}/patients/{PID}/measurements", headers=AUTH, json=body)
+    assert r.status_code == 501  # reaches the handler: no clinical value is rejected by the API layer

@@ -416,7 +416,7 @@
           "effective_from": {
             "anyOf": [
               {
-                "format": "date-time",
+                "format": "date",
                 "type": "string"
               },
               {
@@ -1133,8 +1133,16 @@
             "type": "string"
           },
           "number": {
-            "title": "Number",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null = not configured (demo mode without PULSE_DEMO_NUMBER, dev only): disable the call button and show a configuration warning.",
+            "title": "Number"
           },
           "source": {
             "title": "Source",
@@ -1244,8 +1252,10 @@
         "type": "object"
       },
       "EvaluationOut": {
+        "description": "Deterministic rule result, always returned in the same response as the reading or symptom report.\n\nReading flagged invalid by the database: level=\"none\", rule_id=\"DATA-INVALID\", no alert, next_step asks\nto measure again; if the reading is above the plausibility limits (systolic > 300 or diastolic > 200)\nrequires_symptom_check is true so a typo never hides a possible crisis.",
         "properties": {
           "level": {
+            "description": "none | notice (above target) | trend | severe (>= 180 or >= 120) | emergency (red-flag symptom).",
             "enum": [
               "none",
               "notice",
@@ -1273,9 +1283,11 @@
                 "type": "null"
               }
             ],
+            "description": "If set and no red-flag symptom: show a timer, then ask for a new reading.",
             "title": "Recheck After Seconds"
           },
           "requires_symptom_check": {
+            "description": "Show the symptom checklist now and POST symptom-reports.",
             "title": "Requires Symptom Check",
             "type": "boolean"
           },
@@ -1288,10 +1300,11 @@
                 "type": "null"
               }
             ],
-            "description": "Rule that decided the level, e.g. R-SEV-1, or DATA-INVALID.",
+            "description": "Rule that decided the level: R-EMG-1, R-SEV-1/2/3, R-TGT-1, R-TRD-1, or DATA-INVALID.",
             "title": "Rule Id"
           },
           "show_emergency": {
+            "description": "Open the emergency screen immediately.",
             "title": "Show Emergency",
             "type": "boolean"
           }
@@ -1349,8 +1362,14 @@
       "JournalIn": {
         "properties": {
           "category": {
-            "maxLength": 40,
-            "minLength": 1,
+            "enum": [
+              "symptoms",
+              "food",
+              "activity",
+              "medication",
+              "question",
+              "other"
+            ],
             "title": "Category",
             "type": "string"
           },
@@ -1371,6 +1390,14 @@
       "JournalOut": {
         "properties": {
           "category": {
+            "enum": [
+              "symptoms",
+              "food",
+              "activity",
+              "medication",
+              "question",
+              "other"
+            ],
             "title": "Category",
             "type": "string"
           },
@@ -1495,6 +1522,7 @@
         "type": "object"
       },
       "MeasurementIn": {
+        "description": "Bounds below are the database storage limits only (CHECK constraints), so impossible input gets\none consistent 422. Plausibility (e.g. systolic > 300 = invalid) is decided by the database policy\npulse-v1 after the reading is stored, and reported in measurement.validation_status.",
         "properties": {
           "arm": {
             "anyOf": [
@@ -1540,6 +1568,8 @@
             "title": "Context"
           },
           "diastolic": {
+            "maximum": 300.0,
+            "minimum": 1.0,
             "title": "Diastolic",
             "type": "integer"
           },
@@ -1571,6 +1601,8 @@
           "pulse": {
             "anyOf": [
               {
+                "maximum": 400.0,
+                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -1591,6 +1623,8 @@
             "title": "Rested 5 Min"
           },
           "systolic": {
+            "maximum": 400.0,
+            "minimum": 1.0,
             "title": "Systolic",
             "type": "integer"
           }
@@ -2144,6 +2178,7 @@
         "type": "object"
       },
       "ProfileIn": {
+        "description": "PUT replaces the whole profile: every field is required (send null or [] to clear a value), so a\npartial form can never silently erase allergies, conditions or location consent.",
         "properties": {
           "allergies": {
             "anyOf": [
@@ -2170,7 +2205,6 @@
             "title": "Birth Year"
           },
           "consent_location": {
-            "default": false,
             "title": "Consent Location",
             "type": "boolean"
           },
@@ -2211,13 +2245,20 @@
             "type": "array"
           },
           "timezone": {
-            "default": "Africa/Algiers",
+            "description": "IANA time zone, e.g. Africa/Algiers.",
             "title": "Timezone",
             "type": "string"
           }
         },
         "required": [
-          "full_name"
+          "full_name",
+          "timezone",
+          "birth_year",
+          "relevant_conditions",
+          "allergies",
+          "medication_context",
+          "regular_clinic",
+          "consent_location"
         ],
         "title": "ProfileIn",
         "type": "object"
@@ -4660,6 +4701,16 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyEventOut"
+                }
+              }
+            },
+            "description": "An event with this client-generated id already exists; it is returned unchanged (safe retry)."
+          },
           "201": {
             "content": {
               "application/json": {
@@ -4668,7 +4719,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Event created."
           },
           "401": {
             "content": {

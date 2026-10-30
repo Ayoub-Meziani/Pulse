@@ -29,6 +29,7 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] =
                   openapi_url=f"{API_PREFIX}/openapi.json", docs_url=f"{API_PREFIX}/docs")
     app.state.settings = settings
     app.state.clock = clock
+    app.state.emergency_config = emergency.build_config(settings)  # fails fast on a broken configuration
     install_error_handlers(app)
 
     @app.get(f"{API_PREFIX}/health", tags=["meta"])
