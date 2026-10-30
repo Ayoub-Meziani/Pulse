@@ -73,9 +73,9 @@ Both as new files after `20261029120100`, never edits of applied files. Tests in
 
 ## 7. Order of work on `feat/api-supabase` (each step tested and committed)
 
-1. Test DB scripts + `conftest.py` fixtures (auth users, roles, assignment, ES256 test key). Smoke test: migrations applied, profile trigger works.
-2. `db.py` (engine, session per request, claims setter) + mapped models (§1) + `vocab.py`.
-3. Auth: JWKS verification, `/auth/login` + `/auth/refresh` via GoTrue (mocked in tests), `/me`, `permissions.py` (A8 matrix tests).
+1. **Done** (`feat/api-supabase` `93a4e0a`, `31fc5e7`): `scripts/test_db.py` (live image 17.11.0.003 + `scripts/test_db_auth_live.sql` + all migrations, ~11 s), rollback-per-test fixtures, ES256 test key. Finding: the plain image's `auth.uid()` ignores `request.jwt.claims`; the test DB now gets the live definitions.
+2. **Done** (`93a4e0a`, `31fc5e7`): `db.py`, 14 mapped models checked column-by-column against the migrated DB, `vocab.py` checked against the DB CHECKs. Finding: `measurements.created_by` must be read back from the trigger (fixed).
+3. **Done** (`31fc5e7`): JWKS ES256/RS256 verification, GoTrue proxy for login/refresh, `/me`, `permissions.py`; 178 tests pass with the test DB (M1–M5 applied there; M5 not yet on `pulse`).
 4. Measurements POST/GET with DB validation, `DATA-INVALID` handling, error-code mapping (23505/23514/23503).
 5. Rules wiring and alert persistence (create / attach / raise); symptom reports; alerts list/detail; transitions.
 6. Doctor list, summary, profile, trusted contacts, care-plan GET, emergency card.
