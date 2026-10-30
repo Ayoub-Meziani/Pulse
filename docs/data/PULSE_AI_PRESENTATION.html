@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PULSE Data and AI</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  :root { --ink:#0b0b0b; --ink2:#52514e; --muted:#898781; --grid:#e1e0d9; --axis:#c3c2b7; --blue:#2a78d6; --orange:#eb6834; --aqua:#1baf7a; --red:#d03b3b; --soft:#f7f7f4; }
+  html, body { margin: 0; background: #fff; color: var(--ink); font-family: "Segoe UI", Arial, sans-serif; }
+  body { counter-reset: s; }
+  .slide { width: 13.333in; height: 7.5in; box-sizing: border-box; padding: 0.5in 0.7in 0.75in; position: relative; overflow: hidden; page-break-after: always; counter-increment: s; }
+  .slide:last-child { page-break-after: auto; }
+  .kicker { font-size: 12.5pt; color: var(--blue); font-weight: 700; text-transform: uppercase; letter-spacing: 1.6px; margin-bottom: 4px; }
+  h1 { font-size: 31pt; margin: 0 0 0.25in; font-weight: 700; letter-spacing: -0.3px; line-height: 1.15; }
+  h3 { font-size: 17.5pt; margin: 0 0 8px; }
+  p, li { font-size: 17pt; line-height: 1.36; margin: 0 0 8px; }
+  ul { margin: 0; padding-left: 1.2em; }
+  li { margin-bottom: 7px; }
+  .small, .small li { font-size: 14.5pt; }
+  .muted { color: var(--ink2); }
+  b.k { color: var(--blue); }
+  .foot { position: absolute; bottom: 0.28in; left: 0.7in; right: 0.7in; font-size: 10pt; color: var(--muted); display: flex; justify-content: space-between; border-top: 1px solid var(--grid); padding-top: 6px; }
+  .foot .pg::after { content: counter(s); }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45in; }
+  .g2w { display: grid; grid-template-columns: 1.25fr 1fr; gap: 0.4in; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.18in; }
+  .tile { border: 1px solid var(--grid); border-radius: 10px; padding: 14px 16px; background: var(--soft); }
+  .tile .n { font-size: 36pt; font-weight: 700; line-height: 1.1; }
+  .tile .l { font-size: 13.5pt; color: var(--ink2); margin-top: 2px; }
+  .tile.hi { border-color: var(--blue); background: #f1f6fd; }
+  .banner { background: #fff3ea; border-left: 5px solid var(--orange); padding: 9px 15px; font-size: 14.5pt; border-radius: 4px; margin-bottom: 14px; }
+  .note { background: var(--soft); border-left: 5px solid var(--blue); padding: 9px 15px; font-size: 14.5pt; border-radius: 4px; }
+  .pill { display: inline-block; font-size: 10.5pt; font-weight: 700; padding: 2px 9px; border-radius: 9px; color: #fff; white-space: nowrap; }
+  .live { background: var(--aqua); } .built { background: var(--blue); } .local { background: var(--orange); } .todo { background: #6b6a65; } .miss { background: var(--red); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5pt; }
+  th { text-align: left; color: var(--ink2); font-weight: 600; border-bottom: 2px solid var(--axis); padding: 6px 8px; }
+  td { border-bottom: 1px solid var(--grid); padding: 7px 8px; vertical-align: top; }
+  code { font-family: Consolas, monospace; font-size: 0.9em; background: #f0efea; padding: 0 4px; border-radius: 3px; }
+  .flow { display: flex; align-items: stretch; gap: 8px; }
+  .box { flex: 1; border: 1.5px solid var(--axis); border-radius: 10px; padding: 12px 14px; background: #fff; }
+  .box h3 { font-size: 16pt; }
+  .box p, .box li { font-size: 14pt; }
+  .arrow { align-self: center; font-size: 24pt; color: var(--muted); }
+  .chart-cap { font-size: 13pt; color: var(--ink2); margin: 6px 0 0; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+  .title { background: #0f2540; color: #fff; padding: 0.9in 0.9in; }
+  .title .kicker { color: #8fc1ff; }
+  .title { padding-top: 1.6in; }
+  .title h1 { font-size: 54pt; margin-bottom: 0.15in; }
+  .title .sub { font-size: 23pt; color: #dbe7f7; margin-bottom: 0.6in; }
+  .title .meta { font-size: 16pt; color: #b8c9e0; line-height: 1.5; }
+  .title .foot { color: #8aa0bd; border-top-color: #2b4466; }
+  .presenter { border-top: 6px solid var(--orange); }
+  .tag { display: inline-block; font-size: 10pt; font-weight: 700; color: var(--orange); border: 1.5px solid var(--orange); border-radius: 6px; padding: 1px 8px; margin-left: 10px; vertical-align: middle; letter-spacing: 0.5px; }
+  ol li { margin-bottom: 7px; }
+  .dense td, .dense li, .dense p { font-size: 13.5pt; }
+  .dense td { padding: 5px 8px; }
+  .dense li { margin-bottom: 5px; }
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="slide title">
+  <div class="kicker">Hypertension monitoring prototype</div>
+  <h1>PULSE: Data &amp; AI</h1>
+  <div class="sub">What we built, what it shows, and what is still missing</div>
+  <div class="meta">Data + AI/ML workstream · 30 October 2026<br>Prototype: all patient data is simulated and labelled. Real public datasets are used only to calibrate and check.</div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <div class="kicker">The idea</div>
+  <h1>Data flows to the doctor; the AI helps them see earlier</h1>
+  <div class="flow">
+    <div class="box"><h3>1 · Measurements</h3><ul><li>Blood-pressure cuff readings</li><li>Ring / bracelet: heart rate, HRV, SpO2, skin temperature</li><li>Symptoms, lifestyle, medication doses</li></ul></div>
+    <div class="arrow">→</div>
+    <div class="box"><h3>2 · Secure database</h3><ul><li>Supabase (Postgres 17) in the cloud</li><li>Every row checked on the way in</li><li>Each role sees only what it may see</li></ul></div>
+    <div class="arrow">→</div>
+    <div class="box" style="border-color:var(--blue)"><h3>3 · AI jobs</h3><ul><li>Tomorrow's BP estimate</li><li>Ring night monitor</li><li>Live early warning (every minute)</li><li>Weekly doctor report</li></ul></div>
+    <div class="arrow">→</div>
+    <div class="box"><h3>4 · Doctor</h3><ul><li>Sees estimates, flags, weekly report</li><li>Reviews flags</li><li>Approves each patient's personal range</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:0.3in"><b>Rule we never break:</b> the AI only informs the doctor. Alerts come from fixed medical rules in the backend; the AI never raises an alarm, diagnoses, or touches medication, and patients see no AI output.</p>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <div class="kicker">At a glance</div>
+  <h1>What exists today</h1>
+  <div class="tiles">
+    <div class="tile"><div class="n">24</div><div class="l">database tables, row-level security on every one (52 policies)</div></div>
+    <div class="tile hi"><div class="n">6</div><div class="l">AI models built, tested and documented (model cards)</div></div>
+    <div class="tile"><div class="n">4</div><div class="l">real public datasets used for calibration and checks</div></div>
+    <div class="tile"><div class="n">95</div><div class="l">automated tests, all passing</div></div>
+    <div class="tile"><div class="n">14</div><div class="l">demo accounts in the cloud (12 patients, 1 doctor, 1 admin)</div></div>
+    <div class="tile"><div class="n">730</div><div class="l">demo BP readings (simulated, labelled)</div></div>
+    <div class="tile"><div class="n">20,832</div><div class="l">simulated ring samples: 12 patients × 28 nights</div></div>
+    <div class="tile"><div class="n">30</div><div class="l">days of day-by-day testing on patients no model had seen</div></div>
+  </div>
+  <p style="margin-top:0.3in"><b>AI outputs already in the cloud database:</b> 10 next-day BP estimates (+1 "not enough history"), 33 ring flags, 11 weekly doctor reports, 43 personal ranges proposed to the doctor.</p>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <div class="kicker">Database</div>
+  <h1>One secure database for patients, doctors and AI</h1>
+  <div class="g2w">
+    <div>
+      <table>
+        <tr><th style="width:30%">Area</th><th>What it holds</th></tr>
+        <tr><td><b>People</b></td><td>profiles, patient details (age, conditions, habits), doctor–patient assignments, body measurements</td></tr>
+        <tr><td><b>Blood pressure</b></td><td>readings with source (manual, CSV, device, simulated), validity check, duplicate protection</td></tr>
+        <tr><td><b>Daily life</b></td><td>lifestyle logs, medications and doses, symptoms, journal for the doctor</td></tr>
+        <tr><td><b>Ring</b></td><td>devices, ring samples (heart rate, HRV, SpO2, skin temperature)</td></tr>
+        <tr><td><b>Care</b></td><td>care plans (BP targets), alerts with episodes</td></tr>
+        <tr><td><b>AI outputs</b></td><td>BP estimates, ring flags and early warnings, weekly reports, personal ranges</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Security and quality</h3>
+      <ul class="small">
+        <li>Row-level security on all 24 tables; nothing for logged-out users; public sign-up off</li>
+        <li>Doctors see only their assigned patients</li>
+        <li>Patients cannot read any AI output</li>
+        <li>A trigger checks every reading (ranges, systolic &gt; diastolic)</li>
+        <li>Simulated data must be labelled "simulated"; the database rejects it otherwise</li>
+      </ul>
+      <h3 style="margin-top:14px">Built in 9 steps (migrations)</h3>
+      <p class="small">M1 schema · M2 access rules · M3 backend alignment · M4 AI predictions · M5 birth year · M6 Algerian risk factors + wearables · M7 AI monitoring · M8 chronic conditions <span class="pill live">CLOUD</span><br>M9 live early warnings <span class="pill local">LOCAL ONLY</span></p>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <div class="kicker">Data</div>
+  <h1>Simulated where no real data exists, real where it does</h1>
+  <div class="g2">
+    <div>
+      <h3>Simulated (always labelled)</h3>
+      <ul class="small">
+        <li><b>Demo patients:</b> 12 fictional patients with stories (sleep apnea, COPD, atrial fibrillation, rising BP)</li>
+        <li><b>Training cohort:</b> 200 patients × 90 days. Day-to-day BP variation matched to a <b>real</b> home-BP series (variation 10.0 vs 10.0 mmHg)</li>
+        <li><b>Unseen test cohort:</b> 100 new patients, used only for the 30-day test</li>
+        <li><b>Ring data:</b> built from published values (normal ranges, apnea, COPD)</li>
+        <li><b>Live nights:</b> 700 + 700 minute-by-minute nights with situations (oxygen falling, fever, bad sleep, loose ring…)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Real public data (statistics only, never uploaded)</h3>
+      <table class="small">
+        <tr><th>Dataset</th><th>Used for</th></tr>
+        <tr><td>NHANES 2017–2020 (CDC, US adults)</td><td>population pulse / BP bands; risk model training</td></tr>
+        <tr><td>NHANES 2021–2023</td><td>external test on new real people</td></tr>
+        <tr><td>Mendeley home BP (1 patient, 128 readings)</td><td>made the simulator realistic</td></tr>
+        <tr><td>PhysioNet Apnea-ECG (8 real nights)</td><td>checked the ring oxygen rule</td></tr>
+      </table>
+      <p class="small muted" style="margin-top:10px">No open dataset has daily home BP for many patients. That is why the BP models are trained on calibrated simulation.</p>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <div class="kicker">Models</div>
+  <h1>Six models, each answering one question</h1>
+  <table>
+    <tr><th style="width:13%">Model</th><th style="width:31%">Question</th><th style="width:34%">Method</th><th>Status</th></tr>
+    <tr><td><b>mbp-v1.1</b></td><td>What will tomorrow morning's BP be?</td><td>ridge regression on the last 7 days + a 90 % range</td><td><span class="pill live">SERVED</span> doctor view</td></tr>
+    <tr><td><b>ring-v1.1</b></td><td>Was tonight unusual for this patient?</td><td>medical limits + the patient's own 28-day normal + IsolationForest</td><td><span class="pill live">SERVED</span> flags</td></tr>
+    <tr><td><b>wcls-v1.1</b></td><td>Will next week be above the BP target?</td><td>logistic regression</td><td><span class="pill live">SERVED</span> weekly report</td></tr>
+    <tr><td><b>live-v1</b></td><td>Will a limit be crossed in the next 20 minutes?</td><td>gradient boosting, checked on every new minute</td><td><span class="pill built">BUILT</span> needs M9 in cloud</td></tr>
+    <tr><td><b>mbp-v2.1</b></td><td>Does ring data improve the BP estimate?</td><td>mbp + ring features</td><td><span class="pill todo">EXPERIMENT</span> no real gain</td></tr>
+    <tr><td><b>wrisk-v1</b></td><td>Is BP uncontrolled despite treatment?</td><td>trained on 2,309 <b>real</b> people (NHANES)</td><td><span class="pill todo">HIDDEN</span> too weak</td></tr>
+  </table>
+  <p class="small muted" style="margin-top:12px">All in Python (pandas, scikit-learn). Small, explainable models, each compared against a simple baseline. Patients are split so no test patient was seen in training.</p>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <div class="kicker">Next-day blood pressure · mbp-v1.1</div>
+  <h1>Beats the simple methods on every one of 30 test days</h1>
+  <div class="g2w">
+    <div>
+      <svg viewBox="0 0 720 220" width="100%" role="img" aria-label="Systolic error: same as yesterday 9.50, 7-day mean 8.41, mbp-v1.1 7.88 mmHg">
+<text x="278" y="36.0" font-size="21" text-anchor="end" fill="#0b0b0b">Same as yesterday</text>
+<path d="M290,8 h281.0 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-281.0 z" fill="#b9b8b0"/>
+<text x="585.0" y="36.0" font-size="21" fill="#52514e">9.50 mmHg</text>
+<text x="278" y="106.0" font-size="21" text-anchor="end" fill="#0b0b0b">7-day mean</text>
+<path d="M290,78 h248.3 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-248.3 z" fill="#b9b8b0"/>
+<text x="552.3" y="106.0" font-size="21" fill="#52514e">8.41 mmHg</text>
+<text x="278" y="176.0" font-size="21" text-anchor="end" fill="#0b0b0b" font-weight="700">mbp-v1.1 (ours)</text>
+<path d="M290,148 h232.4 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-232.4 z" fill="#2a78d6"/>
+<text x="536.4" y="176.0" font-size="21" fill="#0b0b0b" font-weight="700">7.88 mmHg</text>
+<line x1="290" y1="2" x2="290" y2="214" stroke="#c3c2b7" stroke-width="1"/></svg>
+      <p class="chart-cap">Systolic error, mean absolute (mmHg); lower is better. 2,271 patient-days, 2–31 March, 100 patients no model had seen.</p>
+    </div>
+    <div>
+      <ul class="small">
+        <li><b>Day-by-day test:</b> each day, the frozen model sees only earlier days, exactly as in real use</li>
+        <li>Lower error than "same as yesterday" on <b>30 / 30</b> days, and than the 7-day mean on <b>28 / 30</b></li>
+        <li>Diastolic error 4.56 mmHg (7-day mean 4.83)</li>
+        <li>The 90 % range contained the true value <b>90.7 %</b> of the time</li>
+        <li>Shown to the doctor as "model estimate (synthetic training data)"</li>
+      </ul>
+      <p class="banner" style="margin-top:12px">Synthetic test patients. Real accuracy needs consented daily home readings from PULSE users.</p>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <div class="kicker">Ring night monitor · ring-v1.1</div>
+  <h1>The patient's own normal finds what fixed limits miss</h1>
+  <div class="g2w">
+    <div>
+      <svg viewBox="0 0 720 220" width="100%" role="img" aria-label="Events found of 14: medical limits 6, IsolationForest 9, personal normal 13">
+<text x="278" y="36.0" font-size="21" text-anchor="end" fill="#0b0b0b">Medical limits only</text>
+<path d="M290,8 h124.6 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-124.6 z" fill="#b9b8b0"/>
+<text x="428.6" y="36.0" font-size="21" fill="#52514e">6 / 14</text>
+<text x="278" y="106.0" font-size="21" text-anchor="end" fill="#0b0b0b">IsolationForest</text>
+<path d="M290,78 h188.9 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-188.9 z" fill="#b9b8b0"/>
+<text x="492.9" y="106.0" font-size="21" fill="#52514e">9 / 14</text>
+<text x="278" y="176.0" font-size="21" text-anchor="end" fill="#0b0b0b" font-weight="700">Personal normal (ours)</text>
+<path d="M290,148 h274.6 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-274.6 z" fill="#2a78d6"/>
+<text x="578.6" y="176.0" font-size="21" fill="#0b0b0b" font-weight="700">13 / 14</text>
+<line x1="290" y1="2" x2="290" y2="214" stroke="#c3c2b7" stroke-width="1"/></svg>
+      <p class="chart-cap">Planted events found out of 14 (30-day test, 2,703 simulated nights). Other flags per patient-week: limits only 1.12, IsolationForest 0.08, personal normal 0.22.</p>
+    </div>
+    <div>
+      <ul class="small">
+        <li><b>Three checks each night:</b> medical limits (SpO2 &lt; 94 %, resting heart rate &gt; 100), the patient's own 28-day normal, and an anomaly detector</li>
+        <li><b>Conditions change the rules:</b> COPD → SpO2 limit 88 %; atrial fibrillation → HRV ignored</li>
+        <li><b>Real check (PhysioNet):</b> the oxygen rule flagged <b>4 / 4</b> real sleep-apnea nights and <b>0 / 3</b> healthy nights</li>
+        <li>Flags go to the doctor to confirm or dismiss; they never create alerts</li>
+      </ul>
+      <p class="banner" style="margin-top:12px">Events were planted in simulated data. The real check is 8 nights from a sleep-lab oximeter, not a ring.</p>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <div class="kicker">Weekly doctor loop · wcls-v1.1</div>
+  <h1>Every week the doctor gets a report, and the doctor stays in charge</h1>
+  <div class="flow">
+    <div class="box"><h3>1 · Nights checked</h3><p>ring flags written for the doctor</p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h3>2 · Weekly report</h3><p>home BP category, control vs target, chance next week is above target, pulse vs people of the same age and sex (NHANES)</p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h3>3 · Model proposes</h3><p>a personal range per ring metric</p></div>
+    <div class="arrow">→</div>
+    <div class="box" style="border-color:var(--blue)"><h3>4 · Doctor decides</h3><p>approves, edits or rejects; next nights are judged against the doctor's range</p></div>
+  </div>
+  <div class="g2" style="margin-top:0.3in">
+    <div class="tiles" style="grid-template-columns:1fr 1fr">
+      <div class="tile hi"><div class="n">0.963</div><div class="l">AUROC, wcls-v1.1 (30-day test, 400 predictions)</div></div>
+      <div class="tile"><div class="n">0.881</div><div class="l">AUROC, "status stays the same"</div></div>
+    </div>
+    <div>
+      <p class="small"><b>Honest limit:</b> it ranks patients well, but it can't predict the weeks where the status <i>changes</i>. So it is shown as "how close to the target line", not as a forecast of change.</p>
+      <p class="small muted">Doctor-reviewed flags become labels. A retuned model must still find the known events, and it is never deployed automatically.</p>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <div class="kicker">Live early warning · live-v1</div>
+  <h1>Warns the doctor 17–20 minutes <i>before</i> a limit is crossed</h1>
+  <p class="banner"><b>SIMULATOR-ONLY RESULTS:</b> 700 + 700 simulated nights. Not real-world or clinical validation.</p>
+  <div class="g2w" style="grid-template-columns:1.65fr 1fr">
+    <div>
+      <svg viewBox="0 0 720 230" width="100%" role="img" aria-label="One unseen simulated night with falling oxygen: the live engine warned at 02:22, 17 minutes before SpO2 crossed 94 %; the existing rule flagged it at 02:51.">
+<g stroke="#e1e0d9" stroke-width="1"><line x1="46" y1="196.0" x2="700" y2="196.0"/><line x1="46" y1="153.5" x2="700" y2="153.5"/><line x1="46" y1="111.0" x2="700" y2="111.0"/><line x1="46" y1="68.5" x2="700" y2="68.5"/><line x1="46" y1="26.0" x2="700" y2="26.0"/></g>
+<g font-size="11" fill="#898781" text-anchor="end"><text x="40" y="199.0">90</text><text x="40" y="156.5">92</text><text x="40" y="114.0">94</text><text x="40" y="71.5">96</text><text x="40" y="29.0">98</text></g>
+<line x1="46" y1="196" x2="700" y2="196" stroke="#c3c2b7"/>
+<g font-size="11" fill="#898781" text-anchor="middle"><text x="113.2" y="210">01:40</text><text x="235.5" y="210">02:00</text><text x="357.7" y="210">02:20</text><text x="480.0" y="210">02:40</text><text x="602.2" y="210">03:00</text></g>
+<line x1="46" y1="111.0" x2="700" y2="111.0" stroke="#52514e" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="700" y="106.0" font-size="11" fill="#52514e" text-anchor="end">limit 94 %</text>
+<path d="M46.0,55.8 L52.1,55.8 L58.2,60.0 L64.3,60.0 L70.4,60.0 L76.6,57.9 L82.7,47.2 L88.8,47.2 L94.9,47.2 L101.0,49.4 L107.1,55.8 L113.2,55.8 L119.3,45.1 L125.5,45.1 L131.6,53.6 L137.7,53.6 L143.8,51.5 L149.9,47.2 L156.0,47.2 L162.1,51.5 L168.2,51.5 L174.4,55.8 L180.5,55.8 L186.6,64.2 L192.7,64.2 L198.8,47.2 L204.9,47.2 L211.0,47.2 L217.1,45.1 L223.3,45.1 L229.4,57.9 L235.5,60.0 L241.6,57.9 L247.7,51.5 L253.8,51.5 L259.9,62.1 L266.0,62.1 L272.1,55.8 L278.3,51.5 L284.4,51.5 L290.5,49.4 L296.6,49.4 L302.7,49.4 L308.8,53.6 L314.9,57.9 L321.0,57.9 L327.2,62.1 L333.3,66.4 L339.4,70.6 L345.5,70.6 L351.6,70.6 L357.7,68.5 L363.8,79.1 L369.9,68.5 L376.1,79.1 L382.2,72.8 L388.3,83.4 L394.4,79.1 L400.5,79.1 L406.6,79.1 L412.7,79.1 L418.8,85.5 L425.0,85.5 L431.1,85.5 L437.2,85.5 L443.3,87.6 L449.4,94.0 L455.5,98.3 L461.6,98.3 L467.7,98.3 L473.9,98.3 L480.0,87.6 L486.1,87.6 L492.2,87.6 L498.3,104.6 L504.4,104.6 L510.5,104.6 L516.6,100.4 L522.7,113.1 L528.9,113.1 L535.0,115.3 L541.1,115.3 L547.2,123.7 L553.3,123.7 L559.4,123.7 L565.5,123.7 L571.6,108.9 L577.8,138.6 L583.9,138.6 L590.0,138.6 L596.1,132.2 L602.2,132.2 L608.3,138.6 L614.4,138.6 L620.5,138.6 L626.7,121.6 L632.8,121.6 L638.9,138.6 L645.0,140.8 L651.1,142.9 L657.2,159.9 L663.3,162.0 L669.4,172.6 L675.6,172.6 L681.7,166.2 L687.8,166.2 L693.9,128.0 L700.0,128.0" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/>
+<line x1="290.5" y1="20" x2="290.5" y2="196" stroke="#898781" stroke-width="1.5"/>
+
+<line x1="369.9" y1="20" x2="369.9" y2="196" stroke="#2a78d6" stroke-width="1.5"/>
+
+<line x1="473.9" y1="20" x2="473.9" y2="196" stroke="#d03b3b" stroke-width="1.5"/>
+
+<line x1="547.2" y1="20" x2="547.2" y2="196" stroke="#eb6834" stroke-width="1.5"/>
+
+<text x="46" y="14" font-size="11" fill="#898781">SpO2 %, 3-minute median · warned 17 min before the limit, 29 min before the old rule</text>
+<text x="294.5" y="30" font-size="10.5" stroke="#fff" stroke-width="3" paint-order="stroke" fill="#0b0b0b">decline starts 02:09</text>
+<text x="373.9" y="42" font-size="10.5" stroke="#fff" stroke-width="3" paint-order="stroke" fill="#0b0b0b">EARLY WARNING 02:22</text>
+<text x="477.9" y="54" font-size="10.5" stroke="#fff" stroke-width="3" paint-order="stroke" fill="#0b0b0b">true value crosses 02:39</text>
+<text x="551.2" y="66" font-size="10.5" stroke="#fff" stroke-width="3" paint-order="stroke" fill="#0b0b0b">old rule fires 02:51</text>
+</svg>
+      <p class="chart-cap">One unseen simulated night with falling oxygen, replayed minute by minute.</p>
+    </div>
+    <div>
+      <table class="small">
+        <tr><th>Situation</th><th>warned before</th><th>how early</th></tr>
+        <tr><td>oxygen falling</td><td><b>93.5 %</b></td><td>~17 min</td></tr>
+        <tr><td>heart rate climbing</td><td><b>97.1 %</b></td><td>~20 min</td></tr>
+        <tr><td>fever starting</td><td><b>94.5 %</b></td><td>~17 min</td></tr>
+      </table>
+      <ul class="small" style="margin-top:10px">
+        <li>The current "limit crossed" rule reacts 7–9 min <b>after</b></li>
+        <li>False warnings: about 1 in 25 normal nights</li>
+        <li>Restless nights: 95 % warned, typically by 01:00</li>
+        <li>About 44 ms per new minute per patient</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 11 -->
+<section class="slide">
+  <div class="kicker">Honesty about real data</div>
+  <h1>When a model was too weak on real people, we hid it</h1>
+  <div class="g2">
+    <div>
+      <h3>wrisk-v1 on real NHANES data</h3>
+      <ul class="small">
+        <li>Trained on <b>2,309 real</b> treated US adults: can risk factors tell whose BP is uncontrolled?</li>
+        <li>Tested on a later survey it never saw (2021–2023, <b>1,851 people</b>)</li>
+        <li>AUROC <b>0.596</b> vs 0.565 for age + sex alone: stable, but too weak</li>
+        <li>Not shown to doctors, because a near-random score would mislead</li>
+      </ul>
+      <p class="note" style="margin-top:12px"><b>Lesson:</b> risk factors can't tell whose BP is controlled. Control has to be <b>measured</b>, which is exactly what PULSE does.</p>
+    </div>
+    <div>
+      <h3>What is and isn't validated</h3>
+      <table class="small">
+        <tr><th>Claim</th><th>Evidence</th></tr>
+        <tr><td>Simulator realism</td><td>matched to a real home-BP series</td></tr>
+        <tr><td>Ring oxygen rule</td><td>8 real sleep-lab nights</td></tr>
+        <tr><td>Next-day BP, weekly classifier</td><td>unseen <b>simulated</b> patients only</td></tr>
+        <tr><td>Live early warning</td><td><b>simulated</b> nights only</td></tr>
+      </table>
+      <p class="small muted" style="margin-top:10px">Next step for every model: consented real PULSE data, re-test by patient and over time, then drift monitoring.</p>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 12 -->
+<section class="slide">
+  <div class="kicker">Safety by design</div>
+  <h1>Designed so the AI never acts on its own</h1>
+  <div class="g2">
+    <ul class="small">
+      <li><b>Advisory only:</b> AI output goes to the doctor, never to the patient (enforced in the database)</li>
+      <li><b>Fixed rules decide alerts</b> in the backend: BP ≥ 180/120 and red-flag symptoms; ring rule R-RING-1 proposed</li>
+      <li><b>Emergency number 14</b> (Protection civile); never dialled in tests or the demo</li>
+      <li><b>No medication advice</b> anywhere</li>
+      <li><b>Every simulated row is labelled</b>; real datasets used as statistics only, under their licences</li>
+      <li>Every model has a model card: data, method, results, limits</li>
+    </ul>
+    <div>
+      <h3>Clinician review</h3>
+      <p class="small"><span class="pill live">DONE</span> Medical mentor, 30 Oct: alert thresholds 180/120, red flags, SpO2 94 % (COPD 88 %), band rule, patient wording</p>
+      <p class="small"><span class="pill local">PENDING</span> live-v1 thresholds and timings (P thresholds HR 0.35 / SpO2 0.45 / temperature 0.85, 20-min horizon, 2 minutes in a row, 30-min quiet period, 2-min freshness, restless P ≥ 0.7), ring personal limit z 3.5, R-RING-1</p>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 13 -->
+<section class="slide dense">
+  <div class="kicker">Status</div>
+  <h1>What is done, what is waiting, what is missing</h1>
+  <table>
+    <tr><th style="width:16%">Status</th><th>Item</th><th style="width:20%">Who</th></tr>
+    <tr><td><span class="pill live">LIVE</span></td><td>Cloud database (M1–M8), demo data, AI outputs (estimates, flags, reports, proposed ranges)</td><td>Data/AI</td></tr>
+    <tr><td><span class="pill built">BUILT</span></td><td>6 models, daily / nightly / weekly jobs, live engine, 95 tests, model cards, full 21-page report</td><td>Data/AI</td></tr>
+    <tr><td><span class="pill local">WAITING</span></td><td>M9 (live early warnings) in the cloud; confirmation of the 30 Oct cloud operations; review of the cloud access method</td><td>Ayoub</td></tr>
+    <tr><td><span class="pill local">WAITING</span></td><td>Clinician review of the live-v1 parameters, ring z 3.5, R-RING-1</td><td>Medical mentor</td></tr>
+    <tr><td><span class="pill todo">TO BUILD</span></td><td>Backend: alert rules writing to Supabase; endpoints for weekly report, flag review (incl. early warnings), range approval; R-RING-1; set number 14 as verified</td><td>Backend</td></tr>
+    <tr><td><span class="pill todo">TO BUILD</span></td><td>Frontend: doctor panels for estimate, ring flags, early warnings, weekly report, range approval</td><td>Frontend</td></tr>
+    <tr><td><span class="pill miss">MISSING</span></td><td>A real device (validated upper-arm cuff, ring) and its adapter; a server to run the live monitor 24/7</td><td>Team</td></tr>
+    <tr><td><span class="pill miss">MISSING</span></td><td>Real, consented patient data, needed to measure real accuracy</td><td>Team, later</td></tr>
+  </table>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 14 -->
+<section class="slide presenter dense">
+  <div class="kicker">For you <span class="tag">PRESENTER ONLY · SKIP WHEN PROJECTING</span></div>
+  <h1>What you need to do</h1>
+  <div class="g2">
+    <div>
+      <h3>Before / around the presentation</h3>
+      <ol class="small">
+        <li><b>Get Ayoub's reply:</b> confirm the 30 Oct cloud operations, review the CLI-login access method, OK pushing M9 to the cloud. The evidence is in <code>docs/data/CLOUD_RUN_LOG_2026-10-30.md</code>.</li>
+        <li><b>Paste items 1–3</b> of the review note; only item 4 onward reached me.</li>
+        <li><b>Send the demo password privately</b> to teammates: the <code>PULSE_DEMO_PASSWORD=</code> line in <code>.env</code>. Never in GitHub.</li>
+        <li><b>Send the backend message</b> in <code>docs/data/CLOUD_STEPS.md</code> (step 5).</li>
+        <li><b>Ask the mentor</b> to review the pending list (<code>ml/MODEL_CARD.md</code>).</li>
+        <li><b>Team decision:</b> which real device (validated upper-arm cuff recommended).</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Optional live demo (your laptop)</h3>
+      <ol class="small">
+        <li>Start <b>Docker Desktop</b> and wait until it's running (the local database starts with it).</li>
+        <li>Terminal 1, in <code>ml\</code>:<br><code>..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5</code></li>
+        <li>Terminal 2, in the repo root:<br><code>.venv\Scripts\python -m pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6</code></li>
+        <li>An <code>early_warning</code> row appears before the "limit crossed" flag.</li>
+      </ol>
+      <p class="small muted">It adds simulated rows to your <b>local</b> database only. Never point it at the cloud.</p>
+      <h3 style="margin-top:12px">Files to open if asked</h3>
+      <p class="small"><code>docs/data/PULSE_FULL_REPORT.pdf</code> (every detail) · <code>ml/MODEL_CARD.md</code></p>
+    </div>
+  </div>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+<!-- 15 -->
+<section class="slide presenter">
+  <div class="kicker">For you <span class="tag">PRESENTER ONLY</span></div>
+  <h1>Likely questions, short answers</h1>
+  <table style="font-size:13.5pt">
+    <tr><th style="width:30%">Question</th><th>Answer</th></tr>
+    <tr><td>Is this real patient data?</td><td>No. All patient data is simulated and labelled. Real public data was used to make the simulator realistic and to check the rules.</td></tr>
+    <tr><td>How accurate is it?</td><td>On 100 unseen simulated patients, next-day systolic error is 7.9 mmHg, better than simple methods on every one of 30 days. Real accuracy needs consented PULSE data.</td></tr>
+    <tr><td>Can the AI raise an alarm?</td><td>No. Alerts come from fixed medical rules in the backend. The AI only informs the doctor; patients never see it.</td></tr>
+    <tr><td>Why not deep learning?</td><td>Little data, and doctors need to understand the output. Small models beat simple baselines and are easy to explain.</td></tr>
+    <tr><td>You have no ring. How do you know it works?</td><td>Ring data is simulated from published values, and the oxygen rule was checked on 8 real sleep-lab nights (4/4 apnea flagged, 0/3 healthy).</td></tr>
+    <tr><td>Did any model fail?</td><td>Yes: the real-data risk model (AUROC 0.60) was too weak, so we hid it. A first live forecaster never warned; we replaced it.</td></tr>
+    <tr><td>What happens next?</td><td>Real device, consented data, re-test every model on real people, clinician review of the pending thresholds, drift monitoring.</td></tr>
+  </table>
+  <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
+</section>
+
+</body>
+</html>
