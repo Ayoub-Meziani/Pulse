@@ -1,13 +1,14 @@
 """Emergency configuration, emergency card and emergency events (incident records).
 
 PULSE never claims a call or share succeeded: actions are stored as "tapped"/"opened" with
-confirmed=false. The doctor reviews incidents later; nobody is notified in real time.
+confirmed=false. The doctor reviews incidents later; nobody is notified in real time. Events never
+change alerts, and the card and events never include doctor notes.
 """
 from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import ValidationError
 
 from ..analysis.rules import RED_FLAG_SYMPTOMS, SEVERE_DIASTOLIC, SEVERE_SYSTOLIC
@@ -16,12 +17,15 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, current_user
 from ..config import DEMO_NUMBER_ID, Settings
 from ..db import require_session
-from ..errors import AUTH_RESPONSES, not_implemented
+from ..errors import AUTH_RESPONSES
+from ..models import EmergencyEvent
 from ..permissions import require_patient_access
-from ..services import patient_data
+from ..services import emergency_events as events, patient_data
+from ..services.measurements import list_readings
 from ..schemas import (ClientFallback, EmergencyActionsIn, EmergencyCardOut, EmergencyConfigOut,
                        EmergencyEventIn, EmergencyEventOut, EmergencyEventPatch, EmergencyNumber,
-                       EmergencyReportOut)
+                       EmergencyReportOut, MeasurementOut, SymptomReportOut)
+from .alerts import alert_out
 
 CONFIG_VERSION = "1"
 DISCLAIMER_FR = ("PULSE n'appelle pas les secours automatiquement et ne prévient pas votre médecin en temps réel. "
@@ -84,28 +88,56 @@ def emergency_card(patient_id: UUID, request: Request, user: CurrentUser = Depen
              responses={200: {"model": EmergencyEventOut,
                               "description": "An event with this client-generated id already exists; it is returned unchanged (safe retry)."},
                         201: {"description": "Event created."}})
-def create_event(patient_id: UUID, body: EmergencyEventIn):
-    not_implemented()
+def create_event(patient_id: UUID, body: EmergencyEventIn, request: Request, response: Response,
+                 user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
+    require_patient_access(db, user, patient_id, write=True)
+    event, created = events.create_event(db, user, body, request.app.state.clock())
+    if not created:
+        response.status_code = 200
+    return events.event_out(event)
 
 
-@router.get("/patients/{patient_id}/emergency-events", response_model=list[EmergencyEventOut])
-def list_events(patient_id: UUID):
-    not_implemented()
+@router.get("/patients/{patient_id}/emergency-events", response_model=list[EmergencyEventOut],
+            summary="Emergency events, newest first (patient or assigned doctor)")
+def list_events(patient_id: UUID, user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
+    require_patient_access(db, user, patient_id)
+    return [events.event_out(e) for e in events.list_events(db, patient_id)]
+
+
+def _own_event(db: Session, user: CurrentUser, event_id: UUID) -> EmergencyEvent:
+    event = events.get_event(db, event_id)
+    require_patient_access(db, user, event.patient_id, write=True)  # only the patient changes their event
+    return events.get_event(db, event_id, lock=True)  # serialise concurrent retries of the same event
 
 
 @router.post("/emergency-events/{event_id}/actions", response_model=EmergencyEventOut,
              summary="Patient: append actions; known client_action_id values are ignored")
-def add_actions(event_id: UUID, body: EmergencyActionsIn):
-    not_implemented()
+def add_actions(event_id: UUID, body: EmergencyActionsIn, request: Request,
+                user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
+    event = _own_event(db, user, event_id)
+    return events.event_out(events.add_actions(db, event, body, request.app.state.clock()))
 
 
 @router.patch("/emergency-events/{event_id}", response_model=EmergencyEventOut,
               summary="Patient: location (only with consent), outcome, end time")
-def patch_event(event_id: UUID, body: EmergencyEventPatch):
-    not_implemented()
+def patch_event(event_id: UUID, body: EmergencyEventPatch, request: Request,
+                user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
+    event = _own_event(db, user, event_id)
+    return events.event_out(events.patch_event(db, event, body, request.app.state.clock()))
 
 
 @router.get("/emergency-events/{event_id}/report", response_model=EmergencyReportOut,
             summary="Event, linked alert, readings and symptom reports within ±24 h")
-def event_report(event_id: UUID):
-    not_implemented()
+def event_report(event_id: UUID, user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
+    event = events.get_event(db, event_id)
+    require_patient_access(db, user, event.patient_id)
+    alert, reports = events.report_context(db, event)
+    window = events.REPORT_WINDOW
+    readings = list_readings(db, event.patient_id, event.started_at - window, event.started_at + window,
+                             1000, include_invalid=False)
+    return EmergencyReportOut(
+        event=events.event_out(event), alert=alert_out(alert) if alert else None,
+        readings=[MeasurementOut.model_validate(m) for m in readings],
+        symptom_reports=[SymptomReportOut(id=r.id, patient_id=r.patient_id, symptoms=r.symptoms, measurement_id=None,
+                                          onset_at=r.onset_at, reported_at=r.reported_at, source=r.source)
+                         for r in reports])

@@ -409,10 +409,14 @@ class EmergencyActionOut(BaseModel):
     action: ActionType
     at: datetime
     detail: str | None
-    confirmed: Literal[False] = Field(False, description="PULSE cannot verify that a call or share happened.")
+    confirmed: Literal[False] = Field(False, description=(
+        "Always false. An action is what the patient tapped or opened (an attempt). PULSE has no call, SMS or "
+        "dispatch integration: it never knows that a call connected, a message was sent or delivered, or help "
+        "was dispatched."))
 
 
 class EmergencyEventOut(BaseModel):
+    """An incident record: the emergency screen was opened. It does not mean anyone was called or notified."""
     id: UUID
     patient_id: UUID
     trigger_reason: TriggerReason
@@ -440,6 +444,7 @@ class NoteIn(BaseModel):
 
 
 class NoteOut(BaseModel):
+    """Assigned doctors see every note. The patient sees only notes with advice or a follow-up date, with note=null."""
     id: UUID
     doctor_id: UUID
     doctor_name: str

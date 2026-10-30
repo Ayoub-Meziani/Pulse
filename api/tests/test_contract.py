@@ -69,7 +69,11 @@ BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/p
          ("POST", f"/patients/{PID}/trusted-contacts"), ("PATCH", f"/trusted-contacts/{CID}"),
          ("DELETE", f"/trusted-contacts/{CID}"), ("GET", f"/patients/{PID}/care-plan"),
          ("PUT", f"/patients/{PID}/care-plan"), ("GET", f"/patients/{PID}/emergency-card"),  # test_patient_data.py
-         ("GET", f"/patients/{PID}/predictions/latest")}  # test_predictions.py
+         ("GET", f"/patients/{PID}/predictions/latest"),  # test_predictions.py
+         ("POST", f"/patients/{PID}/emergency-events"), ("GET", f"/patients/{PID}/emergency-events"),
+         ("POST", f"/emergency-events/{EID}/actions"), ("PATCH", f"/emergency-events/{EID}"),
+         ("GET", f"/emergency-events/{EID}/report"),  # test_emergency_events.py
+         ("GET", f"/patients/{PID}/notes"), ("POST", f"/patients/{PID}/notes")}  # test_notes.py
 UNBUILT = [p for p in PROTECTED if (p[0], p[1]) not in BUILT]
 
 

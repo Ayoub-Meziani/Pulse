@@ -682,7 +682,7 @@
           "confirmed": {
             "const": false,
             "default": false,
-            "description": "PULSE cannot verify that a call or share happened.",
+            "description": "Always false. An action is what the patient tapped or opened (an attempt). PULSE has no call, SMS or dispatch integration: it never knows that a call connected, a message was sent or delivered, or help was dispatched.",
             "title": "Confirmed",
             "type": "boolean"
           },
@@ -953,6 +953,7 @@
         "type": "object"
       },
       "EmergencyEventOut": {
+        "description": "An incident record: the emergency screen was opened. It does not mean anyone was called or notified.",
         "properties": {
           "actions": {
             "items": {
@@ -1915,6 +1916,7 @@
         "type": "object"
       },
       "NoteOut": {
+        "description": "Assigned doctors see every note. The patient sees only notes with advice or a follow-up date, with note=null.",
         "properties": {
           "advice": {
             "anyOf": [
@@ -4852,7 +4854,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "List Events",
+        "summary": "Emergency events, newest first (patient or assigned doctor)",
         "tags": [
           "emergency"
         ]
