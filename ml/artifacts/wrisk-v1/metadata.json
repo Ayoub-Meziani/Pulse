@@ -1,0 +1,136 @@
+{
+  "model_version": "wrisk-v1",
+  "algorithm": "logistic_regression",
+  "features": [
+    "age",
+    "female",
+    "bmi",
+    "waist",
+    "smoking_current",
+    "smoking_former",
+    "diabetes",
+    "high_cholesterol",
+    "kidney_disease",
+    "copd",
+    "heart_failure",
+    "stroke"
+  ],
+  "trained_on": "real:nhanes (NHANES 2017-March 2020 pre-pandemic (CDC / NCHS))",
+  "credit": "National Center for Health Statistics, NHANES 2017-March 2020 pre-pandemic data files",
+  "terms": "NCHS data user agreement: statistical analysis only; no re-identification; no linkage (https://www.cdc.gov/nchs/data_access/restrictions.htm)",
+  "population": "US adults 18+ taking prescribed BP medicine, >= 2 valid exam readings",
+  "label": "mean exam BP >= 140/90 (systolic OR diastolic) = uncontrolled",
+  "split": {
+    "method": "person-level 70/15/15",
+    "seed": 7,
+    "train_people": 1616,
+    "val_people": 346,
+    "test_people": 347,
+    "test_uncontrolled_rate_weighted": 0.309
+  },
+  "validation_auroc_weighted": {
+    "logistic_regression": 0.5679,
+    "hist_gradient_boosting": 0.5111
+  },
+  "test": {
+    "model": {
+      "n": 347,
+      "positives": 128,
+      "brier": 0.2251,
+      "balanced_accuracy": 0.528,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          216,
+          3
+        ],
+        [
+          119,
+          9
+        ]
+      ],
+      "auroc": 0.601,
+      "auroc_ci95": [
+        0.54,
+        0.664
+      ],
+      "balanced_accuracy_ci95": [
+        0.507,
+        0.551
+      ],
+      "auroc_weighted": 0.623,
+      "calibration_quintiles": [
+        {
+          "predicted_mean": 0.219,
+          "observed_rate": 0.314,
+          "n": 70
+        },
+        {
+          "predicted_mean": 0.293,
+          "observed_rate": 0.261,
+          "n": 69
+        },
+        {
+          "predicted_mean": 0.337,
+          "observed_rate": 0.391,
+          "n": 69
+        },
+        {
+          "predicted_mean": 0.381,
+          "observed_rate": 0.406,
+          "n": 69
+        },
+        {
+          "predicted_mean": 0.459,
+          "observed_rate": 0.471,
+          "n": 70
+        }
+      ]
+    },
+    "baseline_age_sex": {
+      "n": 347,
+      "positives": 128,
+      "brier": 0.227,
+      "balanced_accuracy": 0.5,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          219,
+          0
+        ],
+        [
+          128,
+          0
+        ]
+      ],
+      "auroc": 0.622,
+      "auroc_ci95": [
+        0.559,
+        0.683
+      ],
+      "balanced_accuracy_ci95": [
+        0.5,
+        0.5
+      ],
+      "auroc_weighted": 0.611
+    }
+  },
+  "limitations": "US population (not Algerian); office-type exam BP (not home BP); self-reported diagnoses; cross-sectional (one visit): an association with control, not a forecast. Advisory only.",
+  "odds_ratio_per_unit": {
+    "age": 1.016,
+    "female": 1.376,
+    "bmi": 0.972,
+    "waist": 1.005,
+    "smoking_current": 1.232,
+    "smoking_former": 0.925,
+    "diabetes": 1.293,
+    "high_cholesterol": 0.755,
+    "kidney_disease": 1.324,
+    "copd": 0.62,
+    "heart_failure": 0.745,
+    "stroke": 1.373
+  },
+  "sensitivity_130_80": {
+    "test_auroc_weighted": 0.624,
+    "uncontrolled_rate_weighted": 0.5
+  },
+  "trained_at": "2026-10-30T07:14:26+00:00"
+}

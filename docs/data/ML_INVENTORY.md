@@ -7,11 +7,20 @@
 |---|---|
 | Notebooks | none (scripts only) |
 | Training / feature / evaluation code | `ml/pulse_ml/train.py`, `features.py` |
-| Trained model | `ml/artifacts/mbp-v1/model.joblib` (ridge, 2.6 KB) + `metadata.json` |
-| Metrics, model card | `ml/MODEL_CARD.md`: test systolic MAE 5.23 mmHg vs 5.68 (7-day mean) and 6.30 (yesterday), synthetic |
+| Trained model | `ml/artifacts/mbp-v1.1/model.joblib` (ridge, 2.6 KB) + `metadata.json` |
+| Metrics, model card | `ml/MODEL_CARD.md`: `mbp-v1.1` (trained on `pulse-sim-v2`, BP variation calibrated on real home BP) test systolic MAE 7.75 mmHg vs 8.29 (7-day mean) and 9.56 (yesterday) |
 | `ml_predictions` table | migration M4, live in the cloud |
 | Batch job | `python -m pulse_ml.predict --all`; no HTTP endpoint (the backend reads the table) |
 | ML libraries | numpy, pandas, scikit-learn, joblib (pinned in `ml/requirements.txt`) |
+
+**ML phase 2 (30 Oct 2026, built as required by the backend review `PULSE_ML_phase2_review.pdf`):**
+| Model / job | Status | Result (synthetic) |
+|---|---|---|
+| `ring-v1.1` ring monitor (reference / personal baseline / IsolationForest) + `monitor --nights` / `--follow` | built, local | personal baseline catches 10 / 11 injected episodes at 0.22 false flags per patient-week; reference ranges alone catch 3 / 11 |
+| `wcls-v1.1` weekly classifier → `weekly_reports` | built, local | AUROC 0.977 vs 0.907 for "status persists", but no skill on weeks where the status changes |
+| `mbp-v2.1` (with ring features) | experiment, **not served** | 7.71 vs 7.75 mmHg; no real gain |
+| weekly doctor loop (reports, band proposals, `approve_band`, feedback gate) | built, local | verified end to end in tests |
+| migration M7 | **live in the cloud** (30 Oct, after approval) | tables are empty until the jobs run on the cloud (needs `DATABASE_URL`) |
 
 Sections 2–5 below are the original plan; the implementation follows it. Differences: lifestyle features are left out of the MVP (team contract §4), and the interval is split-conformal.
 

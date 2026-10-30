@@ -3,3 +3,6 @@ numpy==2.5.4
 pandas==3.1.0
 scikit-learn==1.9.1
 joblib==1.6.0
+# real public datasets (pulse_ml.real_data): PhysioNet records, Mendeley .xls files
+wfdb==4.3.1
+xlrd==2.0.2

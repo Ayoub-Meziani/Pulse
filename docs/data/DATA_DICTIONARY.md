@@ -2,7 +2,7 @@
 
 Source of truth: `supabase/migrations/`. PostgreSQL 17 on Supabase. All timestamps are `timestamptz` (stored UTC, converted with the patient's `profiles.timezone` / `measurements.measured_tz`). Blood pressure is **mmHg**, pulse **bpm**, sodium **mg**.
 
-Prototype only: fictional data, thresholds pending clinician review.
+Prototype only: fictional data. Alert thresholds, SpO2 limits, the band rule and wording were reviewed by the team's medical mentor on 30 Oct 2026; the validation limits (`pulse-v1`) are engineering defaults.
 
 ## Provenance: keep these separate
 | Kind | Where | Rule |
@@ -31,7 +31,7 @@ One row per `auth.users` account, created by trigger.
 Patient-only (trigger-enforced). `relevant_conditions text[]`, `allergies`, `medication_context` (free text for the emergency card), `regular_doctor_id` → doctor profile, `regular_clinic`, `emergency_preferences jsonb`, `consent_location bool`, `data_consent_at`, `birth_year` (M5, year only, 1900–2100, patient-entered). No full date of birth (data minimisation).
 M6 adds:
 - `sex` (female / male) and `smoking_status` (never / former / current).
-- `condition_codes` (controlled list: hypertension, diabetes, dyslipidemia, chronic_kidney_disease, heart_disease, stroke_history, pregnancy).
+- `condition_codes` (controlled list: hypertension, diabetes, dyslipidemia, chronic_kidney_disease, heart_disease, stroke_history, pregnancy; M8 adds copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease). COPD and atrial fibrillation change how ring values are judged (ml/README.md).
 - Salt habits: `bread_portions_per_day` 0–20, plus `adds_salt_at_table` and `salty_processed_food` (never / rarely / sometimes / often / always).
 
 ### body_measurements (M6)
@@ -140,6 +140,13 @@ doctor_id, patient_id, note, advice, follow_up_at. Readable by assigned doctors 
 
 ### ml_predictions (M4)
 Model estimates, never measurements. `target_date` (patient-local), `target` = morning_mean_bp, `status` ok|insufficient_history (values present iff ok), predicted systolic/diastolic + interval, `model_version`, `trained_on` (e.g. `synthetic:pulse-sim-v1`), `features_until`, `n_readings_used`. Unique per (patient, date, model). **Assigned doctors and admin only**; written by the ML batch job.
+
+### wearable_flags, patient_bands, weekly_reports (M7, advisory, doctor / admin only)
+- **wearable_flags:** the ring monitor's flags, reviewed by the doctor (confirmed / dismissed). Never alerts, never a safety trigger. Since M9 they also include **early warnings** (`kind = early_warning`, `window_kind = forecast`): the live engine `live-v1` expects a limit to be crossed within 20 minutes (`score` = probability, `value` = forecast), or `metric = sleep` (the night is going badly).
+- **patient_bands:** personal ring ranges. The model proposes; only the doctor activates, via `private.approve_band`.
+- **weekly_reports:** the weekly summary for the doctor: home-BP category, control vs the care-plan target, model outputs, and the ring summary.
+
+Field lists and access: [MIGRATIONS.md](MIGRATIONS.md) (M7, M9).
 
 ### trusted_contacts / emergency_events
 Contacts: name, relationship, phone, consented_at, active. Emergency events: trigger_reason, symptoms_snapshot, location only if `location_shared_with_consent`, `actions_attempted` `[{action, at, confirmed}]` (`confirmed` only when actually verified), reported_outcome, started/ended.
