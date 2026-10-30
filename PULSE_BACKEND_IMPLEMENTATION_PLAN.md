@@ -106,8 +106,8 @@ Contract v1 (task 1.1) comes first and unblocks the frontend for the whole seque
 | `GET /patients/{id}/emergency-card` (#9) | Composed from profiles, patient_profiles, first active trusted contact, latest non-invalid reading, regular doctor name. |
 
 **Files:** `api/app/services/alerts.py`, `api/app/routers/alerts.py`, new `api/app/routers/emergency.py`, `api/app/services/emergency.py`, `api/app/config.py`, `api/app/analysis/rules.py` (red flags from vocab, thresholds unchanged), `api/app/analysis/texts.py` (French wording if D6 confirmed; `DATA-INVALID` texts).
-**Tables:** alerts, alert_measurements (**M3 required**), symptom_reports, measurements, patient_profiles, trusted_contacts.
-**Depends on:** M3 (data/AI). D3 for real numbers (not for code).
+**Tables:** alerts, alert_measurements (M3, live), symptom_reports, measurements, patient_profiles, trusted_contacts.
+**Depends on:** nothing schema-side (M3 live). D3 for real numbers (not for code).
 **Tests:** port the existing API tests (severe → symptom → same alert raised with audit; symptom with normal BP → emergency; repeat severe within 15 min → attached + persistent; trend after 3 readings); transitions allowed/forbidden incl. note required; config shape and `verified:false` default; card permissions and content; T1–T16 analysis vectors unchanged.
 **Acceptance:** the conception's crisis demo (186/118 → symptom check → chest pain → emergency, single alert in doctor view) passes end to end on Postgres.
 
@@ -133,8 +133,8 @@ Contract v1 (task 1.1) comes first and unblocks the frontend for the whole seque
 | `GET /patients/{id}/predictions/latest` (#24) | Doctor only (patient → 403). Latest row by `target_date` then `created_at`; none → `model_unavailable`; `insufficient_history` passed through; fixed limitation text. |
 
 **Files:** new `api/app/routers/predictions.py`, models mapping `ml_predictions`.
-**Tables:** ml_predictions (**M4 required**).
-**Depends on:** M4; data/AI batch job for real rows (endpoint testable with inserted fixture rows before that).
+**Tables:** ml_predictions (M4, live).
+**Depends on:** rows from the data/AI batch job `pulse_ml.predict` (model `mbp-v1`, exists on `AI`); tests use fixture rows.
 **Tests:** doctor ok; patient 403; unassigned doctor 403; empty → `model_unavailable`; the endpoint never touches alerts.
 **Acceptance:** after the batch job runs on the seed, a demo patient shows `status=ok` with model version and "synthetic" label.
 
@@ -150,7 +150,7 @@ Contract v1 (task 1.1) comes first and unblocks the frontend for the whole seque
 
 **Files:** `api/app/routers/emergency.py`, `api/app/services/emergency.py`, new `api/app/routers/followup.py`, `api/app/services/followup.py`.
 **Tables:** emergency_events, alerts, measurements, symptom_reports, doctor_notes, journal_entries.
-**Depends on:** exact `emergency_events` columns (M3 item 7).
+**Depends on:** nothing (columns verified live).
 **Tests:** duplicate event id → 200 same event; duplicate action ignored; location without consent → 422; doctor reads report; patient cannot read another patient's event; patient never sees `note`.
 **Acceptance:** demo flow "emergency screen opened → call tapped → share opened → outcome reported" appears in the doctor's incident report with correct wording.
 

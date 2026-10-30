@@ -60,10 +60,10 @@ All facts VERIFIED with `git fetch --all` and `git log/ls-tree/diff` on 2026-10-
 **Recommendation:** `frontend/` (the frontend developer's app) is the only app. Do not push `feat/web-scaffold` as a second app. The frontend developer ports from it what saves time: `src/api/client.ts` + generated `schema.d.ts` (Vite compiles `.ts` inside a JS project without extra setup), `src/flow.ts` + its tests, and the Vite proxy block. `CLAUDE.md` ownership changes from `web/` to `frontend/`.
 
 Gaps in `frontend/` against contract v1 (for the frontend developer):
-- Profile: `firstName/lastName` → `full_name`; `age` → `birth_year` (M3); `emergencyContact` → trusted contacts; `doctorName` → `regular_doctor_name` (read-only), `doctorPhone` not stored (use `regular_clinic`); patient's own `phone` not stored.
+- Profile: `firstName/lastName` → `full_name`; `age` → `birth_year` (M5, pending review); `emergencyContact` → trusted contacts; `doctorName` → `regular_doctor_name` (read-only), `doctorPhone` not stored (use `regular_clinic`); patient's own `phone` not stored.
 - Patient dashboard "État du capteur" card: no device integration exists; show "Saisie manuelle" instead of a sensor status.
 - Alerts page: alerts come from `GET /patients/{id}/alerts`; unread = `open`; there are no informational "new measurement recorded" notifications in the API.
-- Doctor dashboard: `age` from `PatientListItem.age` (null until M3); sort is done by the API.
+- Doctor dashboard: `age` from `PatientListItem.age` (null until M5 is applied and the patient enters a birth year); sort is done by the API.
 - Missing screens for the MVP: login, Add reading + symptom check + recheck timer, emergency screen (offline cache, `tel:` to `primary_number_id`, trusted contact, card), urgent "Urgence" button.
 
 ## 5. Recommended merge order (Ayoub decides)

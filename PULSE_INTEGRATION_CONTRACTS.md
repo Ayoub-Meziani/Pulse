@@ -1,7 +1,7 @@
 # PULSE integration contracts (v1, proposed)
 
 Status: **encoded** in `api/app/schemas.py` → `contract/openapi.json` on branch `feat/api-contract-v1` (`fb0acc9`, 34 operations, 49 schemas; most handlers return 501 until the database integration). OpenAPI is the machine-readable source of truth; this file is its summary. Database columns referenced here are **VERIFIED** identical on branch `AI` (`supabase/migrations/`) and the live project `pulse` (`PULSE_BRANCH_RECONCILIATION.md` §3).
-Additions while encoding: `UserOut.timezone`; `PatientListItem.age`, `ProfileOut.birth_year/email/regular_doctor_name`, `EmergencyCardOut.age` (age needs `patient_profiles.birth_year`, M3); `NoteOut.doctor_name`; `TrustedContactPatch`; `SymptomResult.report` nullable; `GET /patients/{id}/emergency-events`.
+Additions while encoding: `UserOut.timezone`; `PatientListItem.age`, `ProfileOut.birth_year/email/regular_doctor_name`, `EmergencyCardOut.age` (age needs `patient_profiles.birth_year`, M5 pending review); `NoteOut.doctor_name`; `TrustedContactPatch`; `SymptomResult.report` nullable; `GET /patients/{id}/emergency-events`.
 
 ---
 
@@ -111,11 +111,9 @@ Rules for `invalid` readings: stored (append-only), `evaluation.level = none`, `
 **Symptoms**
 ```
 SymptomReportIn  {symptoms: [Symptom] (empty = none of these), measurement_id?: uuid, onset_at?: datetime, notes?: str ≤1000}
-# Live DB CHECK requires cardinality(symptoms) > 0 (VERIFIED LIVE). M3 item 6 relaxes it so a "none of these"
-# answer is stored (the doctor sees that the patient answered). Until M3 lands, the API evaluates an empty
-# list without storing a report and returns report = null.
+# An empty list ("none of these") is stored like any report (M3, live), so the doctor sees the answer.
 SymptomReportOut {id, patient_id, symptoms, measurement_id|null, onset_at|null, reported_at, source}
-SymptomResult    {report: SymptomReportOut|null, evaluation: EvaluationOut, alert: AlertBrief|null}   # 201
+SymptomResult    {report: SymptomReportOut, evaluation: EvaluationOut, alert: AlertBrief|null}   # 201
 ```
 
 **Alerts**
@@ -222,7 +220,9 @@ PredictionOut {status: ok|insufficient_history|model_unavailable, target_date: d
 
 ## 3. Backend ↔ Data layer (database contract)
 
-### 3.1 Required schema changes (data/AI developer, before backend Phase 5)
+### 3.1 Schema changes requested by the backend
+
+**Status (VERIFIED 2026-10-30):** M3 = `20261030120000_backend_alignment` and M4 = `20261030120100_ml_predictions` are **live** and identical to branch `AI`. `birth_year` (item 5) was split into **M5** `20261030130000_patient_birth_year`, pending review. Items below are kept as the record of what was requested.
 
 **M3 `backend_alignment`** (one migration, append-only, RLS on). The live project's **default privileges grant ALL on new `public` tables and functions to `anon` and `authenticated`** (VERIFIED LIVE), so the migration must `REVOKE ALL ... FROM anon, authenticated` on every new object and then grant only what is listed.
 1. `alerts.alert_class` CHECK: add value `above_target_trend`.

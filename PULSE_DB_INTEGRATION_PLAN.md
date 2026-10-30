@@ -10,14 +10,14 @@ Branch: `feat/api-supabase`, from `feat/api-contract-v1`. Owner: Ayoub. No migra
 | `UserOut` | `auth.users.email`; `profiles.id, role, display_name, timezone` | `full_name = display_name`; role from `profiles` only |
 | Assignment check | `doctor_patient_assignments (doctor_id, patient_id, status='active')` | ended assignments give no access |
 | `CarePlanOut` / target | `care_plans` where `status='active'` (one per patient, unique index) | null targets or no plan → 140/90, `is_default=true` |
-| `MeasurementIn/Out` | `measurements` | insert `source='manual'`, `provenance='measured'`, `method='unknown'`, `unit='mmHg'`, `created_by=<user id>`, `measured_tz` default `profiles.timezone`; read back `validation_status`, `quality_flags`, `validation_policy_version`; `rested_5_min` = null until M3 |
-| `SymptomReportIn/Out` | `symptom_reports` (`source='patient_reported'`) | empty list → evaluate, do not insert, `report=null` (CHECK `cardinality>0`) until M3 |
-| `AlertOut/AlertBrief` | `alerts` | `level ↔ alert_class` (notice=`above_target`, trend=`above_target_trend` (M3), severe=`severely_high`, emergency=`possible_emergency`); `rule_id = rule_code`; `rule_version='pulse-rules-1'`; `trigger_source='rule_engine'`; `next_step = actions[0]`; `persistent` false until M3 |
-| Alert episode readings | `alert_measurements` (M3) | before M3: `AlertDetail.measurements` = the triggering reading only |
+| `MeasurementIn/Out` | `measurements` | insert `source='manual'`, `provenance='measured'`, `method='unknown'`, `unit='mmHg'`, `created_by=<user id>`, `measured_tz` default `profiles.timezone`; read back `validation_status`, `quality_flags`, `validation_policy_version`; `rested_5_min` stored (M3 live) |
+| `SymptomReportIn/Out` | `symptom_reports` (`source='patient_reported'`) | empty list = "none of these", stored (M3 live); `report` always returned |
+| `AlertOut/AlertBrief` | `alerts` | `level ↔ alert_class` (notice=`above_target`, trend=`above_target_trend`, severe=`severely_high`, emergency=`possible_emergency`); `rule_id = rule_code`; `rule_version='pulse-rules-1'`; `trigger_source='rule_engine'`; `next_step = actions[0]`; `persistent=true` set by R-SEV-2 (M3 live) |
+| Alert episode readings | `alert_measurements` (M3 live) | attach rows for R-SEV-2/3, R-TGT-1, R-TRD-1; `AlertDetail.measurements` = triggering reading + attached readings |
 | Transitions | `alerts.status` + `acknowledged_at/by`, `reviewed_at/by`, `resolved_at/by`, `resolution_note` | DB CHECKs require the matching timestamp per status |
-| `ProfileOut/In` | `profiles` + `patient_profiles` (`user_id`) | `birth_year` null until M3; `regular_doctor_name` via `profiles` of `regular_doctor_id` |
+| `ProfileOut/In` | `profiles` + `patient_profiles` (`user_id`) | `birth_year` from M5 (pending review; null until applied); `regular_doctor_name` via `profiles` of `regular_doctor_id` |
 | `TrustedContactIn/Out` | `trusted_contacts` | `consented_at = now()` when `contact_consented=true`; phone regex enforced by DB and Pydantic |
-| `EmergencyCardOut` | profiles, patient_profiles, first active contact by `consented_at`, latest non-invalid measurement | `age` from `birth_year` (M3) |
+| `EmergencyCardOut` | profiles, patient_profiles, first active contact by `consented_at`, latest non-invalid measurement | `age` from `birth_year` (M5) |
 | `EmergencyEvent*` | `emergency_events` | `trigger_reason` text; actions appended to `actions_attempted` jsonb as `{client_action_id, action, at, detail, confirmed:false}`; `location_lat/lon` only with `location_shared_with_consent=true` (DB CHECK) |
 | `NoteOut/In` | `doctor_notes` | patient reader gets `note=null` |
 | `JournalOut/In` | `journal_entries` | review sets `doctor_review_status`, `reviewed_by/at` |
@@ -56,11 +56,13 @@ Branch: `feat/api-supabase`, from `feat/api-contract-v1`. Owner: Ayoub. No migra
 | `analysis/rules.py`, `summary.py`, `texts.py`, `types.py` | **kept** (pure); already aligned to DB symptom codes on `feat/api-contract-v1` |
 | `analysis/validation.py` | **removed** in this workstream; DB trigger `pulse-v1` is authoritative |
 | Error format, `ApiError`, contract tests | kept |
-| Alert episode logic (create / attach / raise) from PR #1 `services/alerts.py` | **ported** to the DB `alerts` table (+ `alert_measurements` after M3) |
+| Alert episode logic (create / attach / raise) from PR #1 `services/alerts.py` | **ported** to the DB `alerts` table (+ `alert_measurements`) |
 | Doctor-list sorting, permissions semantics (patient own; doctor assigned, read-only on readings) | ported |
 | SQLAlchemy models, `create_all`, PBKDF2 passwords, own JWT, `seed.py` | replaced by mapped models of existing tables, Supabase Auth, data/AI seed + backend replay job |
 
-## 6. Required migrations and ownership (data/AI developer writes, Ayoub approves, data/AI applies)
+## 6. Migrations and ownership (data/AI developer writes, Ayoub approves, data/AI applies)
+
+**Status 2026-10-30 (VERIFIED, `PULSE_DATABASE_SYNC_POLICY.md` §5):** M3 and M4 are live; M5 `20261030130000_patient_birth_year` (nullable `patient_profiles.birth_year`) is on `AI`, pending review. `birth_year` moved from M3 to M5.
 
 | Migration | Contents | Needed by |
 |---|---|---|
@@ -75,10 +77,10 @@ Both as new files after `20261029120100`, never edits of applied files. Tests in
 2. `db.py` (engine, session per request, claims setter) + mapped models (§1) + `vocab.py`.
 3. Auth: JWKS verification, `/auth/login` + `/auth/refresh` via GoTrue (mocked in tests), `/me`, `permissions.py` (A8 matrix tests).
 4. Measurements POST/GET with DB validation, `DATA-INVALID` handling, error-code mapping (23505/23514/23503).
-5. Rules wiring and alert persistence (create / attach / raise as far as possible before M3); symptom reports; alerts list/detail; transitions.
+5. Rules wiring and alert persistence (create / attach / raise); symptom reports; alerts list/detail; transitions.
 6. Doctor list, summary, profile, trusted contacts, care-plan GET, emergency card.
 7. Emergency events (idempotent create, actions, patch, report), notes.
-8. Predictions endpoint (fixture rows until M4/ML).
+8. Predictions endpoint (M4 live; fixture rows in tests, `pulse_ml.predict` rows in the demo).
 9. Replay job for seeded history; demo reset script.
 10. Run against `pulse` with the fictional seed (after sign-up is disabled).
 

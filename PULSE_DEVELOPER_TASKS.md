@@ -17,10 +17,10 @@ Shared contracts: `contract/openapi.json` (branch `feat/api-contract-v1`, once p
 
 | # | Task | Input | Output / done when |
 |---|---|---|---|
-| 1 | Migration **M3 `backend_alignment`** as a new file after `20261029120100` (contents: `PULSE_DB_INTEGRATION_PLAN.md` §6 / contracts §3.1) with tests in `tests/test_db.py`; PR to `main`; do **not** `db push` before approval | live schema = `AI` branch | PR with migration + tests; after approval `db push` to `pulse` and a line in `PULSE_SUPABASE_CHANGELOG.md` |
+| 1 | ~~Migration **M3 `backend_alignment`**~~ **Done and live** (verified); M5 `birth_year` awaits Ayoub's review, then `db push` + changelog row | as a new file after `20261029120100` (contents: `PULSE_DB_INTEGRATION_PLAN.md` §6 / contracts §3.1) with tests in `tests/test_db.py`; PR to `main`; do **not** `db push` before approval | live schema = `AI` branch | PR with migration + tests; after approval `db push` to `pulse` and a line in `PULSE_SUPABASE_CHANGELOG.md` |
 | 2 | Fix `docs/data/DATA_SCHEMA.md`: `alerts.resolution_note` exists; state the `actions_attempted` element shape `{client_action_id, action, at, detail, confirmed}` | — | doc updated |
 | 3 | ML pipeline in `ml/` per contracts §4: BP-history features only, patient-level split, persistence + 7-day-mean baselines, linear + HistGradientBoosting, MAE/RMSE with CIs labelled "synthetic", `MODEL_CARD.md`, `metadata.json` | synthetic set from `pulse_data.simulate csv` | reproducible `python -m pulse_ml.train`; metrics file |
-| 4 | Migration **M4 `ml_predictions`** + batch job `python -m pulse_ml.predict` | contracts §3.1 (M4), §4 | rows with `status ok/insufficient_history` on the local DB |
+| 4 | ~~Migration **M4** + batch job~~ **Done** (M4 live, `pulse_ml.predict` on `AI`); remaining ML follow-ups in `PULSE_ML_REVIEW.md` | contracts §3.1 (M4), §4 | rows with `status ok/insufficient_history` on the local DB |
 | 5 | Seed scenarios for the demo (controlled / rising / severe event / sparse) incl. profiles and trusted contacts; local only until sign-up is off | `simulate.py seed` | seed loads on the local DB; then on `pulse` with Ayoub's go |
 
 Do not: write to `alerts` from data tools (the backend rules own them), edit applied migrations, push `seed.sql`.
