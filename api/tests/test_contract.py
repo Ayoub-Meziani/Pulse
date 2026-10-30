@@ -63,7 +63,12 @@ FAKE_PATIENT = CurrentUser(id=PID, role="patient", full_name="Test", email="t@pu
 # Implemented and tested against the database (test_auth.py, test_measurements.py).
 BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/patients/{PID}/measurements"),
          ("POST", f"/patients/{PID}/symptom-reports"), ("GET", f"/patients/{PID}/alerts"),
-         ("GET", f"/alerts/{AID}"), ("POST", f"/alerts/{AID}/transition")}  # test_alerts.py
+         ("GET", f"/alerts/{AID}"), ("POST", f"/alerts/{AID}/transition"),  # test_alerts.py
+         ("GET", "/patients"), ("GET", f"/patients/{PID}/summary"), ("GET", f"/patients/{PID}/profile"),
+         ("PUT", f"/patients/{PID}/profile"), ("GET", f"/patients/{PID}/trusted-contacts"),
+         ("POST", f"/patients/{PID}/trusted-contacts"), ("PATCH", f"/trusted-contacts/{CID}"),
+         ("DELETE", f"/trusted-contacts/{CID}"), ("GET", f"/patients/{PID}/care-plan"),
+         ("PUT", f"/patients/{PID}/care-plan"), ("GET", f"/patients/{PID}/emergency-card")}  # test_patient_data.py
 UNBUILT = [p for p in PROTECTED if (p[0], p[1]) not in BUILT]
 
 
@@ -239,7 +244,8 @@ def test_c4_journal_category_matches_database_values(client):
     assert r.status_code == 422
 
 
-def test_c5_profile_put_rejects_partial_bodies(client):
+def test_c5_profile_put_rejects_partial_bodies(validating_client):
+    client = validating_client
     r = client.put(f"{API}/patients/{PID}/profile", headers=AUTH, json={"full_name": "Only a name"})
     assert r.status_code == 422
     missing = {d["field"] for d in r.json()["error"]["details"]}

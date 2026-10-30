@@ -1459,6 +1459,26 @@
             "title": "Measured At",
             "type": "string"
           },
+          "provenance": {
+            "enum": [
+              "measured",
+              "estimated",
+              "simulated"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "source": {
+            "description": "Show 'simulated' readings as simulated, never as a real measurement.",
+            "enum": [
+              "manual",
+              "device_sync",
+              "csv_import",
+              "simulated"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
           "systolic": {
             "title": "Systolic",
             "type": "integer"
@@ -1477,7 +1497,9 @@
           "systolic",
           "diastolic",
           "measured_at",
-          "validation_status"
+          "validation_status",
+          "source",
+          "provenance"
         ],
         "title": "LastReading",
         "type": "object"
@@ -2915,6 +2937,7 @@
         "type": "object"
       },
       "TrustedContactPatch": {
+        "description": "A different phone number may be a different person who never consented: changing `phone` is refused\n(422 consent_required); delete the contact and add the new number with contact_consented=true.",
         "properties": {
           "active": {
             "anyOf": [
@@ -6697,7 +6720,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Patient only",
+        "summary": "Patient only; a new phone number needs a new contact with consent (422)",
         "tags": [
           "profile"
         ]

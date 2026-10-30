@@ -11,9 +11,14 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import ValidationError
 
 from ..analysis.rules import RED_FLAG_SYMPTOMS, SEVERE_DIASTOLIC, SEVERE_SYSTOLIC
-from ..auth import current_user
+from sqlalchemy.orm import Session
+
+from ..auth import CurrentUser, current_user
 from ..config import DEMO_NUMBER_ID, Settings
+from ..db import require_session
 from ..errors import AUTH_RESPONSES, not_implemented
+from ..permissions import require_patient_access
+from ..services import patient_data
 from ..schemas import (ClientFallback, EmergencyActionsIn, EmergencyCardOut, EmergencyConfigOut,
                        EmergencyEventIn, EmergencyEventOut, EmergencyEventPatch, EmergencyNumber,
                        EmergencyReportOut)
@@ -67,8 +72,11 @@ def emergency_config(request: Request):
 
 @router.get("/patients/{patient_id}/emergency-card", response_model=EmergencyCardOut,
             summary="What a bystander or responder needs; cache it for offline use")
-def emergency_card(patient_id: UUID):
-    not_implemented()
+def emergency_card(patient_id: UUID, request: Request, user: CurrentUser = Depends(current_user),
+                   db: Session = Depends(require_session)):
+    # Minimum for emergency support: no doctor notes, no M6 risk factors, no wearable data.
+    require_patient_access(db, user, patient_id)
+    return patient_data.emergency_card(db, patient_id, request.app.state.clock())
 
 
 @router.post("/patients/{patient_id}/emergency-events", response_model=EmergencyEventOut, status_code=201,

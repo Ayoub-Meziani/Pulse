@@ -275,6 +275,8 @@ class TrustedContactIn(BaseModel):
 
 
 class TrustedContactPatch(BaseModel):
+    """A different phone number may be a different person who never consented: changing `phone` is refused
+    (422 consent_required); delete the contact and add the new number with contact_consented=true."""
     name: str | None = Field(None, min_length=1, max_length=120)
     relationship: str | None = Field(None, max_length=60)
     phone: str | None = Field(None, pattern=PHONE_PATTERN)
@@ -348,6 +350,8 @@ class LastReading(BaseModel):
     diastolic: int
     measured_at: datetime
     validation_status: ValidationStatus
+    source: Source = Field(description="Show 'simulated' readings as simulated, never as a real measurement.")
+    provenance: Provenance
 
 
 class EmergencyCardOut(BaseModel):

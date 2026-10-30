@@ -16,7 +16,8 @@ from ..analysis.types import Evaluation
 from ..auth import CurrentUser, current_user
 from ..db import require_session
 from ..errors import AUTH_RESPONSES, not_implemented
-from ..permissions import require_patient_access
+from ..permissions import require_patient_access, require_role
+from ..services import patient_data
 from ..schemas import (AlertOut, DailyPoint, EvaluationOut, MeasurementIn, MeasurementOut, MeasurementResult,
                        PatientListItem, PredictionOut, SummaryOut, SymptomReportIn, SymptomReportOut,
                        SymptomResult)
@@ -36,8 +37,10 @@ router = APIRouter(tags=["patients"], responses=AUTH_RESPONSES, dependencies=[De
 
 @router.get("/patients", response_model=list[PatientListItem],
             summary="Doctor: assigned patients, most urgent active alert first, then oldest last reading")
-def list_patients():
-    not_implemented()
+def list_patients(request: Request, user: CurrentUser = Depends(current_user),
+                  db: Session = Depends(require_session)):
+    require_role(user, "doctor")
+    return patient_data.doctor_patient_list(db, user, request.app.state.clock())
 
 
 @router.post("/patients/{patient_id}/measurements", response_model=MeasurementResult, status_code=201,
@@ -65,8 +68,10 @@ def list_measurements(patient_id: UUID,
 
 @router.get("/patients/{patient_id}/summary", response_model=SummaryOut,
             summary="7/30-day statistics on valid readings, trend direction and target")
-def summary(patient_id: UUID):
-    not_implemented()
+def summary(patient_id: UUID, request: Request, user: CurrentUser = Depends(current_user),
+            db: Session = Depends(require_session)):
+    require_patient_access(db, user, patient_id)
+    return patient_data.summary(db, patient_id, request.app.state.clock())
 
 
 @router.get("/patients/{patient_id}/daily", response_model=list[DailyPoint],
