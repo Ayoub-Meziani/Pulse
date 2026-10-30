@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getMe, hasSession, login as apiLogin, logout as apiLogout, onSessionExpired } from "../api/client";
+import { clearOfflineCache } from "../lib/offlineCache";
 
 const AuthContext = createContext(null);
 
@@ -41,6 +42,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     apiLogout();
+    clearOfflineCache();  // emergency card, config and unsent incident steps leave the device with the session
     setState({ status: "anonymous", user: null });
   }, []);
 

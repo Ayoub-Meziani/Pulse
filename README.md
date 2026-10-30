@@ -10,13 +10,14 @@ The patient's own doctor reviews alerts and incidents later in a doctor dashboar
 
 | Part | State |
 |---|---|
-| Backend API (`api/`) | FastAPI on Supabase Postgres + Auth: readings, symptoms, alerts, summaries, profile, care plan, contacts, emergency card and events, doctor notes, devices and wearable samples, stored predictions (doctor only). Still 501: `/daily`, `/journal`. Contract: `contract/openapi.json` |
+| Backend API (`api/`) | FastAPI on Supabase Postgres + Auth: readings, symptoms, alerts, summaries, profile, care plan, contacts, emergency card and events, journal, doctor notes, devices and wearable samples, stored predictions (doctor only). Still 501: `/daily`. Contract: `contract/openapi.json` |
 | Database | Supabase; schema = `supabase/migrations/` (M1–M8 verified live). Local development uses a local stack, never the shared project |
-| Frontend (`frontend/`) | React + Vite on the real API: patient (dashboard, reading and symptom flow, emergency screen, history, alerts, profile), doctor (assigned patients and their record), minimal admin |
+| Frontend (`frontend/`) | React + Vite on the real API: patient (dashboard, reading and symptom flow, emergency screen with incident record, medical card and trusted contact, history, alerts, journal incl. food and activity, editable profile and contacts), doctor (assigned patients, record with incidents, journal review, notes, care-plan editing), minimal admin |
 | ML | Stored experimental estimates are shown to doctors only and never used by alerts; no model runs in the API |
 | Devices | Optional; wearable data is advisory and never triggers an alert. Simulated data is always labelled |
 
-Not deployed. See `docs/LOCAL_DEVELOPMENT.md` to run everything locally with fictional demo accounts.
+Not deployed; no staging environment yet. See `docs/LOCAL_DEVELOPMENT.md` to run everything locally with fictional demo
+accounts, `docs/PULSE_SCOPE_AUDIT.md` for what is built versus specified, and `docs/PULSE_V1_STAGING_HANDOFF.md`.
 
 ## Run locally
 

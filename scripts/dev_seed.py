@@ -13,8 +13,10 @@
 - Run once per fresh stack. Re-running stops when the accounts already exist.
 
 Accounts (all fictional, emails on the reserved .test domain):
-  patient.a@demo.pulse.test  Patient A  manual readings only, normal and above target, symptom history, no wearable
-  patient.b@demo.pulse.test  Patient B  simulated history + manual severe reading (open alert) + simulated ring
+  patient.a@demo.pulse.test  Patient A  manual readings only, normal and above target, symptom history, journal
+                                        (food, activity, question), care plan, doctor advice; no wearable
+  patient.b@demo.pulse.test  Patient B  simulated history + manual severe reading (open alert), one recorded
+                                        emergency episode, a journal entry, simulated ring
   medecin@demo.pulse.test    Doctor     assigned to A and B only
 """
 from __future__ import annotations
@@ -137,6 +139,16 @@ def main() -> None:
     call("POST", f"/patients/{a}/trusted-contacts", ha, {"name": "Samir Benali (démo)", "relationship": "Frère",
          "phone": "+213 000 00 00 01", "contact_consented": True})
 
+    # Patient A: journal (the agreed place for food and physical-activity notes); the doctor has read one entry.
+    entries = [("food", "Démo — Déjeuner : chorba, salade, un morceau de pain. J'ai évité d'ajouter du sel."),
+               ("activity", "Démo — Marche de 30 minutes après le dîner, rythme tranquille."),
+               ("question", "Démo — Puis-je reprendre le vélo le week-end ?")]
+    first_entry = None
+    for category, text_ in entries:
+        e = call("POST", f"/patients/{a}/journal", ha, {"category": category, "entry_text": text_})
+        first_entry = first_entry or e["id"]
+    call("POST", f"/journal/{first_entry}/review", hd)
+
     # Patient B: fourteen days of SIMULATED history (labelled), then manual readings through the API.
     values = []
     for days in range(14, 2, -1):
@@ -158,6 +170,23 @@ def main() -> None:
         call("POST", f"/patients/{b}/measurements", hb, {"id": str(uuid.uuid4()), "systolic": s, "diastolic": d,
              "pulse": 80, "measured_at": (now - timedelta(days=days, hours=2)).isoformat(),
              "context": "Saisie de démonstration (données fictives)"})
+
+    # Patient B: one recorded emergency episode (demo). Actions are taps, never confirmed calls.
+    started = severe_at + timedelta(minutes=6)
+    event_id = str(uuid.uuid4())
+    call("POST", f"/patients/{b}/emergency-events", hb, {"id": event_id, "trigger_reason": "manual",
+         "alert_id": first["alert"]["id"] if first.get("alert") else None, "symptoms_snapshot": [],
+         "started_at": started.isoformat()})
+    call("POST", f"/emergency-events/{event_id}/actions", hb, {"actions": [
+        {"client_action_id": str(uuid.uuid4()), "action": "screen_opened", "at": started.isoformat(), "detail": "manual"},
+        {"client_action_id": str(uuid.uuid4()), "action": "contact_call_tapped",
+         "at": (started + timedelta(minutes=1)).isoformat()},
+        {"client_action_id": str(uuid.uuid4()), "action": "outcome_reported",
+         "at": (started + timedelta(minutes=20)).isoformat(), "detail": "felt_better"}]})
+    call("PATCH", f"/emergency-events/{event_id}", hb, {"reported_outcome": "Je me sens mieux (démo)",
+         "ended_at": (started + timedelta(minutes=20)).isoformat()})
+    call("POST", f"/patients/{b}/journal", hb, {"category": "activity",
+         "entry_text": "Démo — Pas de sport cette semaine, fatigue en fin de journée."})
 
     # Patient B: a SIMULATED ring. Heart rate and SpO2 are never blood pressure and never feed an alert.
     ring = uuid.uuid4()

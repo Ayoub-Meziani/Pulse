@@ -7,8 +7,11 @@ Human-readable summary, endpoint list, frontend flow rules and database/ML contr
 - Base path `/api/v1`, JSON, ids are uuid strings, timestamps ISO 8601 with offset.
 - Auth: `POST /auth/login` → `Authorization: Bearer <access_token>`; `POST /auth/refresh`.
 - Errors: `{"error": {"code", "message", "details"}}`.
-- Status: every route works except `GET /patients/{id}/daily`, `GET|POST /patients/{id}/journal` and
-  `POST /journal/{id}/review`, which return **501 `not_implemented`** with their final response schema in OpenAPI.
+- Status: every route works except `GET /patients/{id}/daily`, which returns **501 `not_implemented`** with its
+  final response schema in OpenAPI.
+- Journal: `GET|POST /patients/{id}/journal` (patient writes; patient and assigned doctor read; optional `category`
+  filter) and `POST /journal/{id}/review` (assigned doctor; repeating it keeps the first review). Entries are the
+  patient's own words (food, activity, symptoms, medication, questions): never analysed, never an alert input (D21).
 - Readings and symptom reports return the rule evaluation (`evaluation.show_emergency`, `requires_symptom_check`,
   `recheck_after_seconds`) in the same response. The frontend never computes rules except the offline
   fallback described by `GET /config/emergency` → `client_fallback`.

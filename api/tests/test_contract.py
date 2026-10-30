@@ -78,7 +78,8 @@ BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/p
          ("GET", f"/emergency-events/{EID}/report"),  # test_emergency_events.py
          ("GET", f"/patients/{PID}/notes"), ("POST", f"/patients/{PID}/notes"),  # test_notes.py
          ("GET", f"/patients/{PID}/symptom-reports"), ("GET", f"/patients/{PID}/devices"),
-         ("GET", f"/patients/{PID}/wearable-samples")}  # test_patient_records.py
+         ("GET", f"/patients/{PID}/wearable-samples"),  # test_patient_records.py
+         ("GET", f"/patients/{PID}/journal"), ("POST", f"/patients/{PID}/journal"), ("POST", f"/journal/{JID}/review")}  # test_journal.py
 UNBUILT = [p for p in PROTECTED if (p[0], p[1]) not in BUILT]
 
 
@@ -247,7 +248,8 @@ def test_c3_care_plan_effective_from_is_a_date(client):
     assert {"type": "string", "format": "date"} in prop["anyOf"]
 
 
-def test_c4_journal_category_matches_database_values(client):
+def test_c4_journal_category_matches_database_values(validating_client):
+    client = validating_client
     cats = set(_schema(client, "JournalIn")["properties"]["category"]["enum"])
     assert cats == {"symptoms", "food", "activity", "medication", "question", "other"}
     r = client.post(f"{API}/patients/{PID}/journal", headers=AUTH, json={"category": "worry", "entry_text": "x"})

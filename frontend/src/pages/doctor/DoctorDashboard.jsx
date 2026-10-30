@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { listMyPatients } from "../../api/doctor";
@@ -14,11 +14,17 @@ export default function DoctorDashboard() {
   const { user } = useAuth();
   const [query, setQuery] = useState("");
   const patients = useResource((signal) => listMyPatients({ signal }), "patients");
+  const reload = patients.reload;
+  // Conception §8.2: the list refreshes every 15 s. No notification exists: the doctor is not alerted in real time.
+  useEffect(() => {
+    const id = setInterval(reload, 15000);
+    return () => clearInterval(id);
+  }, [reload]);
 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Espace médecin" title="Mes patients"
-        subtitle="Patients qui vous sont assignés, alerte la plus urgente en premier." />
+        subtitle="Patients qui vous sont assignés, alerte la plus urgente en premier. Liste actualisée toutes les 15 secondes ; aucune notification n’est envoyée." />
       <Card>
         <CardBody className="pt-5">
           <Section state={patients} what="vos patients">

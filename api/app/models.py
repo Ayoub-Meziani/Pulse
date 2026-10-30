@@ -190,6 +190,7 @@ class DoctorNote(Base):
 
 class JournalEntry(Base):
     __tablename__ = "journal_entries"
+    __mapper_args__ = {"eager_defaults": True}
     id: Mapped[uuid.UUID] = _id()
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     category: Mapped[str] = mapped_column(Text)

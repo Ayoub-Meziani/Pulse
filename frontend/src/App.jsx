@@ -11,6 +11,7 @@ import PatientDetails from "./pages/doctor/PatientDetails";
 import AddReading from "./pages/patient/AddReading";
 import EmergencyScreen from "./pages/patient/EmergencyScreen";
 import HistoryPage from "./pages/patient/HistoryPage";
+import JournalPage from "./pages/patient/JournalPage";
 import PatientDashboard from "./pages/patient/PatientDashboard";
 import ProfilePage from "./pages/profile/ProfilePage";
 import { ButtonLink } from "./components/ui/Button";
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="/patient/urgence" element={<EmergencyScreen />} />
             <Route path="/patient/historique" element={<HistoryPage />} />
             <Route path="/patient/alertes" element={<AlertsPage />} />
+            <Route path="/patient/journal" element={<JournalPage />} />
             <Route path="/patient/profil" element={<ProfilePage />} />
           </Route>
 

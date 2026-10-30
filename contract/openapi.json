@@ -4150,7 +4150,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Assigned doctor (deferrable)",
+        "summary": "Assigned doctor: mark an entry read (repeating it keeps the first review)",
         "tags": [
           "follow-up"
         ]
@@ -5297,6 +5297,42 @@
               "title": "Patient Id",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "symptoms",
+                    "food",
+                    "activity",
+                    "medication",
+                    "question",
+                    "other"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -5390,7 +5426,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Deferrable",
+        "summary": "Journal, newest first (patient or assigned doctor); optional category filter",
         "tags": [
           "follow-up"
         ]
@@ -5506,7 +5542,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Patient only (deferrable)",
+        "summary": "Patient only: add an entry (symptoms, food, activity, medication, question for the doctor)",
         "tags": [
           "follow-up"
         ]
