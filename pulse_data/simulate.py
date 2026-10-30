@@ -1,0 +1,354 @@
+"""Synthetic PULSE data. Everything produced here is FICTIONAL and labelled as simulated.
+
+    python -m pulse_data.simulate seed     # -> supabase/seed.sql (demo accounts + 30 days of history)
+    python -m pulse_data.simulate csv      # -> data/synthetic/*.csv (longitudinal set for the ML phase)
+    python -m pulse_data.simulate sample   # -> samples/readings_sample.csv (CSV-import demo)
+
+The "effects" below (missed dose, sodium, activity, sleep) are invented to exercise the
+pipeline. They are not clinical knowledge; nothing learned from this data applies to real patients.
+"""
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import os
+import random
+import sys
+import uuid
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+GENERATOR_VERSION = "pulse-sim-v1"
+TZ = "Africa/Algiers"
+ROOT = Path(__file__).resolve().parent.parent
+_NS = uuid.UUID("5b3f8a52-6a2e-4c43-9a59-0c8f1f5d7e10")
+
+
+def demo_id(name: str) -> str:
+    return str(uuid.uuid5(_NS, name))
+
+
+# ---------------------------------------------------------------- generator core
+
+@dataclass(frozen=True)
+class Profile:
+    baseline_sys: float
+    baseline_dia: float
+    trend_per_day: float   # mmHg/day drift
+    skip_prob: float       # chance a measurement session is missed
+    on_medication: bool
+    miss_dose_prob: float
+
+
+@dataclass(frozen=True)
+class Day:
+    day: int
+    missed_dose: bool | None  # None = no medication
+    activity_min: int
+    sodium_mg: int            # simulated estimate
+    sleep_hours: float
+    sleep_quality: int        # 1-5
+
+
+@dataclass(frozen=True)
+class SimReading:
+    day: int
+    minute: int   # minutes after local midnight
+    session: str  # morning | evening
+    systolic: int
+    diastolic: int
+    pulse: int
+
+
+def simulate_patient(rng: random.Random, p: Profile, days: int,
+                     entry_error_prob: float = 0.0) -> tuple[list[Day], list[SimReading]]:
+    context: list[Day] = []
+    readings: list[SimReading] = []
+    latent = 0.0
+    prev_missed = False
+    for d in range(days):
+        missed = (rng.random() < p.miss_dose_prob) if p.on_medication else None
+        activity = rng.choice([0, 0, 15, 20, 30, 45, 60])
+        sodium = int(min(7000, max(800, rng.gauss(3200, 900))))
+        sleep_h = round(min(10.0, max(3.5, rng.gauss(7.0, 1.1))), 1)
+        quality = int(min(5, max(1, round((sleep_h - 3.5) / 1.3 + rng.gauss(0, 0.7)))))
+        context.append(Day(d, missed, activity, sodium, sleep_h, quality))
+
+        latent = 0.7 * latent + rng.gauss(0, 3)
+        effect = (latent + p.trend_per_day * d + (6 if prev_missed else 0)
+                  + 1.2 * (sodium - 3200) / 1000 - (2 if activity >= 30 else 0) + (2 if sleep_h < 6 else 0))
+        for session, base_minute, surge in (("morning", 7 * 60, 4), ("evening", 20 * 60, 0)):
+            if rng.random() < p.skip_prob:
+                continue
+            minute = base_minute + rng.randint(-40, 60)
+            for k in range(1 if rng.random() < 0.6 else 2):
+                sys_ = round(p.baseline_sys + effect + surge + rng.gauss(0, 5))
+                dia = min(round(p.baseline_dia + 0.55 * effect + surge / 2 + rng.gauss(0, 3.5)), sys_ - 15)
+                pulse = round(rng.gauss(72, 6) + (3 if session == "morning" else 0))
+                if rng.random() < entry_error_prob:
+                    sys_, dia = dia, sys_  # simulated data-entry error (swapped values)
+                readings.append(SimReading(d, minute + 2 * k, session, sys_, dia, pulse))
+        prev_missed = bool(missed)
+    return context, readings
+
+
+# ---------------------------------------------------------------- demo seed (supabase/seed.sql)
+
+@dataclass(frozen=True)
+class DemoUser:
+    key: str
+    email: str
+    name: str
+    role: str
+    profile: Profile | None = None
+    assigned: bool = False
+
+    @property
+    def id(self) -> str:
+        return demo_id(self.email)
+
+
+DOCTOR = DemoUser("doctor", "dr.leila.demo@pulse.test", "Dr. Leila H. (demo)", "doctor")
+ADMIN = DemoUser("admin", "admin.demo@pulse.test", "PULSE Admin (demo)", "admin")
+PATIENTS = (
+    DemoUser("controlled", "amina.demo@pulse.test", "Amina B. (demo)", "patient",
+             Profile(124, 79, 0.0, 0.10, True, 0.05), assigned=True),
+    DemoUser("rising", "karim.demo@pulse.test", "Karim M. (demo)", "patient",
+             Profile(134, 85, 0.6, 0.30, True, 0.25), assigned=True),
+    DemoUser("severe_event", "nadia.demo@pulse.test", "Nadia S. (demo)", "patient",
+             Profile(146, 92, 0.0, 0.15, True, 0.10), assigned=True),
+    DemoUser("sparse_unassigned", "yacine.demo@pulse.test", "Yacine T. (demo)", "patient",
+             Profile(132, 84, 0.0, 0.75, False, 0.0), assigned=False),
+)
+USERS = (DOCTOR, ADMIN) + PATIENTS
+SEED_DAYS = 30
+MEDS = {"controlled": ("Amlodipine", "5 mg"), "rising": ("Perindopril", "4 mg"), "severe_event": ("Amlodipine", "10 mg")}
+
+
+def sql(v) -> str:
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return str(v)
+    if isinstance(v, (list, tuple)):
+        return "array[" + ", ".join(sql(x) for x in v) + "]::text[]" if v else "'{}'::text[]"
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def local_ts(days_ago: int, minute: int, tz: str = TZ) -> str:
+    """Timestamp `days_ago` days before today at local `minute`, relative to now() so the demo stays fresh."""
+    return (f"((date_trunc('day', now() at time zone '{tz}') - interval '{days_ago} days' "
+            f"+ interval '{minute} minutes') at time zone '{tz}')")
+
+
+def insert(table: str, cols: list[str], rows: list[list[str]]) -> str:
+    if not rows:
+        return ""
+    values = ",\n".join("  (" + ", ".join(r) + ")" for r in rows)
+    return f"insert into public.{table} ({', '.join(cols)}) values\n{values};\n\n"
+
+
+def patient_history(u: DemoUser) -> tuple[list[Day], list[SimReading]]:
+    rng = random.Random(f"{GENERATOR_VERSION}:{u.key}")
+    context, readings = simulate_patient(rng, u.profile, SEED_DAYS)
+    if u.key == "severe_event":  # severe reading 2 days ago, repeated 3 minutes later
+        d = SEED_DAYS - 2
+        readings += [SimReading(d, 455, "morning", 186, 118, 96), SimReading(d, 458, "morning", 183, 116, 94)]
+    if u.key == "sparse_unassigned":  # a double entry and a swapped (invalid) entry
+        first = readings[0]
+        readings += [SimReading(first.day, first.minute + 1, first.session, first.systolic, first.diastolic, first.pulse),
+                     SimReading(first.day + 1, 480, "morning", 78, 124, 70)]
+    readings.sort(key=lambda r: (r.day, r.minute))
+    return context, readings
+
+
+def build_seed_sql(password: str) -> str:
+    out = [
+        "-- GENERATED by `python -m pulse_data.simulate seed`; do not edit by hand, do not commit.\n"
+        "-- FICTIONAL DEMO DATA. Every row is labelled simulated.\n"
+        f"-- Demo accounts use the password from PULSE_DEMO_PASSWORD. Generator: {GENERATOR_VERSION}.\n\n"
+    ]
+    out.append(
+        "insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,\n"
+        "  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,\n"
+        "  confirmation_token, recovery_token, email_change_token_new, email_change) values\n"
+        + ",\n".join(
+            f"  ('00000000-0000-0000-0000-000000000000', {sql(u.id)}, 'authenticated', 'authenticated', {sql(u.email)},\n"
+            f"   extensions.crypt({sql(password)}, extensions.gen_salt('bf')), now(),\n"
+            f"   '{{\"provider\":\"email\",\"providers\":[\"email\"]}}', {sql(json.dumps({'display_name': u.name}))},\n"
+            f"   now() - interval '{SEED_DAYS + 5} days', now(), '', '', '', '')"
+            for u in USERS)
+        + ";\n\n")
+    out.append(
+        "insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at) values\n"
+        + ",\n".join(
+            f"  ({sql(u.id)}, {sql(u.id)}, {sql(json.dumps({'sub': u.id, 'email': u.email, 'email_verified': True}))}, "
+            f"'email', now(), now(), now())" for u in USERS)
+        + ";\n\n")
+    out.append(f"update public.profiles set role = 'doctor' where id = {sql(DOCTOR.id)};\n")
+    out.append(f"update public.profiles set role = 'admin' where id = {sql(ADMIN.id)};\n\n")
+
+    conditions = {"controlled": ["hypertension"], "rising": ["hypertension", "type_2_diabetes"],
+                  "severe_event": ["hypertension", "chronic_kidney_disease"], "sparse_unassigned": []}
+    out.append(insert("patient_profiles",
+                      ["user_id", "relevant_conditions", "allergies", "regular_doctor_id", "regular_clinic",
+                       "consent_location", "data_consent_at"],
+                      [[sql(u.id), sql(conditions[u.key]), sql("none reported" if u.assigned else None),
+                        sql(DOCTOR.id if u.assigned else None), sql("Clinique Demo (fictional)" if u.assigned else None),
+                        sql(u.key == "severe_event"), f"now() - interval '{SEED_DAYS} days'"] for u in PATIENTS]))
+    out.append(insert("doctor_patient_assignments", ["doctor_id", "patient_id"],
+                      [[sql(DOCTOR.id), sql(u.id)] for u in PATIENTS if u.assigned]))
+    out.append(insert("devices", ["id", "patient_id", "device_type", "bp_capability", "manufacturer", "model", "label"],
+                      [[sql(demo_id(u.key + ":device")), sql(u.id), "'simulator'", "'simulated'", "'PULSE'",
+                        sql(GENERATOR_VERSION), "'Simulated cuff (not a real device)'"] for u in PATIENTS]))
+
+    measurements, lifestyle, adherence, meds, plans, contacts = [], [], [], [], [], []
+    for u in PATIENTS:
+        context, readings = patient_history(u)
+        device = demo_id(u.key + ":device")
+        for n, r in enumerate(readings, 1):
+            measurements.append([sql(u.id), sql(device), "'simulated'", "'simulated'", "'unknown'",
+                                 sql(r.systolic), sql(r.diastolic), sql(r.pulse),
+                                 local_ts(SEED_DAYS - r.day, r.minute), sql(TZ), "'sitting'", "'left'",
+                                 sql(f"sim-{u.key}-{n:04d}")])
+        if not u.assigned:
+            continue
+        med_id = demo_id(u.key + ":med")
+        name, dose = MEDS[u.key]
+        meds.append([sql(med_id), sql(u.id), sql(name), sql(dose), "'once daily, morning'", "'clinician'",
+                     sql(DOCTOR.id), f"current_date - {SEED_DAYS + 60}"])
+        plans.append([sql(u.id), sql(DOCTOR.id), f"current_date - {SEED_DAYS}", f"current_date + 30", "135", "85", "2",
+                      "'Two seated readings each morning and evening, one minute apart.'",
+                      "'General guidance only: regular walking; limit very salty meals.'",
+                      "'Review home readings at the next visit.'",
+                      "'Continue home monitoring as agreed at the last visit (fictional demo plan).'"])
+        contacts.append([sql(u.id), sql(f"Contact of {u.name}"), "'family'", sql(f"+213 555 00 00 0{len(contacts) + 1}")])
+        for c in context[-14:]:
+            ago = SEED_DAYS - c.day
+            if c.activity_min:
+                lifestyle.append([sql(u.id), "'activity'", local_ts(ago, 18 * 60), local_ts(ago, 18 * 60 + c.activity_min),
+                                  "'simulated'", "'walking'", sql("moderate" if c.activity_min >= 30 else "light"),
+                                  "null", "null", "null", "null"])
+            lifestyle.append([sql(u.id), "'sleep'", local_ts(ago + 1, 23 * 60), local_ts(ago + 1, 23 * 60 + round(c.sleep_hours * 60)),
+                              "'simulated'", "null", "null", "null", "null", "null", sql(c.sleep_quality)])
+            if c.day % 3 == 0:
+                lifestyle.append([sql(u.id), "'meal'", local_ts(ago, 19 * 60 + 30), "null", "'simulated'", "null", "null",
+                                  "'dinner'", sql(c.sodium_mg), "'estimated'", "null"])
+            if c.missed_dose is not None:
+                adherence.append([sql(u.id), sql(med_id), sql("missed" if c.missed_dose else "taken"),
+                                  local_ts(ago, 8 * 60), "null" if c.missed_dose else local_ts(ago, 8 * 60 + 10),
+                                  "'simulated'", local_ts(ago, 21 * 60)])
+
+    out.append(insert("measurements",
+                      ["patient_id", "device_id", "source", "provenance", "method", "systolic", "diastolic", "pulse",
+                       "measured_at", "measured_tz", "body_position", "arm", "external_id"], measurements))
+    out.append(insert("medications", ["id", "patient_id", "name", "dose_text", "schedule_text", "source",
+                                      "prescribed_by", "started_on"], meds))
+    out.append(insert("medication_adherence_events", ["patient_id", "medication_id", "status", "scheduled_for",
+                                                      "taken_at", "source", "reported_at"], adherence))
+    out.append(insert("lifestyle_logs", ["patient_id", "category", "started_at", "ended_at", "source", "activity_type",
+                                         "intensity", "meal_type", "sodium_mg", "sodium_basis", "sleep_quality"],
+                      lifestyle))
+    out.append(insert("care_plans", ["patient_id", "clinician_id", "effective_from", "review_date", "target_systolic",
+                                     "target_diastolic", "monitoring_readings_per_day", "monitoring_instructions",
+                                     "lifestyle_recommendations", "follow_up_instructions", "clinician_guidance"], plans))
+    out.append(insert("trusted_contacts", ["patient_id", "name", "relationship", "phone"], contacts))
+
+    ids = {u.key: u.id for u in PATIENTS}
+    severe, rising, controlled = ids["severe_event"], ids["rising"], ids["controlled"]
+    out.append(insert("symptom_reports", ["patient_id", "symptoms", "onset_at", "reported_at", "source", "notes"], [
+        [sql(severe), sql(["chest_pain", "severe_headache"]), local_ts(2, 450), local_ts(2, 460), "'simulated'",
+         "'Fictional demo report linked to the severe reading.'"],
+        [sql(rising), sql(["dizziness"]), local_ts(10, 1200), local_ts(10, 1210), "'simulated'", "null"],
+    ]))
+    out.append(insert("journal_entries", ["patient_id", "category", "entry_text", "created_at"], [
+        [sql(controlled), "'question'", "'Is it fine to measure right after my morning walk?'", local_ts(6, 600)],
+        [sql(rising), "'food'", "'Several salty meals at a family event this week; readings felt higher.'", local_ts(4, 1260)],
+        [sql(severe), "'symptoms'", "'Felt chest tightness and a strong headache during the high reading.'", local_ts(2, 540)],
+    ]))
+    out.append(insert("doctor_notes", ["doctor_id", "patient_id", "note", "advice", "follow_up_at", "created_at"], [
+        [sql(DOCTOR.id), sql(controlled), "'Home readings stable around target (fictional note).'",
+         "'Keep measuring twice daily.'", "now() + interval '30 days'", local_ts(7, 660)],
+    ]))
+    return "".join(out)
+
+
+# ---------------------------------------------------------------- longitudinal synthetic dataset (ML phase)
+
+def write_ml_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int = 7) -> None:
+    rng = random.Random(seed)
+    tz = ZoneInfo(TZ)
+    start = date(2026, 1, 1)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with open(out_dir / "readings.csv", "w", newline="") as fr, open(out_dir / "daily_context.csv", "w", newline="") as fc:
+        rw, cw = csv.writer(fr), csv.writer(fc)
+        rw.writerow(["patient_key", "measured_at", "local_date", "session", "systolic", "diastolic", "pulse",
+                     "is_synthetic", "generator_version"])
+        cw.writerow(["patient_key", "local_date", "on_medication", "missed_dose", "activity_minutes",
+                     "sodium_mg_estimated", "sleep_hours", "sleep_quality", "is_synthetic"])
+        for i in range(1, patients + 1):
+            sys_ = rng.uniform(110, 165)
+            on_med = rng.random() < 0.6
+            p = Profile(sys_, 0.62 * sys_ + rng.gauss(0, 4), rng.gauss(0, 0.12), rng.uniform(0.05, 0.45),
+                        on_med, rng.uniform(0, 0.3) if on_med else 0.0)
+            key = f"S{i:04d}"
+            context, readings = simulate_patient(rng, p, days, entry_error_prob=0.003)
+            for r in readings:
+                local = datetime.combine(start + timedelta(days=r.day), datetime.min.time(), tz) + timedelta(minutes=r.minute)
+                rw.writerow([key, local.isoformat(), local.date().isoformat(), r.session, r.systolic, r.diastolic,
+                             r.pulse, "true", GENERATOR_VERSION])
+            for c in context:
+                cw.writerow([key, (start + timedelta(days=c.day)).isoformat(), on_med,
+                             "" if c.missed_dose is None else c.missed_dose, c.activity_min, c.sodium_mg,
+                             c.sleep_hours, c.sleep_quality, "true"])
+
+
+def write_sample_csv(path: Path) -> None:
+    """Cuff-export style CSV (naive local times) with a few rows that must be rejected."""
+    rng = random.Random(f"{GENERATOR_VERSION}:sample")
+    _, readings = simulate_patient(rng, Profile(138, 87, 0.2, 0.2, False, 0.0), 14)
+    first = date(2026, 10, 14)
+    rows = [[(datetime.combine(first + timedelta(days=r.day), datetime.min.time()) + timedelta(minutes=r.minute))
+             .strftime("%Y-%m-%d %H:%M"), r.systolic, r.diastolic, r.pulse, "mmHg", "sitting", "left", ""] for r in readings]
+    rows[3][4] = "kPa"            # unsupported unit -> rejected
+    rows[5][2] = ""               # missing diastolic -> rejected
+    rows[7][0] = "yesterday 8am"  # unparseable timestamp -> rejected
+    rows[9][7] = "after coffee"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["# SYNTHETIC SAMPLE generated by pulse_data.simulate; not a real patient"])
+        w.writerow(["measured_at", "systolic", "diastolic", "pulse", "unit", "position", "arm", "note"])
+        w.writerows(rows)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("seed").add_argument("--out", type=Path, default=ROOT / "supabase" / "seed.sql")
+    c = sub.add_parser("csv")
+    c.add_argument("--out", type=Path, default=ROOT / "data" / "synthetic")
+    c.add_argument("--patients", type=int, default=200)
+    c.add_argument("--days", type=int, default=90)
+    c.add_argument("--seed", type=int, default=7)
+    sub.add_parser("sample").add_argument("--out", type=Path, default=ROOT / "samples" / "readings_sample.csv")
+    a = ap.parse_args()
+    if a.cmd == "seed":
+        password = os.environ.get("PULSE_DEMO_PASSWORD")
+        if not password:
+            sys.exit("set PULSE_DEMO_PASSWORD (demo accounts' password; never commit it)")
+        a.out.write_text(build_seed_sql(password), encoding="utf-8")
+    elif a.cmd == "csv":
+        write_ml_csv(a.out, a.patients, a.days, a.seed)
+    else:
+        write_sample_csv(a.out)
+    print(f"wrote {a.out}")
+
+
+if __name__ == "__main__":
+    main()
