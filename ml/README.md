@@ -78,6 +78,37 @@ Night statistic per metric: heart rate, HRV and skin temperature use the night m
 2. `monitor --follow` + `stream --scenario spo2_dip --patient cohort_1 --minutes 1`: a live `outside_reference` SpO2 flag for Fatima about 10 s after the stream starts, and for no one else.
 3. Known limitation: Fatima also gets night SpO2 `outside_reference` flags from the population reference alone. The doctor-approved personal band handles exactly this.
 
+## Weekly doctor loop
+| Command (from `ml/`) | What |
+|---|---|
+| `..\.venv\Scripts\python -m pulse_ml.weekly [--week YYYY-MM-DD]` | one report per patient actively assigned at job time; week = patient-local Monday–Sunday (default: last full week) |
+| `..\.venv\Scripts\python -m pulse_ml.feedback` | exports doctor-reviewed flags as labels (git-ignored `data/feedback/`) and says whether there are enough (≥ 30) |
+| `..\.venv\Scripts\python -m pulse_ml.feedback --gate <candidate metadata.json>` | regression gate: a retrained ring model must not lose injected-episode recall; deployment stays manual |
+
+**`weekly_reports` row:**
+- `home_bp_category`: ACC/AHA 2017 home column, from the week's valid readings.
+- `control_status`: vs the active `care_plans` target, default 140/90; insufficient_data if fewer than 3 readings.
+- `next_week_above_target_prob`: filled by the classifier (step P3).
+- `model_versions`.
+- `summary`, numbers only: BP means and target, ring night values, flag counts by kind and review status, latest mbp estimate.
+
+A report the doctor already reviewed is never overwritten.
+
+**`patient_bands` proposals:**
+- Median of the last 28 nights ± max(3 × robust SD, floor).
+- Never more permissive than the reference on the safety side.
+- Status `proposed`, one open proposal per metric. Only `private.approve_band` (doctor) activates a band; from then on the monitor uses the band instead of the learned baseline.
+
+**Feedback rules (review M5):**
+- Labels retune only `personal_anomaly` thresholds, never the reference or safety values.
+- At least 30 labels are needed.
+- The injected-episode recall is the gate.
+- No automatic deployment.
+
+**Verified locally (30 Oct 2026):**
+- 11 reports, 12 band proposals.
+- A test runs the weekly job, has the doctor approve and edit Karim's heart-rate band through RLS, re-runs the monitor, and checks that the flags now cite `band:<id>`.
+
 ## Demo scenarios (local seed, 30 Oct 2026, target = next day)
 | demo patient | seed scenario | job result | why it is useful in the demo |
 |---|---|---|---|
