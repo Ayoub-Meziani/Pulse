@@ -1,7 +1,7 @@
 // Screen choice after each server answer. Levels and flags in these fixtures are what the backend
 // returns for the named rules (api/app/analysis/rules.py); the helper must follow them, never compute them.
 import { describe, expect, it } from "vitest";
-import { afterMeasurement, afterSymptoms, whenUnreachable } from "./readingFlow";
+import { afterMeasurement, afterSymptoms, readingRequest, whenUnreachable } from "./readingFlow";
 
 function evaluation(over = {}) {
   return { level: "none", rule_id: null, reason: "Below target.", next_step: "Reading saved.",
@@ -79,5 +79,26 @@ describe("whenUnreachable", () => {
 
   it("without the server fallback it never guesses a level", () => {
     expect(whenUnreachable({ systolic: 250, diastolic: 150 }, [], null)).toEqual({ kind: "unreachable", emergency: false });
+  });
+});
+
+describe("readingRequest (repeat-safe submission)", () => {
+  const body = { systolic: 128, diastolic: 82, pulse: 70, measured_at: "2026-10-30T08:00:00.000Z" };
+  let n = 0;
+  const ids = () => `id-${++n}`;
+
+  it("keeps the same id when the same reading is sent again", () => {
+    const first = readingRequest(null, body, ids);
+    expect(readingRequest(first, { ...body }, ids)).toBe(first);
+  });
+
+  it("uses a new id when any value changes", () => {
+    const first = readingRequest(null, body, ids);
+    const second = readingRequest(first, { ...body, systolic: 129 }, ids);
+    expect(second.id).not.toBe(first.id);
+  });
+
+  it("defaults to crypto.randomUUID", () => {
+    expect(readingRequest(null, body).id).toMatch(/^[0-9a-f-]{36}$/);
   });
 });

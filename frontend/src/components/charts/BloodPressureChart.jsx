@@ -1,32 +1,29 @@
 import {
-  LineChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
-import { formatDateTime, formatShortDate, SOURCE } from "../../lib/format";
+import { formatDateTime, formatShortDate, originOf } from "../../lib/format";
 
-const COLORS = { systolic: "#2563eb", diastolic: "#0d9488" };
+const COLORS = { systolic: "#0b5cad", diastolic: "#0e7c86" };
 
-// Simulated readings are drawn as hollow points so they are never mistaken for measurements.
+// Simulated readings are drawn hollow so they are never mistaken for measurements; readings the database
+// flagged "à vérifier" get a ring. Invalid readings are not drawn (the API leaves them out by default).
 function dotFor(color) {
   return function Dot({ cx, cy, payload }) {
     if (cx === undefined || cy === undefined) return null;
-    const simulated = payload.provenance === "simulated";
+    const simulated = originOf(payload).simulated;
+    const review = payload.validation_status === "needs_review";
     return (
-      <circle
-        key={payload.id}
-        cx={cx}
-        cy={cy}
-        r={4}
-        stroke={color}
-        strokeWidth={2}
-        fill={simulated ? "#ffffff" : color}
-      />
+      <g key={`${payload.id}-${color}`}>
+        {review && <circle cx={cx} cy={cy} r={7} fill="none" stroke="#7a5000" strokeWidth={1.5} />}
+        <circle cx={cx} cy={cy} r={3.5} stroke={color} strokeWidth={2} fill={simulated ? "#ffffff" : color} />
+      </g>
     );
   };
 }
@@ -35,69 +32,53 @@ function ReadingTooltip({ active, payload, timeZone }) {
   if (!active || !payload?.length) return null;
   const r = payload[0].payload;
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-md">
-      <p className="font-semibold text-slate-900">{r.systolic} / {r.diastolic} mmHg</p>
-      <p className="text-slate-500">{formatDateTime(r.measured_at, timeZone)}</p>
-      <p className="mt-1 text-slate-600">
-        {r.provenance === "simulated" ? "Simulée" : SOURCE[r.source] ?? r.source}
-      </p>
+    <div className="rounded-lg border border-line bg-surface p-3 text-sm shadow-md">
+      <p className="tnum font-semibold text-ink">{r.systolic}/{r.diastolic} mmHg{r.pulse ? ` · ${r.pulse} bpm` : ""}</p>
+      <p className="text-ink-muted">{formatDateTime(r.measured_at, timeZone)}</p>
+      <p className="mt-1 text-ink-muted">{originOf(r).label}{r.validation_status === "needs_review" ? " · à vérifier" : ""}</p>
     </div>
   );
 }
 
 const DOTS = { systolic: dotFor(COLORS.systolic), diastolic: dotFor(COLORS.diastolic) };
 
-/** Props: readings (MeasurementOut[], any order), timeZone (IANA, from /me). */
-export default function BloodPressureChart({ readings, timeZone }) {
+/** Props: readings (MeasurementOut[], any order), timeZone (IANA), target ({systolic, diastolic}) optional. */
+export default function BloodPressureChart({ readings, timeZone, target }) {
   const data = [...readings]
+    .filter((r) => r.validation_status !== "invalid")
     .sort((a, b) => new Date(a.measured_at) - new Date(b.measured_at))
     .map((r) => ({ ...r, day: formatShortDate(r.measured_at, timeZone) }));
-  const hasSimulated = data.some((r) => r.provenance === "simulated");
+  const hasSimulated = data.some((r) => originOf(r).simulated);
+
+  if (data.length === 0) {
+    return <p className="rounded-xl bg-canvas px-5 py-10 text-center text-sm text-ink-muted">Le graphique apparaîtra après la première mesure.</p>;
+  }
 
   return (
-    <div className="w-full">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-slate-900">Évolution de la tension</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            {data.length > 0 ? `${data.length} dernière(s) mesure(s) enregistrée(s)` : "Aucune mesure à afficher"}
-          </p>
-        </div>
-
-        {hasSimulated && (
-          <span className="shrink-0 rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800">
-            DONNÉES SIMULÉES
-          </span>
-        )}
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS.systolic }} />Systolique</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS.diastolic }} />Diastolique</span>
+        {target && <span className="inline-flex items-center gap-1.5"><span className="h-0 w-4 border-t-2 border-dashed border-ink-subtle" />Cible {target.systolic}/{target.diastolic}</span>}
+        {hasSimulated && <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-sim bg-white" />Point creux = valeur simulée</span>}
       </div>
-
-      {data.length === 0 ? (
-        <div className="rounded-xl bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
-          Le graphique apparaîtra après votre première mesure.
-        </div>
-      ) : (
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="day" stroke="#64748b" />
-              <YAxis domain={[(min) => Math.floor(min - 10), (max) => Math.ceil(max + 10)]} stroke="#64748b" />
-              <Tooltip content={<ReadingTooltip timeZone={timeZone} />} />
-              <Legend />
-              <Line type="monotone" dataKey="systolic" name="Systolique" stroke={COLORS.systolic}
-                strokeWidth={3} dot={DOTS.systolic} isAnimationActive={false} />
-              <Line type="monotone" dataKey="diastolic" name="Diastolique" stroke={COLORS.diastolic}
-                strokeWidth={3} dot={DOTS.diastolic} isAnimationActive={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {hasSimulated && (
-        <p className="mt-3 text-xs text-slate-500">
-          Les points creux sont des valeurs simulées : elles ne sont pas des mesures réelles.
-        </p>
-      )}
+      <div className="h-64 w-full sm:h-72" role="img" aria-label={`Graphique de ${data.length} mesures de tension`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e6ebf1" vertical={false} />
+            <XAxis dataKey="day" stroke="#66737f" tickLine={false} fontSize={12} minTickGap={16} />
+            <YAxis domain={[(min) => Math.floor((min - 10) / 10) * 10, (max) => Math.ceil((max + 10) / 10) * 10]}
+              stroke="#66737f" tickLine={false} fontSize={12} width={44} />
+            {target && <ReferenceLine y={target.systolic} stroke="#9aa7b5" strokeDasharray="5 4" />}
+            {target && <ReferenceLine y={target.diastolic} stroke="#9aa7b5" strokeDasharray="5 4" />}
+            <Tooltip content={<ReadingTooltip timeZone={timeZone} />} />
+            <Line type="monotone" dataKey="systolic" name="Systolique" stroke={COLORS.systolic} strokeWidth={2.5}
+              dot={DOTS.systolic} activeDot={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="diastolic" name="Diastolique" stroke={COLORS.diastolic} strokeWidth={2.5}
+              dot={DOTS.diastolic} activeDot={false} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

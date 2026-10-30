@@ -12,7 +12,7 @@ export default function RequireRole({ roles, children }) {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500" role="status">
+      <div className="flex min-h-screen items-center justify-center bg-canvas text-ink-muted" role="status">
         Vérification de la session…
       </div>
     );
@@ -23,11 +23,11 @@ export default function RequireRole({ roles, children }) {
   if (!roles.includes(user.role)) {
     const home = homeFor(user.role);
     return (
-      <section className="mx-auto mt-16 max-w-md rounded-2xl bg-white p-8 text-center shadow-sm" role="alert">
-        <h1 className="text-xl font-bold text-slate-900">Accès refusé</h1>
-        <p className="mt-2 text-slate-600">Votre compte n'a pas accès à cette page.</p>
+      <section className="mx-auto mt-16 max-w-md rounded-2xl border border-line bg-surface p-8 text-center" role="alert">
+        <h1 className="text-xl font-bold text-ink">Accès refusé</h1>
+        <p className="mt-2 text-ink-muted">Votre compte n'a pas accès à cette page.</p>
         {home && (
-          <Link to={home} className="mt-4 inline-block text-sm font-medium text-blue-700">
+          <Link to={home} className="mt-4 inline-block text-sm font-semibold text-brand">
             Retour à mon espace
           </Link>
         )}

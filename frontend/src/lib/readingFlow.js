@@ -35,3 +35,13 @@ export function whenUnreachable(reading, symptoms, fallback) {
   const redFlag = symptoms.some((s) => fallback.red_flag_symptoms.includes(s));
   return { kind: "unreachable", emergency: severe || redFlag };
 }
+
+/**
+ * Client id that makes POST /measurements repeat-safe (D17). The same values keep the same id, so a retry
+ * after a timeout or a double tap returns the stored reading instead of creating a second one. Changed
+ * values get a new id (the server would answer 409 for an old id with other values).
+ */
+export function readingRequest(previous, body, newId = () => crypto.randomUUID()) {
+  const key = JSON.stringify(body);
+  return previous && previous.key === key ? previous : { key, id: newId() };
+}
