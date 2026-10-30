@@ -162,7 +162,7 @@ Contract v1 (task 1.1) comes first and unblocks the frontend for the whole seque
 |---|---|
 | Serve the SPA | FastAPI mounts `web/dist` at `/` with history fallback to `index.html`; API stays under `/api/v1`. |
 | Contract hygiene | Every schema change → `python -m app.export_openapi` → frontend `npm run gen:api`; CI checks both are current (web job exists on `feat/web-scaffold`). |
-| Integration pass | With the frontend developer: run the full flows against the local stack, then `pulse-demo`. |
+| Integration pass | With the frontend developer: run the full flows against the local stack, then `pulse`. |
 
 **Files:** `api/app/main.py`, `.github/workflows/ci.yml`, `README.md`.
 **Acceptance:** `npm run build` + `uvicorn` serves the whole app from one origin; no CORS configuration exists.
@@ -174,9 +174,9 @@ Contract v1 (task 1.1) comes first and unblocks the frontend for the whole seque
 | Task | Detail |
 |---|---|
 | Alert replay job | `python -m app.jobs.replay_alerts [--patient]`: evaluates seeded readings and symptom reports in time order with `clock = measured_at`; idempotent (skips readings already attached). |
-| Demo reset script | `scripts/demo_reset.ps1` / `.sh`: seed (data/AI tool) → replay alerts → ML batch → print accounts. Local stack and `pulse-demo` only. |
-| Security | Login rate limit; no bodies in logs; secrets only in env; `PULSE_ENV=prod` refuses missing config; sign-up disabled verified on `pulse-demo`; anon key cannot read any table (REPORTED 0 grants; re-check on cloud). |
-| Deploy | FastAPI host with HTTPS (D5) + `pulse-demo`; health check; phone test (GPS needs HTTPS). |
+| Demo reset script | `scripts/demo_reset.ps1` / `.sh`: seed (data/AI tool) → replay alerts → ML batch → print accounts. Local stack and `pulse` only. |
+| Security | Login rate limit; no bodies in logs; secrets only in env; `PULSE_ENV=prod` refuses missing config; sign-up disabled verified on `pulse`; anon key cannot read any table (REPORTED 0 grants; re-check on cloud). |
+| Deploy | FastAPI host with HTTPS (D5) + `pulse`; health check; phone test (GPS needs HTTPS). |
 | Demo | Script rehearsal from a fresh reset; backup screen recording. |
 
 **Acceptance (A1–A10 of the conception):** reading persists; doctor sees it within 15 s; rules tested; red flag → emergency with normal BP; emergency call in ≤ 2 taps and offline from cache; three paths visibly separate; alerts/incidents/notes in history; no cross-patient reads; simulated data labelled; demo repeatable from reset.
@@ -188,7 +188,7 @@ Contract v1 (task 1.1) comes first and unblocks the frontend for the whole seque
 | Developer | Owns and delivers | Inputs | Outputs / done when |
 |---|---|---|---|
 | **Ayoub** (backend + integration) | Phases 1–10 above (except 1.2 authoring), contract v1, vocab mapping, rules, replay job, deploy, CI, merges | Data layer PR, M3, M4, frontend feedback | C1, C3, C4, C6 |
-| **Data/AI developer** | 1) PR `feat/data-layer` (supabase/, pulse_data/ without rules.py, tests, docs) — **first**. 2) M3. 3) Seed generator: password from env; scenarios incl. trusted contacts and profiles. 4) Create/configure `pulse-demo` with Ayoub (sign-up off) and apply migrations. 5) M4. 6) ML pipeline + model card + `pulse_ml.predict`. 7) CSV import doc for the demo. | Contracts §3–§4, Ayoub's approval of the ML target | C2, C5; model card committed; `ml_predictions` filled on `pulse-demo` |
+| **Data/AI developer** | 1) PR `feat/data-layer` (supabase/, pulse_data/ without rules.py, tests, docs) — **first**. 2) M3. 3) Seed generator: password from env; scenarios incl. trusted contacts and profiles. 4) Create/configure `pulse` with Ayoub (sign-up off) and apply migrations. 5) M4. 6) ML pipeline + model card + `pulse_ml.predict`. 7) CSV import doc for the demo. | Contracts §3–§4, Ayoub's approval of the ML target | C2, C5; model card committed; `ml_predictions` filled on `pulse` |
 | **Frontend developer** | `web/`: adapt scaffold to contract v1 (uuid, refresh, 13 symptoms, validation display); emergency screen (config + card cache, `tel:`, contact call/share, GPS with timeout, offline action queue, client fallback); history chart; alerts list + acknowledge; doctor list (15 s polling) + patient detail + alert review + incident report + notes + prediction panel; profile + contacts; FR UI, FR/AR emergency text | `contract/openapi.json` (C1), contracts §2.5 | Every screen uses generated types; builds and lints in CI |
 
 Shared interfaces: `contract/openapi.json` (Ayoub), `supabase/migrations/` (data/AI), `ml_predictions` table (data/AI writes, Ayoub reads), `EmergencyConfigOut` client-fallback constants (Ayoub).
