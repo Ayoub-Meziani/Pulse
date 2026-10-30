@@ -1,6 +1,6 @@
 # Your steps for the cloud (project `pulse`)
 
-Claude's safety permission blocks it from changing the shared cloud database, so these steps are yours. Everything is prepared and was tested on the local copy first. Open a terminal in VS Code (**Terminal → New Terminal**); it starts in `C:\Users\Lenovo\Desktop\pulse`.
+**Status, 30 Oct 2026:** step 1 is done (the team approved; Claude ran it, and the check matched). Steps 2–5 remain. Step 2 needs the database password, so only the project owner can do it. Everything was tested on the local copy first. Open a terminal in VS Code (**Terminal → New Terminal**); it starts in `C:\Users\Lenovo\Desktop\pulse`.
 
 ## Step 1: chronic conditions (M8) + ring demo data (about 2 minutes)
 ```

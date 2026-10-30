@@ -16,7 +16,7 @@ Cloud project: `pulse` (ref `nfmfdhpxipdndggxtqho`).
 
 | M7 | `20261030150000_ml_monitoring.sql` | `wearable_flags`, `patient_bands` (+ `private.approve_band`), `weekly_reports`, `wearable_samples(created_at)` index | applied | applied 30 Oct after approval (review M9 gate). Verified: 24 tables, RLS on all, 52 policies, 0 anon grants, `approve_band` + 3 audit triggers present, logged-out REST refused (42501) | endpoints for weekly reports, band approval, flag review (see ml/README.md) |
 
-| M8 | `20261030160000_chronic_conditions.sql` | `condition_codes` list adds copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease | applied | **NOT applied: needs approval** (review M9 gate) | profile screens may offer the new codes; additive only |
+| M8 | `20261030160000_chronic_conditions.sql` | `condition_codes` list adds copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease | applied | **applied 30 Oct 2026** (team approved) | profile screens may offer the new codes; additive only |
 
 **Note for the backend:** the data/AI owner chose to apply M5 and M6 to the cloud before your review, so the demo data could include them. Every change is additive (new nullable columns, a widened category list, two new tables). No existing column, constraint meaning or policy changed for current API behaviour. If you want something reverted, it will be a new migration (M7), never an edit.
 
@@ -100,7 +100,8 @@ Everything in M7 is **advisory**: no safety rule reads these tables (review H6).
   - sets the demo patients' condition codes
   - adds a simulated ring for every demo patient (`on conflict do nothing`)
   - inserts 28 days of samples dated relative to `now()`
-- **Run with:** `npx supabase@2.122.0 db query --linked -f data/cloud_ring_demo.sql`, after M8. It's idempotent; tested on the local stack (a non-simulated sample survives; BP readings untouched).
+- **Run with:** `scripts\cloud_update.ps1` (M8 + the refresh in 5 parts, since `db query -f` takes one command). It's idempotent; tested on the local stack (a non-simulated sample survives; BP readings untouched).
+- **Cloud, 30 Oct 2026, after team approval:** M8 applied and the ring demo refreshed. Read-only check: 8/8 migrations in sync, 24 public tables all with RLS, readings 730 (unchanged), 12 ring patients × 1,736 samples = 20,832, 0 non-simulated ring samples, 1 COPD, 1 atrial fibrillation.
 
 ## How to add a migration
 1. New file `supabase/migrations/<UTC timestamp>_<name>.sql`. Never edit an applied one.
