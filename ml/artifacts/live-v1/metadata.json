@@ -2,6 +2,8 @@
   "model_version": "live-v1",
   "trained_on": "synthetic:live_sim seed 11 (minute-level ring nights)",
   "tested_on": "synthetic:live_sim seed 2027",
+  "validation": "SIMULATOR-ONLY: every figure comes from 700 + 700 simulated nights; not real-world or clinical validation",
+  "clinician_review": "pending for every threshold and parameter (ml/MODEL_CARD.md, Pending clinician review)",
   "train_nights": 700,
   "test_nights": 700,
   "test_situations": {

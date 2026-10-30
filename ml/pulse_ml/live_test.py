@@ -280,6 +280,9 @@ def main() -> None:
     meta = {
         "model_version": live.MODEL_VERSION,
         "trained_on": "synthetic:live_sim seed 11 (minute-level ring nights)", "tested_on": "synthetic:live_sim seed 2027",
+        "validation": "SIMULATOR-ONLY: every figure comes from 700 + 700 simulated nights; not real-world or clinical "
+                      "validation",
+        "clinician_review": "pending for every threshold and parameter (ml/MODEL_CARD.md, Pending clinician review)",
         "train_nights": len(train_t), "test_nights": len(test_t),
         "test_situations": test_n.situation.value_counts().to_dict(),
         "forecast": {"metrics": list(live.METRICS), "horizons_min": list(live.HORIZONS), "features": live.FEATURES,

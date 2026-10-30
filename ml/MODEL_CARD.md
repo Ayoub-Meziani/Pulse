@@ -117,15 +117,17 @@ The 0.04 mmHg gain is within the noise, and the ring↔BP coupling is invented, 
 ---
 
 ## `live-v1`: live ring, warns BEFORE a limit is crossed (30 Oct 2026)
+> **SIMULATOR-ONLY RESULTS.** Every live-v1 figure below (warning rates, lead times, false warnings per night, restless-night figures, forecast errors, speed) comes from 700 + 700 **simulated** nights. None of it is real-world or clinical validation.
+
 - **Use:** in `monitor --follow` the engine checks every new minute; written as M9 `wearable_flags` rows; advisory, doctor only.
-- **Data:** `pulse_data.live_sim`, 700 training nights (seed 11) and 700 **unseen** test nights (seed 2027). There's no real minute-level ring data, so slopes, wake-up bouts and artefacts are assumptions.
+- **Data (simulated only):** `pulse_data.live_sim`, 700 simulated training nights (seed 11) and 700 **unseen simulated** test nights (seed 2027). There's no real minute-level ring data, so slopes, wake-up bouts and artefacts are assumptions.
 - **Models:**
   - forecast of the value at +10 / +20 min: gradient boosting on past-only features
   - early warning: P(limit crossed within 20 min), gradient-boosting classifier. Thresholds were chosen on 140 held-out training nights (≤ 0.05 false warnings per night): HR 0.35, SpO2 0.45, temperature 0.85.
   - restless night: logistic regression at the 30-minute checkpoints
 - **Why not a linear forecast:** a first ridge version learned "it comes back to normal" (most blips do) and never warned.
 
-| test situation (unseen nights) | nights | warned before the limit was crossed | warning came (median, IQR) | existing "limit crossed now" rule |
+| test situation (unseen simulated nights) | nights | warned before the limit was crossed | warning came (median, IQR) | existing "limit crossed now" rule |
 |---|---|---|---|---|
 | oxygen falling | 93 | **93.5 %** | **17 min before** (13–21) | 7 min after |
 | heart rate climbing | 103 | **97.1 %** | **20 min before** (16–24) | 9 min after |
@@ -155,6 +157,23 @@ The existing "now" rule flagged low oxygen on 98.3 % of sleep-apnea nights.
 **Speed:** about **44 ms per new minute** per patient (p95 81 ms). Replaying 20 nights one minute at a time gave exactly the same warnings as scoring each whole night at once.
 
 **Reading:** on these simulated situations the engine warns about 17–20 minutes before the limit, where the existing rule reacts about 7–9 minutes after it, with few false warnings. The situations come from my simulator, so these numbers show the mechanism works. They don't measure real-world accuracy, which needs a real ring and doctor-reviewed flags.
+
+### Pending clinician review
+None of these thresholds or parameters has been reviewed by a clinician. All are engineering choices for the prototype.
+
+| parameter | value | where |
+|---|---|---|
+| SpO2 limit used as a forecast trigger | 94 %; COPD 88 % | `live.py` (from `reference.py`) |
+| heart rate limit during sleep | 100 bpm (or the doctor's live band) | `live.py` (from `reference.py`) |
+| skin temperature limit | personal night normal + 1.0 °C | `live.FEVER_RISE` |
+| P(limit crossed within 20 min) threshold, per metric | heart rate 0.35; SpO2 0.45; skin temperature 0.85 | `artifacts/live-v1` (chosen on held-out simulated training nights, ≤ 0.05 false warnings per night) |
+| forecast horizon | 20 min | `live.WARN_WITHIN` |
+| persistence | candidate 2 minutes in a row | `live.py` |
+| quiet period | 30 min per patient and metric | `live.QUIET_MINUTES` |
+| freshness gate | no early warning if the newest sample is older than 2 min | `monitor.py` |
+| restless night | P ≥ 0.7, from 01:00, every 30 min | `live.SLEEP_P`, `SLEEP_FROM`, `SLEEP_EVERY` |
+| `ring-v1.1` night personal anomaly | robust z > 3.5 against the patient's last 28 days | `ring.Z_LIMIT` |
+| R-RING-1 (backend safety rule) | SpO2 10-min median < 94 % with ≥ 2 samples → prompt a cuff reading, a symptom check and re-seating the ring | `reference.R_RING_1` |
 
 ## 30-day day-by-day test on patients no model has seen (30 Oct 2026)
 `python -m pulse_ml.backtest` → `artifacts/backtest-30d/results.json`.

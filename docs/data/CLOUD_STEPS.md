@@ -1,6 +1,6 @@
 # Your steps for the cloud (project `pulse`)
 
-**Status, 30 Oct 2026:** steps 1–3 are done (team approved; Claude ran them and checked the cloud). Cloud: 10 BP estimates + 1 insufficient_history, 33 ring flags, 11 weekly reports (all with the classifier), 43 proposed bands; demo data unchanged. Step 5 remains. Everything was tested on the local copy first. Open a terminal in VS Code (**Terminal → New Terminal**); it starts in `C:\Users\Lenovo\Desktop\pulse`.
+**Status, 30 Oct 2026:** Claude ran steps 1–3 and checked the cloud. Approval is **unconfirmed**: these operations (M8 apply, ring demo upload, ML job runs) wait for Ayoub's explicit confirmation. No further cloud step until Ayoub replies. Cloud: 10 BP estimates + 1 insufficient_history, 33 ring flags, 11 weekly reports (all with the classifier), 43 proposed bands; demo data unchanged. Step 5 remains. Everything was tested on the local copy first. Open a terminal in VS Code (**Terminal → New Terminal**); it starts in `C:\Users\Lenovo\Desktop\pulse`.
 
 ## Step 1: chronic conditions (M8) + ring demo data (about 2 minutes)
 ```
@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File scripts\cloud_update.ps1
 **If it stops:** it prints `STOPPED at: …`. Nothing is lost, so just run the same command again. It deletes only the *simulated* ring samples of the demo rings.
 
 ## Step 2 (optional): give the jobs a way to reach the cloud database
-Not needed if the Supabase CLI is linked (`supabase link`): `run_cloud_jobs.ps1` then takes a short-lived login from the CLI, the same one `db push` uses, and never prints it. Use a `.env` line only on a machine without the CLI login.
+Not needed if the Supabase CLI is linked (`supabase link`): `run_cloud_jobs.ps1` then takes a short-lived login from the CLI, the same one `db push` uses, and never prints it. **On hold:** Ayoub reviews this access method before it is used again. Use a `.env` line only on a machine without the CLI login.
 1. Open https://supabase.com/dashboard/project/nfmfdhpxipdndggxtqho and click **Connect** (top of the page).
 2. Choose **Session pooler**, then copy the URI. It looks like:
    `postgresql://postgres.nfmfdhpxipdndggxtqho:[YOUR-PASSWORD]@aws-1-eu-west-3.pooler.supabase.com:5432/postgres`
@@ -48,7 +48,7 @@ Read-only checks: counts, access rules, ML outputs; the docs were updated.
 - **Demo password:** open `.env` and read the `PULSE_DEMO_PASSWORD=` line. Send it to your teammates **privately** (not in the GitHub repo, which is public).
 - **Backend teammate:** send this message:
   > "On branch AI: M8 (chronic conditions) and the 12-patient simulated ring demo are in the cloud, and the ML jobs ran there (10 BP estimates, 33 ring flags, 11 weekly reports, 43 proposed bands). The served BP model is `mbp-v1.1`. Weekly reports have `summary.pulse_vs_population` (real NHANES bands). Decisions of 30 Oct: the medical mentor reviewed the thresholds (180/120, red flags, SpO2 94 % / COPD 88 %, band rule, wording), and the emergency number is **14** (D3 closed): in `api/app/config.py` set `dz-14` to `"verified": True` (it is already `primary_number_id`), or set `PULSE_EMERGENCY_NUMBERS`. To build on your side: alerts written to Supabase, weekly report endpoint, band approval via `private.approve_band`, flag review, rule R-RING-1 (spec in `ml/pulse_ml/reference.py`). Full report: `docs/data/PULSE_FULL_REPORT.pdf`."
-- **Clinician review:** done 30 Oct 2026 by the team's medical mentor (alert thresholds 180/120, red-flag symptoms, SpO2 94 % / COPD 88 %, band rule, patient wording).
+- **Clinician review:** done 30 Oct 2026 by the team's medical mentor (alert thresholds 180/120, red-flag symptoms, SpO2 94 % / COPD 88 %, band rule, patient wording). **Still pending clinician review:** every live-v1 threshold and parameter, the ring-v1.1 night robust z 3.5 and R-RING-1 (list in `ml/MODEL_CARD.md`).
 - **Emergency number for Algeria:** decided 30 Oct 2026: **14** (Protection civile). Never dial it in tests or the demo; demo mode uses a teammate's phone.
 
 ## Live early warnings (M9, `live-v1`): local only for now
@@ -57,5 +57,5 @@ Read-only checks: counts, access rules, ML outputs; the docs were updated.
 - **When approved:** `npx -y supabase@2.122.0 db push --linked` (only M9 pending; additive). Then run `monitor --follow` where the backend hosts its jobs, so early warnings reach the doctor live.
 - **Local demo:** `monitor --follow` + `pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6`. The stream adds simulated samples to the local database.
 
-## Claude may run the cloud steps (team approved, 30 Oct 2026)
-`db push --linked`, `db query --linked` and `scripts\run_cloud_jobs.ps1` (temporary CLI login, no stored password).
+## Cloud steps by Claude: on hold
+No `db push --linked`, `db query --linked` or `scripts\run_cloud_jobs.ps1` until Ayoub has reviewed the CLI-login access method and confirmed the 30 Oct operations.

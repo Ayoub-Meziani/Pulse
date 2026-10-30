@@ -97,10 +97,12 @@ Every new minute of ring data is checked by `pulse_ml.live`, inside `monitor --f
 
 These warnings are advisory, for the doctor only (the `wearable_flags` rows `early_warning` / `forecast`).
 
+**Simulator-only:** every live-v1 result (700 + 700 simulated nights) shows the mechanism works on invented situations; it is not real-world or clinical validation. Every threshold and parameter is **pending clinician review** (list in `MODEL_CARD.md`).
+
 | Command | What |
 |---|---|
 | `..\.venv\Scripts\python -m pulse_data.live_sim --out data/live/train --nights 700 --seed 11` and `... --out data/live/test --nights 700 --seed 2027` (repo root) | minute-level SIMULATED nights: normal, bad sleep, sleep apnea, oxygen falling, heart rate climbing, fever starting, false-alarm traps |
-| `..\.venv\Scripts\python -m pulse_ml.live_test` | trains `live-v1` (seed 11; thresholds on held-out training nights) and tests it minute by minute on the unseen seed-2027 nights → `artifacts/live-v1/` |
+| `..\.venv\Scripts\python -m pulse_ml.live_test` | trains `live-v1` (seed 11; thresholds on held-out training nights) and tests it minute by minute on the unseen simulated seed-2027 nights → `artifacts/live-v1/` |
 | `..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5` + `..\.venv\Scripts\python -m pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6` (repo root) | live demo on the local stack: an `early_warning` row before the `outside_reference` row (the stream adds simulated samples) |
 
 ## Training commands (all from `ml/`, synthetic data from `python -m pulse_data.simulate csv` at the repo root)
