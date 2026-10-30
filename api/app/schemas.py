@@ -1,23 +1,35 @@
-"""Request/response models: THE API CONTRACT.
+"""Request/response models: THE API CONTRACT (v1).
 
 FastAPI generates OpenAPI from these (GET /api/v1/openapi.json, exported to
 contract/openapi.json). Change only through a coordinated PR approved by the
-integration lead; see CLAUDE.md.
+integration lead; see CLAUDE.md and PULSE_INTEGRATION_CONTRACTS.md.
+
+Vocabularies follow the shared Supabase schema (supabase/migrations on branch AI),
+except where the frontend already depends on the API names (Level, full_name).
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-Role = Literal["patient", "doctor"]
-Source = Literal["manual", "device", "imported", "simulated"]
-LevelOut = Literal["none", "notice", "trend", "severe", "emergency"]
+Role = Literal["patient", "doctor", "admin"]
+Source = Literal["manual", "device_sync", "csv_import", "simulated"]
+Provenance = Literal["measured", "estimated", "simulated"]
+Method = Literal["cuff_oscillometric", "cuff_auscultatory", "wearable_estimate", "unknown"]
+ValidationStatus = Literal["valid", "needs_review", "invalid"]
+Level = Literal["none", "notice", "trend", "severe", "emergency"]
 AlertLevel = Literal["notice", "trend", "severe", "emergency"]
-AlertState = Literal["new", "acknowledged", "escalated", "dismissed", "reviewed", "closed"]
-SymptomCode = Literal["chest_pain", "short_breath", "back_pain", "numbness",
-                      "weakness", "vision_change", "speech_difficulty"]
+AlertStatus = Literal["open", "acknowledged", "reviewed", "resolved"]
+Symptom = Literal["chest_pain", "shortness_of_breath", "back_pain", "weakness", "numbness",
+                  "vision_change", "difficulty_speaking", "severe_headache", "confusion",
+                  "dizziness", "nausea", "palpitations", "other"]
+Position = Literal["sitting", "standing", "lying"]
+Arm = Literal["left", "right"]
+Trend = Literal["rising", "stable", "falling", "insufficient_data"]
+PHONE_PATTERN = r"^\+?[0-9 ()-]{6,20}$"
 
 
 class ORM(BaseModel):
@@ -30,58 +42,63 @@ class LoginIn(BaseModel):
     password: str
 
 
+class RefreshIn(BaseModel):
+    refresh_token: str
+
+
 class UserOut(ORM):
-    id: int
+    id: UUID
     role: Role
     full_name: str
     email: str
+    timezone: str = Field(description="IANA time zone used to display times, e.g. Africa/Algiers.")
 
 
-class LoginOut(BaseModel):
+class SessionOut(BaseModel):
     access_token: str
+    refresh_token: str
+    expires_at: datetime
     token_type: Literal["bearer"] = "bearer"
     user: UserOut
 
 
 # ---------------------------------------------------------------- measurements
-class MeasurementContext(BaseModel):
-    rested_5_min: bool | None = None
-    position: Literal["sitting", "standing", "lying"] | None = None
-    arm: Literal["left", "right"] | None = None
-
-
 class MeasurementIn(BaseModel):
     systolic: int
     diastolic: int
     pulse: int | None = None
     measured_at: AwareDatetime | None = Field(None, description="Defaults to server time when omitted.")
-    source: Source = "manual"
-    source_ref: str | None = Field(None, max_length=200,
-                                   description="Device id, import file name or simulator scenario.")
-    external_id: str | None = Field(None, max_length=200,
-                                    description="Stable id from the source; duplicates are rejected (409).")
-    context: MeasurementContext | None = None
+    measured_tz: str | None = Field(None, description="IANA zone where the reading was taken; defaults to the profile time zone.")
+    body_position: Position | None = None
+    arm: Arm | None = None
+    rested_5_min: bool | None = None
+    context: str | None = Field(None, max_length=500)
 
 
 class MeasurementOut(ORM):
-    id: int
-    patient_id: int
+    id: UUID
+    patient_id: UUID
     systolic: int
     diastolic: int
     pulse: int | None
     measured_at: datetime
-    received_at: datetime
+    measured_tz: str | None
+    created_at: datetime
     source: Source
-    source_ref: str | None
-    external_id: str | None
-    context: dict | None
-    validation_status: Literal["valid", "questionable"]
-    validation_notes: list[str] | None
+    provenance: Provenance
+    method: Method
+    body_position: Position | None
+    arm: Arm | None
+    rested_5_min: bool | None
+    context: str | None
+    validation_status: ValidationStatus = Field(description="Computed by the database (policy pulse-v1); never sent by clients.")
+    quality_flags: list[str]
+    validation_policy_version: str
 
 
 class EvaluationOut(BaseModel):
-    level: LevelOut
-    rule_id: str | None
+    level: Level
+    rule_id: str | None = Field(description="Rule that decided the level, e.g. R-SEV-1, or DATA-INVALID.")
     reason: str
     next_step: str
     requires_symptom_check: bool
@@ -89,11 +106,11 @@ class EvaluationOut(BaseModel):
     show_emergency: bool
 
 
-class AlertBrief(ORM):
-    id: int
+class AlertBrief(BaseModel):
+    id: UUID
     level: AlertLevel
     rule_id: str
-    state: AlertState
+    status: AlertStatus
     persistent: bool
 
 
@@ -106,60 +123,57 @@ class MeasurementResult(BaseModel):
 
 # ---------------------------------------------------------------- symptoms
 class SymptomReportIn(BaseModel):
-    symptoms: list[SymptomCode] = Field(default_factory=list, description="Empty list = none of these.")
-    measurement_id: int | None = None
+    symptoms: list[Symptom] = Field(default_factory=list, description="Empty list = none of these.")
+    measurement_id: UUID | None = None
+    onset_at: AwareDatetime | None = None
     notes: str | None = Field(None, max_length=1000)
 
 
 class SymptomReportOut(ORM):
-    id: int
-    patient_id: int
-    symptoms: list[SymptomCode]
-    measurement_id: int | None
-    notes: str | None
+    id: UUID
+    patient_id: UUID
+    symptoms: list[Symptom]
+    measurement_id: UUID | None
+    onset_at: datetime | None
     reported_at: datetime
+    source: str
 
 
 class SymptomResult(BaseModel):
-    report: SymptomReportOut
+    report: SymptomReportOut | None = Field(description="Null when the answer was 'none of these' and could not be stored yet (pending migration M3).")
     evaluation: EvaluationOut
     alert: AlertBrief | None = None
 
 
 # ---------------------------------------------------------------- alerts
-class AlertEventOut(ORM):
-    id: int
-    type: str
-    from_state: str | None
-    to_state: str | None
-    actor_user_id: int | None
-    actor_role: str
-    note: str | None
-    measurement_id: int | None
-    created_at: datetime
-
-
-class AlertOut(ORM):
-    id: int
-    patient_id: int
+class AlertOut(BaseModel):
+    id: UUID
+    patient_id: UUID
     level: AlertLevel
     rule_id: str
-    reason_text: str
-    next_step_text: str
-    measurement_id: int | None
-    symptom_report_id: int | None
-    state: AlertState
+    status: AlertStatus
     persistent: bool
-    triggered_at: datetime
+    reason: str
+    next_step: str
+    measurement_id: UUID | None
+    symptom_report_id: UUID | None
     created_at: datetime
-    updated_at: datetime
+    acknowledged_at: datetime | None
+    reviewed_at: datetime | None
+    resolved_at: datetime | None
+    resolution_note: str | None
 
 
 class AlertDetail(AlertOut):
-    events: list[AlertEventOut]
+    measurements: list[MeasurementOut] = Field(description="Readings attached to this alert episode, oldest first.")
 
 
-# ---------------------------------------------------------------- summary / doctor list
+class TransitionIn(BaseModel):
+    to: Literal["acknowledged", "reviewed", "resolved"]
+    note: str | None = Field(None, max_length=2000, description="Required to resolve a severe or emergency alert.")
+
+
+# ---------------------------------------------------------------- summary / history
 class TargetOut(BaseModel):
     systolic: int
     diastolic: int
@@ -168,8 +182,10 @@ class TargetOut(BaseModel):
 
 class SummaryOut(BaseModel):
     window_days: int
+    timezone: str
     count_7d: int
-    count_questionable_7d: int
+    count_needs_review_7d: int
+    count_invalid_7d: int
     avg_systolic_7d: float | None
     avg_diastolic_7d: float | None
     avg_systolic_30d: float | None
@@ -178,20 +194,277 @@ class SummaryOut(BaseModel):
     max_diastolic_7d: int | None
     pct_above_target_7d: float | None
     days_with_reading_7d: int
-    trend: Literal["rising", "stable", "falling", "insufficient_data"]
+    trend: Trend
     last_measured_at: datetime | None
     target: TargetOut
 
 
+class SessionMean(BaseModel):
+    systolic: float
+    diastolic: float
+    count: int
+
+
+class DailyPoint(BaseModel):
+    local_date: date
+    morning: SessionMean | None = Field(description="Valid readings before 12:00 local time.")
+    evening: SessionMean | None
+    count_valid: int
+    count_needs_review: int
+
+
+# ---------------------------------------------------------------- patients (doctor view)
 class PatientListItem(BaseModel):
-    id: int
+    id: UUID
     full_name: str
+    age: int | None = Field(description="Null until birth_year is stored (migration M3).")
     highest_active_alert: AlertLevel | None
     active_alert_count: int
     latest_measurement: MeasurementOut | None
     last_measured_at: datetime | None
     avg_systolic_7d: float | None
     avg_diastolic_7d: float | None
+
+
+# ---------------------------------------------------------------- profile, contacts, care plan
+class ProfileOut(BaseModel):
+    full_name: str
+    email: str
+    timezone: str
+    birth_year: int | None
+    relevant_conditions: list[str]
+    allergies: str | None
+    medication_context: str | None
+    regular_doctor_id: UUID | None
+    regular_doctor_name: str | None
+    regular_clinic: str | None
+    consent_location: bool
+
+
+class ProfileIn(BaseModel):
+    full_name: str = Field(min_length=1, max_length=120)
+    timezone: str = "Africa/Algiers"
+    birth_year: int | None = Field(None, ge=1900, le=2100)
+    relevant_conditions: list[str] = Field(default_factory=list)
+    allergies: str | None = None
+    medication_context: str | None = Field(None, description="As entered by the patient; PULSE never interprets it.")
+    regular_clinic: str | None = None
+    consent_location: bool = False
+
+
+class TrustedContactIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    relationship: str | None = Field(None, max_length=60)
+    phone: str = Field(pattern=PHONE_PATTERN)
+    contact_consented: Literal[True] = Field(description="The patient confirms the contact agreed to be listed.")
+    active: bool = True
+
+
+class TrustedContactPatch(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=120)
+    relationship: str | None = Field(None, max_length=60)
+    phone: str | None = Field(None, pattern=PHONE_PATTERN)
+    active: bool | None = None
+
+
+class TrustedContactOut(BaseModel):
+    id: UUID
+    name: str
+    relationship: str | None
+    phone: str
+    consented_at: datetime
+    active: bool
+
+
+class CarePlanOut(BaseModel):
+    id: UUID | None
+    target_systolic: int
+    target_diastolic: int
+    is_default: bool
+    effective_from: datetime | None
+    review_date: date | None
+    monitoring_readings_per_day: int | None
+    clinician_guidance: str | None
+
+
+class CarePlanIn(BaseModel):
+    target_systolic: int = Field(ge=90, le=200)
+    target_diastolic: int = Field(ge=50, le=130)
+    review_date: date | None = None
+    monitoring_readings_per_day: int | None = Field(None, ge=1, le=12)
+    clinician_guidance: str = Field(min_length=1, max_length=4000)
+
+
+# ---------------------------------------------------------------- emergency
+class EmergencyNumber(BaseModel):
+    id: str
+    label_fr: str
+    label_ar: str
+    number: str
+    verified: bool = Field(description="False until the team has confirmed the number (decision D3).")
+    source: str
+
+
+class ClientFallback(BaseModel):
+    severe_systolic: int
+    severe_diastolic: int
+    red_flag_symptoms: list[Symptom]
+
+
+class EmergencyConfigOut(BaseModel):
+    version: str
+    country: Literal["DZ"] = "DZ"
+    demo_mode: bool
+    numbers: list[EmergencyNumber]
+    primary_number_id: str
+    disclaimer_fr: str
+    disclaimer_ar: str
+    client_fallback: ClientFallback = Field(description="Used by the frontend ONLY when the API cannot be reached.")
+
+
+class ContactBrief(BaseModel):
+    name: str
+    relationship: str | None
+    phone: str
+
+
+class LastReading(BaseModel):
+    systolic: int
+    diastolic: int
+    measured_at: datetime
+    validation_status: ValidationStatus
+
+
+class EmergencyCardOut(BaseModel):
+    full_name: str
+    age: int | None
+    relevant_conditions: list[str]
+    allergies: str | None
+    medication_context: str | None
+    primary_contact: ContactBrief | None
+    regular_doctor_name: str | None
+    regular_clinic: str | None
+    last_reading: LastReading | None
+    generated_at: datetime
+
+
+TriggerReason = Literal["symptom", "severe_reading", "manual"]
+ActionType = Literal["screen_opened", "emergency_call_tapped", "contact_call_tapped", "share_opened",
+                     "share_failed", "location_granted", "location_denied", "location_timeout",
+                     "outcome_reported"]
+
+
+class EmergencyEventIn(BaseModel):
+    id: UUID = Field(description="Generated by the client so retries are idempotent.")
+    trigger_reason: TriggerReason
+    alert_id: UUID | None = None
+    symptoms_snapshot: list[Symptom] = Field(default_factory=list)
+    started_at: AwareDatetime
+
+
+class EmergencyActionIn(BaseModel):
+    client_action_id: UUID
+    action: ActionType
+    at: AwareDatetime
+    detail: str | None = Field(None, max_length=500)
+
+
+class EmergencyActionsIn(BaseModel):
+    actions: list[EmergencyActionIn] = Field(min_length=1, max_length=50)
+
+
+class Location(BaseModel):
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+
+
+class EmergencyEventPatch(BaseModel):
+    location: Location | None = None
+    location_shared_with_consent: bool | None = None
+    reported_outcome: str | None = Field(None, max_length=500)
+    ended_at: AwareDatetime | None = None
+
+
+class EmergencyActionOut(BaseModel):
+    client_action_id: UUID
+    action: ActionType
+    at: datetime
+    detail: str | None
+    confirmed: Literal[False] = Field(False, description="PULSE cannot verify that a call or share happened.")
+
+
+class EmergencyEventOut(BaseModel):
+    id: UUID
+    patient_id: UUID
+    trigger_reason: TriggerReason
+    alert_id: UUID | None
+    symptoms_snapshot: list[Symptom]
+    started_at: datetime
+    ended_at: datetime | None
+    actions: list[EmergencyActionOut]
+    reported_outcome: str | None
+    location: Location | None
+
+
+class EmergencyReportOut(BaseModel):
+    event: EmergencyEventOut
+    alert: AlertOut | None
+    readings: list[MeasurementOut] = Field(description="Readings from started_at - 24 h to started_at + 24 h.")
+    symptom_reports: list[SymptomReportOut]
+
+
+# ---------------------------------------------------------------- follow-up
+class NoteIn(BaseModel):
+    note: str = Field(min_length=1, max_length=8000)
+    advice: str | None = Field(None, max_length=4000)
+    follow_up_at: AwareDatetime | None = None
+
+
+class NoteOut(BaseModel):
+    id: UUID
+    doctor_id: UUID
+    doctor_name: str
+    created_at: datetime
+    note: str | None = Field(description="Private clinical note; null when the reader is the patient.")
+    advice: str | None
+    follow_up_at: datetime | None
+
+
+class JournalIn(BaseModel):
+    category: str = Field(min_length=1, max_length=40)
+    entry_text: str = Field(min_length=1, max_length=4000)
+
+
+class JournalOut(BaseModel):
+    id: UUID
+    category: str
+    entry_text: str
+    created_at: datetime
+    doctor_review_status: Literal["not_reviewed", "reviewed"]
+    reviewed_at: datetime | None
+
+
+# ---------------------------------------------------------------- ML (doctor only)
+PREDICTION_LIMITATIONS = ("Model estimate trained on synthetic data only. Not a measurement, "
+                          "not clinically validated, not used for alerts.")
+
+
+class Interval(BaseModel):
+    systolic: tuple[float, float]
+    diastolic: tuple[float, float]
+
+
+class PredictionOut(BaseModel):
+    status: Literal["ok", "insufficient_history", "model_unavailable"]
+    target: Literal["morning_mean_bp"] = "morning_mean_bp"
+    target_date: date | None
+    predicted_systolic: float | None
+    predicted_diastolic: float | None
+    interval: Interval | None
+    model_version: str | None
+    trained_on: str | None
+    generated_at: datetime | None
+    limitations: str = PREDICTION_LIMITATIONS
 
 
 # ---------------------------------------------------------------- errors

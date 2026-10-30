@@ -68,14 +68,18 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m app.seed --reset          # rebuild local demo DB (api/pulse.db), synthetic data
 uvicorn app.main:create_app --factory --reload    # http://127.0.0.1:8000/api/v1/docs
-pytest                              # all backend + analysis tests
+pytest                              # rules + contract tests
 python -m app.export_openapi        # regenerate contract/openapi.json after schema changes
 ```
 
-Settings via environment variables: `PULSE_ENV` (default `dev`), `PULSE_DATABASE_URL`
-(default `sqlite:///./pulse.db`), `PULSE_JWT_SECRET` (required outside dev), `PULSE_JWT_MINUTES`.
+Contract v1 stage: routes and schemas are final; most handlers return 501 until the Supabase
+integration (`PULSE_BACKEND_IMPLEMENTATION_PLAN.md`). The SQLite slice and its seed were removed on
+`feat/api-contract-v1`; the shared database is Supabase (schema on branch `AI`, `supabase/migrations/`).
+
+Settings via environment variables: `PULSE_ENV` (default `dev`), `PULSE_DEMO_MODE` (default on),
+`PULSE_DEMO_NUMBER` (required outside dev when demo mode is on), `PULSE_EMERGENCY_NUMBERS` (JSON),
+`PULSE_PRIMARY_NUMBER_ID`; for the database phase `PULSE_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
 
 Not set up yet (do not invent commands for them): linting, type checking, database migrations,
 frontend tooling, ML training.

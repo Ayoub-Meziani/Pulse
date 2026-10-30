@@ -15,7 +15,7 @@ OUT = Path(__file__).resolve().parents[2] / "contract" / "openapi.json"
 
 
 def main() -> None:
-    app = create_app(Settings(env="dev", database_url="sqlite://", jwt_secret="x" * 32, jwt_minutes=1))
+    app = create_app(Settings())
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"Wrote {OUT}")

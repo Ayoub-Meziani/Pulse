@@ -10,12 +10,13 @@ The patient's own doctor reviews alerts and incidents later in a doctor dashboar
 
 | Part | State |
 |---|---|
-| Backend API (`api/`) | First slice implemented and tested: readings, validation, alert rules, symptoms, alerts, doctor list, summary |
-| Frontend (`web/`) | Not started |
+| Backend API (`api/`) | Contract v1: all routes and schemas defined (`contract/openapi.json`); alert rules tested; `GET /config/emergency` works; other routes return 501 until the Supabase integration |
+| Database | Supabase project `pulse`; schema = `supabase/migrations/` (branch `AI`) |
+| Frontend (`frontend/`, branch `feature/frontend`) | Screens with demo data; API integration pending |
 | ML pipeline | Not started |
 | Device integration | None; demo readings are labelled `simulated` |
 
-See `IMPLEMENTATION_PLAN.md` for owners and next tasks, and `CLAUDE.md` for team rules.
+See `PULSE_BACKEND_ARCHITECTURE.md`, `PULSE_INTEGRATION_CONTRACTS.md` and `CLAUDE.md`.
 
 ## Run the backend
 
@@ -24,15 +25,10 @@ cd api
 python -m venv .venv
 # Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
-python -m app.seed --reset
 uvicorn app.main:create_app --factory --reload
 ```
 
 Open http://127.0.0.1:8000/api/v1/docs. Run tests with `pytest` (from `api/`).
-
-Demo accounts (fictional, local only), password `demo1234`:
-`amina@pulse.demo` (doctor), `karim@pulse.demo`, `nadia@pulse.demo`, `youssef@pulse.demo` (assigned patients),
-`samir@pulse.demo` (unassigned patient).
 
 ## Docs
 

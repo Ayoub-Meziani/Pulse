@@ -1,19 +1,20 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from ..auth import current_user, get_db
-from ..errors import ApiError
-from ..models import Alert, User
-from ..permissions import require_patient_access
-from ..schemas import AlertDetail
+from ..auth import require_token
+from ..errors import AUTH_RESPONSES, not_implemented
+from ..schemas import AlertDetail, AlertOut, TransitionIn
 
-router = APIRouter(tags=["alerts"])
+router = APIRouter(tags=["alerts"], responses=AUTH_RESPONSES, dependencies=[Depends(require_token)])
 
 
-@router.get("/alerts/{alert_id}", response_model=AlertDetail)
-def get_alert(alert_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    alert = db.get(Alert, alert_id)
-    if alert is None:
-        raise ApiError(404, "not_found", "Alert not found.")
-    require_patient_access(db, user, alert.patient_id)
-    return alert
+@router.get("/alerts/{alert_id}", response_model=AlertDetail, summary="Alert with the readings attached to it")
+def get_alert(alert_id: UUID):
+    not_implemented()
+
+
+@router.post("/alerts/{alert_id}/transition", response_model=AlertOut,
+             summary="open→acknowledged (patient or doctor); →reviewed, reviewed→resolved (doctor). Others: 409")
+def transition(alert_id: UUID, body: TransitionIn):
+    not_implemented()

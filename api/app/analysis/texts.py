@@ -23,15 +23,25 @@ NEXT_STEP = {
     None: "Reading saved.",
 }
 
+# Codes match the database CHECK on symptom_reports.symptoms (supabase/migrations, branch AI).
 SYMPTOM_LABELS = {
     "chest_pain": "chest pain",
-    "short_breath": "shortness of breath",
+    "shortness_of_breath": "shortness of breath",
     "back_pain": "back pain",
     "numbness": "numbness",
     "weakness": "weakness",
     "vision_change": "change in vision",
-    "speech_difficulty": "difficulty speaking",
+    "difficulty_speaking": "difficulty speaking",
+    "severe_headache": "severe headache",
+    "confusion": "confusion",
+    "dizziness": "dizziness",
+    "nausea": "nausea",
+    "palpitations": "palpitations",
+    "other": "other symptom",
 }
+
+NO_RED_FLAG_NEXT_STEP = ("Follow the instructions for your reading. Your doctor will see the symptoms "
+                         "you reported. If you feel unwell, call emergency services.")
 
 
 def target_label(is_default: bool) -> str:

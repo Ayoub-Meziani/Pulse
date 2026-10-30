@@ -5,6 +5,7 @@ import pytest
 
 from app.analysis import (compute_summary, evaluate_measurement, evaluate_symptoms,
                           evaluate_trend, validate_measurement)
+from app.analysis.rules import KNOWN_SYMPTOMS, RED_FLAG_SYMPTOMS
 from app.analysis.types import ActiveAlert, Reading, Target
 
 NOW = datetime(2026, 10, 30, 12, 0, tzinfo=timezone.utc)
@@ -143,6 +144,24 @@ def test_no_symptoms_no_alert():
 def test_unknown_symptom_code_rejected():
     with pytest.raises(ValueError):
         evaluate_symptoms(["headache_xyz"], [], NOW)
+
+
+def test_non_red_flag_symptom_is_recorded_but_not_emergency():
+    ev = evaluate_symptoms(["dizziness", "nausea"], [], NOW)
+    assert (ev.level, ev.alert_action, ev.show_emergency) == ("none", "none", False)
+    assert "doctor will see" in ev.next_step
+
+
+def test_red_flag_among_other_symptoms_is_emergency():
+    ev = evaluate_symptoms(["dizziness", "difficulty_speaking"], [], NOW)
+    assert ev.level == "emergency" and ev.show_emergency
+    assert "difficulty speaking" in ev.reason and "dizziness" not in ev.reason
+
+
+def test_red_flags_are_the_seven_aha_signs():
+    assert RED_FLAG_SYMPTOMS == {"chest_pain", "shortness_of_breath", "back_pain", "numbness",
+                                 "weakness", "vision_change", "difficulty_speaking"}
+    assert RED_FLAG_SYMPTOMS < KNOWN_SYMPTOMS and len(KNOWN_SYMPTOMS) == 13
 
 
 # ---------------------------------------------------------------- summary

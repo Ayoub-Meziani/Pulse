@@ -1,25 +1,23 @@
-from fastapi import APIRouter, Depends, Request
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends
 
-from ..auth import create_token, current_user, get_db, verify_password
-from ..errors import ApiError
-from ..models import User
-from ..schemas import LoginIn, LoginOut, UserOut
+from ..auth import require_token
+from ..errors import AUTH_RESPONSES, not_implemented
+from ..schemas import LoginIn, RefreshIn, SessionOut, UserOut
 
-router = APIRouter(tags=["auth"])
+router = APIRouter(tags=["auth"], responses=AUTH_RESPONSES)
 
 
-@router.post("/auth/login", response_model=LoginOut)
-def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.email == body.email.strip().lower()))
-    if user is None or not verify_password(body.password, user.password_hash):
-        raise ApiError(401, "invalid_credentials", "Email or password is incorrect.")
-    s = request.app.state.settings
-    return LoginOut(access_token=create_token(user, s.jwt_secret, s.jwt_minutes),
-                    user=UserOut.model_validate(user))
+@router.post("/auth/login", response_model=SessionOut,
+             summary="Log in with email + password (proxied to Supabase Auth)")
+def login(body: LoginIn):
+    not_implemented()
 
 
-@router.get("/me", response_model=UserOut)
-def me(user: User = Depends(current_user)):
-    return user
+@router.post("/auth/refresh", response_model=SessionOut, summary="Exchange a refresh token for a new session")
+def refresh(body: RefreshIn):
+    not_implemented()
+
+
+@router.get("/me", response_model=UserOut, summary="Current user and role")
+def me(token: str = Depends(require_token)):
+    not_implemented()

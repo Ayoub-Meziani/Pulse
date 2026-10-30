@@ -4,8 +4,9 @@
       "AlertBrief": {
         "properties": {
           "id": {
+            "format": "uuid",
             "title": "Id",
-            "type": "integer"
+            "type": "string"
           },
           "level": {
             "enum": [
@@ -25,16 +26,14 @@
             "title": "Rule Id",
             "type": "string"
           },
-          "state": {
+          "status": {
             "enum": [
-              "new",
+              "open",
               "acknowledged",
-              "escalated",
-              "dismissed",
               "reviewed",
-              "closed"
+              "resolved"
             ],
-            "title": "State",
+            "title": "Status",
             "type": "string"
           }
         },
@@ -42,7 +41,7 @@
           "id",
           "level",
           "rule_id",
-          "state",
+          "status",
           "persistent"
         ],
         "title": "AlertBrief",
@@ -50,21 +49,27 @@
       },
       "AlertDetail": {
         "properties": {
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
-          "events": {
-            "items": {
-              "$ref": "#/components/schemas/AlertEventOut"
-            },
-            "title": "Events",
-            "type": "array"
-          },
           "id": {
+            "format": "uuid",
             "title": "Id",
-            "type": "integer"
+            "type": "string"
           },
           "level": {
             "enum": [
@@ -79,7 +84,8 @@
           "measurement_id": {
             "anyOf": [
               {
-                "type": "integer"
+                "format": "uuid",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -87,58 +93,91 @@
             ],
             "title": "Measurement Id"
           },
-          "next_step_text": {
-            "title": "Next Step Text",
+          "measurements": {
+            "description": "Readings attached to this alert episode, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/MeasurementOut"
+            },
+            "title": "Measurements",
+            "type": "array"
+          },
+          "next_step": {
+            "title": "Next Step",
             "type": "string"
           },
           "patient_id": {
+            "format": "uuid",
             "title": "Patient Id",
-            "type": "integer"
+            "type": "string"
           },
           "persistent": {
             "title": "Persistent",
             "type": "boolean"
           },
-          "reason_text": {
-            "title": "Reason Text",
+          "reason": {
+            "title": "Reason",
             "type": "string"
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Note"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
           },
           "rule_id": {
             "title": "Rule Id",
             "type": "string"
           },
-          "state": {
+          "status": {
             "enum": [
-              "new",
+              "open",
               "acknowledged",
-              "escalated",
-              "dismissed",
               "reviewed",
-              "closed"
+              "resolved"
             ],
-            "title": "State",
+            "title": "Status",
             "type": "string"
           },
           "symptom_report_id": {
             "anyOf": [
               {
-                "type": "integer"
+                "format": "uuid",
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
             "title": "Symptom Report Id"
-          },
-          "triggered_at": {
-            "format": "date-time",
-            "title": "Triggered At",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
           }
         },
         "required": [
@@ -146,119 +185,45 @@
           "patient_id",
           "level",
           "rule_id",
-          "reason_text",
-          "next_step_text",
+          "status",
+          "persistent",
+          "reason",
+          "next_step",
           "measurement_id",
           "symptom_report_id",
-          "state",
-          "persistent",
-          "triggered_at",
           "created_at",
-          "updated_at",
-          "events"
+          "acknowledged_at",
+          "reviewed_at",
+          "resolved_at",
+          "resolution_note",
+          "measurements"
         ],
         "title": "AlertDetail",
         "type": "object"
       },
-      "AlertEventOut": {
-        "properties": {
-          "actor_role": {
-            "title": "Actor Role",
-            "type": "string"
-          },
-          "actor_user_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Actor User Id"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "from_state": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "From State"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "measurement_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Measurement Id"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          },
-          "to_state": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "To State"
-          },
-          "type": {
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "from_state",
-          "to_state",
-          "actor_user_id",
-          "actor_role",
-          "note",
-          "measurement_id",
-          "created_at"
-        ],
-        "title": "AlertEventOut",
-        "type": "object"
-      },
       "AlertOut": {
         "properties": {
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "id": {
+            "format": "uuid",
             "title": "Id",
-            "type": "integer"
+            "type": "string"
           },
           "level": {
             "enum": [
@@ -273,7 +238,8 @@
           "measurement_id": {
             "anyOf": [
               {
-                "type": "integer"
+                "format": "uuid",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -281,39 +247,201 @@
             ],
             "title": "Measurement Id"
           },
-          "next_step_text": {
-            "title": "Next Step Text",
+          "next_step": {
+            "title": "Next Step",
             "type": "string"
           },
           "patient_id": {
+            "format": "uuid",
             "title": "Patient Id",
-            "type": "integer"
+            "type": "string"
           },
           "persistent": {
             "title": "Persistent",
             "type": "boolean"
           },
-          "reason_text": {
-            "title": "Reason Text",
+          "reason": {
+            "title": "Reason",
             "type": "string"
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Note"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
           },
           "rule_id": {
             "title": "Rule Id",
             "type": "string"
           },
-          "state": {
+          "status": {
             "enum": [
-              "new",
+              "open",
               "acknowledged",
-              "escalated",
-              "dismissed",
               "reviewed",
-              "closed"
+              "resolved"
             ],
-            "title": "State",
+            "title": "Status",
             "type": "string"
           },
           "symptom_report_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symptom Report Id"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "level",
+          "rule_id",
+          "status",
+          "persistent",
+          "reason",
+          "next_step",
+          "measurement_id",
+          "symptom_report_id",
+          "created_at",
+          "acknowledged_at",
+          "reviewed_at",
+          "resolved_at",
+          "resolution_note"
+        ],
+        "title": "AlertOut",
+        "type": "object"
+      },
+      "CarePlanIn": {
+        "properties": {
+          "clinician_guidance": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Clinician Guidance",
+            "type": "string"
+          },
+          "monitoring_readings_per_day": {
+            "anyOf": [
+              {
+                "maximum": 12.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monitoring Readings Per Day"
+          },
+          "review_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Date"
+          },
+          "target_diastolic": {
+            "maximum": 130.0,
+            "minimum": 50.0,
+            "title": "Target Diastolic",
+            "type": "integer"
+          },
+          "target_systolic": {
+            "maximum": 200.0,
+            "minimum": 90.0,
+            "title": "Target Systolic",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target_systolic",
+          "target_diastolic",
+          "clinician_guidance"
+        ],
+        "title": "CarePlanIn",
+        "type": "object"
+      },
+      "CarePlanOut": {
+        "properties": {
+          "clinician_guidance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinician Guidance"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "monitoring_readings_per_day": {
             "anyOf": [
               {
                 "type": "integer"
@@ -322,35 +450,797 @@
                 "type": "null"
               }
             ],
-            "title": "Symptom Report Id"
+            "title": "Monitoring Readings Per Day"
           },
-          "triggered_at": {
-            "format": "date-time",
-            "title": "Triggered At",
+          "review_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Date"
+          },
+          "target_diastolic": {
+            "title": "Target Diastolic",
+            "type": "integer"
+          },
+          "target_systolic": {
+            "title": "Target Systolic",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "target_systolic",
+          "target_diastolic",
+          "is_default",
+          "effective_from",
+          "review_date",
+          "monitoring_readings_per_day",
+          "clinician_guidance"
+        ],
+        "title": "CarePlanOut",
+        "type": "object"
+      },
+      "ClientFallback": {
+        "properties": {
+          "red_flag_symptoms": {
+            "items": {
+              "enum": [
+                "chest_pain",
+                "shortness_of_breath",
+                "back_pain",
+                "weakness",
+                "numbness",
+                "vision_change",
+                "difficulty_speaking",
+                "severe_headache",
+                "confusion",
+                "dizziness",
+                "nausea",
+                "palpitations",
+                "other"
+              ],
+              "type": "string"
+            },
+            "title": "Red Flag Symptoms",
+            "type": "array"
+          },
+          "severe_diastolic": {
+            "title": "Severe Diastolic",
+            "type": "integer"
+          },
+          "severe_systolic": {
+            "title": "Severe Systolic",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "severe_systolic",
+          "severe_diastolic",
+          "red_flag_symptoms"
+        ],
+        "title": "ClientFallback",
+        "type": "object"
+      },
+      "ContactBrief": {
+        "properties": {
+          "name": {
+            "title": "Name",
             "type": "string"
           },
-          "updated_at": {
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "relationship": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship"
+          }
+        },
+        "required": [
+          "name",
+          "relationship",
+          "phone"
+        ],
+        "title": "ContactBrief",
+        "type": "object"
+      },
+      "DailyPoint": {
+        "properties": {
+          "count_needs_review": {
+            "title": "Count Needs Review",
+            "type": "integer"
+          },
+          "count_valid": {
+            "title": "Count Valid",
+            "type": "integer"
+          },
+          "evening": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionMean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "local_date": {
+            "format": "date",
+            "title": "Local Date",
+            "type": "string"
+          },
+          "morning": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionMean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Valid readings before 12:00 local time."
+          }
+        },
+        "required": [
+          "local_date",
+          "morning",
+          "evening",
+          "count_valid",
+          "count_needs_review"
+        ],
+        "title": "DailyPoint",
+        "type": "object"
+      },
+      "EmergencyActionIn": {
+        "properties": {
+          "action": {
+            "enum": [
+              "screen_opened",
+              "emergency_call_tapped",
+              "contact_call_tapped",
+              "share_opened",
+              "share_failed",
+              "location_granted",
+              "location_denied",
+              "location_timeout",
+              "outcome_reported"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "at": {
             "format": "date-time",
-            "title": "Updated At",
+            "title": "At",
+            "type": "string"
+          },
+          "client_action_id": {
+            "format": "uuid",
+            "title": "Client Action Id",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "required": [
+          "client_action_id",
+          "action",
+          "at"
+        ],
+        "title": "EmergencyActionIn",
+        "type": "object"
+      },
+      "EmergencyActionOut": {
+        "properties": {
+          "action": {
+            "enum": [
+              "screen_opened",
+              "emergency_call_tapped",
+              "contact_call_tapped",
+              "share_opened",
+              "share_failed",
+              "location_granted",
+              "location_denied",
+              "location_timeout",
+              "outcome_reported"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "client_action_id": {
+            "format": "uuid",
+            "title": "Client Action Id",
+            "type": "string"
+          },
+          "confirmed": {
+            "const": false,
+            "default": false,
+            "description": "PULSE cannot verify that a call or share happened.",
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "required": [
+          "client_action_id",
+          "action",
+          "at",
+          "detail"
+        ],
+        "title": "EmergencyActionOut",
+        "type": "object"
+      },
+      "EmergencyActionsIn": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/EmergencyActionIn"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "actions"
+        ],
+        "title": "EmergencyActionsIn",
+        "type": "object"
+      },
+      "EmergencyCardOut": {
+        "properties": {
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age"
+          },
+          "allergies": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allergies"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "last_reading": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastReading"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "medication_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medication Context"
+          },
+          "primary_contact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "regular_clinic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regular Clinic"
+          },
+          "regular_doctor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regular Doctor Name"
+          },
+          "relevant_conditions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Relevant Conditions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "full_name",
+          "age",
+          "relevant_conditions",
+          "allergies",
+          "medication_context",
+          "primary_contact",
+          "regular_doctor_name",
+          "regular_clinic",
+          "last_reading",
+          "generated_at"
+        ],
+        "title": "EmergencyCardOut",
+        "type": "object"
+      },
+      "EmergencyConfigOut": {
+        "properties": {
+          "client_fallback": {
+            "$ref": "#/components/schemas/ClientFallback",
+            "description": "Used by the frontend ONLY when the API cannot be reached."
+          },
+          "country": {
+            "const": "DZ",
+            "default": "DZ",
+            "title": "Country",
+            "type": "string"
+          },
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "boolean"
+          },
+          "disclaimer_ar": {
+            "title": "Disclaimer Ar",
+            "type": "string"
+          },
+          "disclaimer_fr": {
+            "title": "Disclaimer Fr",
+            "type": "string"
+          },
+          "numbers": {
+            "items": {
+              "$ref": "#/components/schemas/EmergencyNumber"
+            },
+            "title": "Numbers",
+            "type": "array"
+          },
+          "primary_number_id": {
+            "title": "Primary Number Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "demo_mode",
+          "numbers",
+          "primary_number_id",
+          "disclaimer_fr",
+          "disclaimer_ar",
+          "client_fallback"
+        ],
+        "title": "EmergencyConfigOut",
+        "type": "object"
+      },
+      "EmergencyEventIn": {
+        "properties": {
+          "alert_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alert Id"
+          },
+          "id": {
+            "description": "Generated by the client so retries are idempotent.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "symptoms_snapshot": {
+            "items": {
+              "enum": [
+                "chest_pain",
+                "shortness_of_breath",
+                "back_pain",
+                "weakness",
+                "numbness",
+                "vision_change",
+                "difficulty_speaking",
+                "severe_headache",
+                "confusion",
+                "dizziness",
+                "nausea",
+                "palpitations",
+                "other"
+              ],
+              "type": "string"
+            },
+            "title": "Symptoms Snapshot",
+            "type": "array"
+          },
+          "trigger_reason": {
+            "enum": [
+              "symptom",
+              "severe_reading",
+              "manual"
+            ],
+            "title": "Trigger Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "trigger_reason",
+          "started_at"
+        ],
+        "title": "EmergencyEventIn",
+        "type": "object"
+      },
+      "EmergencyEventOut": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/EmergencyActionOut"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "alert_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alert Id"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Location"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "reported_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported Outcome"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "symptoms_snapshot": {
+            "items": {
+              "enum": [
+                "chest_pain",
+                "shortness_of_breath",
+                "back_pain",
+                "weakness",
+                "numbness",
+                "vision_change",
+                "difficulty_speaking",
+                "severe_headache",
+                "confusion",
+                "dizziness",
+                "nausea",
+                "palpitations",
+                "other"
+              ],
+              "type": "string"
+            },
+            "title": "Symptoms Snapshot",
+            "type": "array"
+          },
+          "trigger_reason": {
+            "enum": [
+              "symptom",
+              "severe_reading",
+              "manual"
+            ],
+            "title": "Trigger Reason",
             "type": "string"
           }
         },
         "required": [
           "id",
           "patient_id",
-          "level",
-          "rule_id",
-          "reason_text",
-          "next_step_text",
-          "measurement_id",
-          "symptom_report_id",
-          "state",
-          "persistent",
-          "triggered_at",
-          "created_at",
-          "updated_at"
+          "trigger_reason",
+          "alert_id",
+          "symptoms_snapshot",
+          "started_at",
+          "ended_at",
+          "actions",
+          "reported_outcome",
+          "location"
         ],
-        "title": "AlertOut",
+        "title": "EmergencyEventOut",
+        "type": "object"
+      },
+      "EmergencyEventPatch": {
+        "properties": {
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Location"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location_shared_with_consent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Shared With Consent"
+          },
+          "reported_outcome": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported Outcome"
+          }
+        },
+        "title": "EmergencyEventPatch",
+        "type": "object"
+      },
+      "EmergencyNumber": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label_ar": {
+            "title": "Label Ar",
+            "type": "string"
+          },
+          "label_fr": {
+            "title": "Label Fr",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "verified": {
+            "description": "False until the team has confirmed the number (decision D3).",
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label_fr",
+          "label_ar",
+          "number",
+          "verified",
+          "source"
+        ],
+        "title": "EmergencyNumber",
+        "type": "object"
+      },
+      "EmergencyReportOut": {
+        "properties": {
+          "alert": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlertOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "event": {
+            "$ref": "#/components/schemas/EmergencyEventOut"
+          },
+          "readings": {
+            "description": "Readings from started_at - 24 h to started_at + 24 h.",
+            "items": {
+              "$ref": "#/components/schemas/MeasurementOut"
+            },
+            "title": "Readings",
+            "type": "array"
+          },
+          "symptom_reports": {
+            "items": {
+              "$ref": "#/components/schemas/SymptomReportOut"
+            },
+            "title": "Symptom Reports",
+            "type": "array"
+          }
+        },
+        "required": [
+          "event",
+          "alert",
+          "readings",
+          "symptom_reports"
+        ],
+        "title": "EmergencyReportOut",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorOut": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorOut",
         "type": "object"
       },
       "EvaluationOut": {
@@ -398,6 +1288,7 @@
                 "type": "null"
               }
             ],
+            "description": "Rule that decided the level, e.g. R-SEV-1, or DATA-INVALID.",
             "title": "Rule Id"
           },
           "show_emergency": {
@@ -417,17 +1308,172 @@
         "title": "EvaluationOut",
         "type": "object"
       },
-      "HTTPValidationError": {
+      "Interval": {
         "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "title": "Detail",
+          "diastolic": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Diastolic",
+            "type": "array"
+          },
+          "systolic": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Systolic",
             "type": "array"
           }
         },
-        "title": "HTTPValidationError",
+        "required": [
+          "systolic",
+          "diastolic"
+        ],
+        "title": "Interval",
+        "type": "object"
+      },
+      "JournalIn": {
+        "properties": {
+          "category": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Category",
+            "type": "string"
+          },
+          "entry_text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Entry Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "entry_text"
+        ],
+        "title": "JournalIn",
+        "type": "object"
+      },
+      "JournalOut": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "doctor_review_status": {
+            "enum": [
+              "not_reviewed",
+              "reviewed"
+            ],
+            "title": "Doctor Review Status",
+            "type": "string"
+          },
+          "entry_text": {
+            "title": "Entry Text",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "entry_text",
+          "created_at",
+          "doctor_review_status",
+          "reviewed_at"
+        ],
+        "title": "JournalOut",
+        "type": "object"
+      },
+      "LastReading": {
+        "properties": {
+          "diastolic": {
+            "title": "Diastolic",
+            "type": "integer"
+          },
+          "measured_at": {
+            "format": "date-time",
+            "title": "Measured At",
+            "type": "string"
+          },
+          "systolic": {
+            "title": "Systolic",
+            "type": "integer"
+          },
+          "validation_status": {
+            "enum": [
+              "valid",
+              "needs_review",
+              "invalid"
+            ],
+            "title": "Validation Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "systolic",
+          "diastolic",
+          "measured_at",
+          "validation_status"
+        ],
+        "title": "LastReading",
+        "type": "object"
+      },
+      "Location": {
+        "properties": {
+          "lat": {
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lon",
+            "type": "number"
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ],
+        "title": "Location",
         "type": "object"
       },
       "LoginIn": {
@@ -448,30 +1494,7 @@
         "title": "LoginIn",
         "type": "object"
       },
-      "LoginOut": {
-        "properties": {
-          "access_token": {
-            "title": "Access Token",
-            "type": "string"
-          },
-          "token_type": {
-            "const": "bearer",
-            "default": "bearer",
-            "title": "Token Type",
-            "type": "string"
-          },
-          "user": {
-            "$ref": "#/components/schemas/UserOut"
-          }
-        },
-        "required": [
-          "access_token",
-          "user"
-        ],
-        "title": "LoginOut",
-        "type": "object"
-      },
-      "MeasurementContext": {
+      "MeasurementIn": {
         "properties": {
           "arm": {
             "anyOf": [
@@ -488,7 +1511,7 @@
             ],
             "title": "Arm"
           },
-          "position": {
+          "body_position": {
             "anyOf": [
               {
                 "enum": [
@@ -502,51 +1525,23 @@
                 "type": "null"
               }
             ],
-            "title": "Position"
+            "title": "Body Position"
           },
-          "rested_5_min": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rested 5 Min"
-          }
-        },
-        "title": "MeasurementContext",
-        "type": "object"
-      },
-      "MeasurementIn": {
-        "properties": {
           "context": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/MeasurementContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "diastolic": {
-            "title": "Diastolic",
-            "type": "integer"
-          },
-          "external_id": {
-            "anyOf": [
-              {
-                "maxLength": 200,
+                "maxLength": 500,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Stable id from the source; duplicates are rejected (409).",
-            "title": "External Id"
+            "title": "Context"
+          },
+          "diastolic": {
+            "title": "Diastolic",
+            "type": "integer"
           },
           "measured_at": {
             "anyOf": [
@@ -561,6 +1556,18 @@
             "description": "Defaults to server time when omitted.",
             "title": "Measured At"
           },
+          "measured_tz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IANA zone where the reading was taken; defaults to the profile time zone.",
+            "title": "Measured Tz"
+          },
           "pulse": {
             "anyOf": [
               {
@@ -572,29 +1579,16 @@
             ],
             "title": "Pulse"
           },
-          "source": {
-            "default": "manual",
-            "enum": [
-              "manual",
-              "device",
-              "imported",
-              "simulated"
-            ],
-            "title": "Source",
-            "type": "string"
-          },
-          "source_ref": {
+          "rested_5_min": {
             "anyOf": [
               {
-                "maxLength": 200,
-                "type": "string"
+                "type": "boolean"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Device id, import file name or simulator scenario.",
-            "title": "Source Ref"
+            "title": "Rested 5 Min"
           },
           "systolic": {
             "title": "Systolic",
@@ -610,23 +1604,38 @@
       },
       "MeasurementOut": {
         "properties": {
-          "context": {
+          "arm": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "enum": [
+                  "left",
+                  "right"
+                ],
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Context"
+            "title": "Arm"
           },
-          "diastolic": {
-            "title": "Diastolic",
-            "type": "integer"
+          "body_position": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sitting",
+                  "standing",
+                  "lying"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Position"
           },
-          "external_id": {
+          "context": {
             "anyOf": [
               {
                 "type": "string"
@@ -635,20 +1644,61 @@
                 "type": "null"
               }
             ],
-            "title": "External Id"
+            "title": "Context"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "diastolic": {
+            "title": "Diastolic",
+            "type": "integer"
           },
           "id": {
+            "format": "uuid",
             "title": "Id",
-            "type": "integer"
+            "type": "string"
           },
           "measured_at": {
             "format": "date-time",
             "title": "Measured At",
             "type": "string"
           },
+          "measured_tz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Tz"
+          },
+          "method": {
+            "enum": [
+              "cuff_oscillometric",
+              "cuff_auscultatory",
+              "wearable_estimate",
+              "unknown"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
           "patient_id": {
+            "format": "uuid",
             "title": "Patient Id",
-            "type": "integer"
+            "type": "string"
+          },
+          "provenance": {
+            "enum": [
+              "measured",
+              "estimated",
+              "simulated"
+            ],
+            "title": "Provenance",
+            "type": "string"
           },
           "pulse": {
             "anyOf": [
@@ -661,54 +1711,48 @@
             ],
             "title": "Pulse"
           },
-          "received_at": {
-            "format": "date-time",
-            "title": "Received At",
-            "type": "string"
+          "quality_flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Quality Flags",
+            "type": "array"
+          },
+          "rested_5_min": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rested 5 Min"
           },
           "source": {
             "enum": [
               "manual",
-              "device",
-              "imported",
+              "device_sync",
+              "csv_import",
               "simulated"
             ],
             "title": "Source",
             "type": "string"
           },
-          "source_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Ref"
-          },
           "systolic": {
             "title": "Systolic",
             "type": "integer"
           },
-          "validation_notes": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Validation Notes"
+          "validation_policy_version": {
+            "title": "Validation Policy Version",
+            "type": "string"
           },
           "validation_status": {
+            "description": "Computed by the database (policy pulse-v1); never sent by clients.",
             "enum": [
               "valid",
-              "questionable"
+              "needs_review",
+              "invalid"
             ],
             "title": "Validation Status",
             "type": "string"
@@ -721,13 +1765,18 @@
           "diastolic",
           "pulse",
           "measured_at",
-          "received_at",
+          "measured_tz",
+          "created_at",
           "source",
-          "source_ref",
-          "external_id",
+          "provenance",
+          "method",
+          "body_position",
+          "arm",
+          "rested_5_min",
           "context",
           "validation_status",
-          "validation_notes"
+          "quality_flags",
+          "validation_policy_version"
         ],
         "title": "MeasurementOut",
         "type": "object"
@@ -769,11 +1818,131 @@
         "title": "MeasurementResult",
         "type": "object"
       },
+      "NoteIn": {
+        "properties": {
+          "advice": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advice"
+          },
+          "follow_up_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up At"
+          },
+          "note": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "NoteIn",
+        "type": "object"
+      },
+      "NoteOut": {
+        "properties": {
+          "advice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advice"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "doctor_id": {
+            "format": "uuid",
+            "title": "Doctor Id",
+            "type": "string"
+          },
+          "doctor_name": {
+            "title": "Doctor Name",
+            "type": "string"
+          },
+          "follow_up_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Private clinical note; null when the reader is the patient.",
+            "title": "Note"
+          }
+        },
+        "required": [
+          "id",
+          "doctor_id",
+          "doctor_name",
+          "created_at",
+          "note",
+          "advice",
+          "follow_up_at"
+        ],
+        "title": "NoteOut",
+        "type": "object"
+      },
       "PatientListItem": {
         "properties": {
           "active_alert_count": {
             "title": "Active Alert Count",
             "type": "integer"
+          },
+          "age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null until birth_year is stored (migration M3).",
+            "title": "Age"
           },
           "avg_diastolic_7d": {
             "anyOf": [
@@ -819,8 +1988,9 @@
             "title": "Highest Active Alert"
           },
           "id": {
+            "format": "uuid",
             "title": "Id",
-            "type": "integer"
+            "type": "string"
           },
           "last_measured_at": {
             "anyOf": [
@@ -848,6 +2018,7 @@
         "required": [
           "id",
           "full_name",
+          "age",
           "highest_active_alert",
           "active_alert_count",
           "latest_measurement",
@@ -856,6 +2027,378 @@
           "avg_diastolic_7d"
         ],
         "title": "PatientListItem",
+        "type": "object"
+      },
+      "PredictionOut": {
+        "properties": {
+          "generated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Interval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limitations": {
+            "default": "Model estimate trained on synthetic data only. Not a measurement, not clinically validated, not used for alerts.",
+            "title": "Limitations",
+            "type": "string"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "predicted_diastolic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Diastolic"
+          },
+          "predicted_systolic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Systolic"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "insufficient_history",
+              "model_unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "target": {
+            "const": "morning_mean_bp",
+            "default": "morning_mean_bp",
+            "title": "Target",
+            "type": "string"
+          },
+          "target_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Date"
+          },
+          "trained_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trained On"
+          }
+        },
+        "required": [
+          "status",
+          "target_date",
+          "predicted_systolic",
+          "predicted_diastolic",
+          "interval",
+          "model_version",
+          "trained_on",
+          "generated_at"
+        ],
+        "title": "PredictionOut",
+        "type": "object"
+      },
+      "ProfileIn": {
+        "properties": {
+          "allergies": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allergies"
+          },
+          "birth_year": {
+            "anyOf": [
+              {
+                "maximum": 2100.0,
+                "minimum": 1900.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          },
+          "consent_location": {
+            "default": false,
+            "title": "Consent Location",
+            "type": "boolean"
+          },
+          "full_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Full Name",
+            "type": "string"
+          },
+          "medication_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "As entered by the patient; PULSE never interprets it.",
+            "title": "Medication Context"
+          },
+          "regular_clinic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regular Clinic"
+          },
+          "relevant_conditions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Relevant Conditions",
+            "type": "array"
+          },
+          "timezone": {
+            "default": "Africa/Algiers",
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name"
+        ],
+        "title": "ProfileIn",
+        "type": "object"
+      },
+      "ProfileOut": {
+        "properties": {
+          "allergies": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allergies"
+          },
+          "birth_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          },
+          "consent_location": {
+            "title": "Consent Location",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "medication_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medication Context"
+          },
+          "regular_clinic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regular Clinic"
+          },
+          "regular_doctor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regular Doctor Id"
+          },
+          "regular_doctor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regular Doctor Name"
+          },
+          "relevant_conditions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Relevant Conditions",
+            "type": "array"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "full_name",
+          "email",
+          "timezone",
+          "birth_year",
+          "relevant_conditions",
+          "allergies",
+          "medication_context",
+          "regular_doctor_id",
+          "regular_doctor_name",
+          "regular_clinic",
+          "consent_location"
+        ],
+        "title": "ProfileOut",
+        "type": "object"
+      },
+      "RefreshIn": {
+        "properties": {
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshIn",
+        "type": "object"
+      },
+      "SessionMean": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "diastolic": {
+            "title": "Diastolic",
+            "type": "number"
+          },
+          "systolic": {
+            "title": "Systolic",
+            "type": "number"
+          }
+        },
+        "required": [
+          "systolic",
+          "diastolic",
+          "count"
+        ],
+        "title": "SessionMean",
+        "type": "object"
+      },
+      "SessionOut": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "const": "bearer",
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_at",
+          "user"
+        ],
+        "title": "SessionOut",
         "type": "object"
       },
       "SummaryOut": {
@@ -908,8 +2451,12 @@
             "title": "Count 7D",
             "type": "integer"
           },
-          "count_questionable_7d": {
-            "title": "Count Questionable 7D",
+          "count_invalid_7d": {
+            "title": "Count Invalid 7D",
+            "type": "integer"
+          },
+          "count_needs_review_7d": {
+            "title": "Count Needs Review 7D",
             "type": "integer"
           },
           "days_with_reading_7d": {
@@ -964,6 +2511,10 @@
           "target": {
             "$ref": "#/components/schemas/TargetOut"
           },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
           "trend": {
             "enum": [
               "rising",
@@ -981,8 +2532,10 @@
         },
         "required": [
           "window_days",
+          "timezone",
           "count_7d",
-          "count_questionable_7d",
+          "count_needs_review_7d",
+          "count_invalid_7d",
           "avg_systolic_7d",
           "avg_diastolic_7d",
           "avg_systolic_30d",
@@ -1003,7 +2556,8 @@
           "measurement_id": {
             "anyOf": [
               {
-                "type": "integer"
+                "format": "uuid",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1023,17 +2577,35 @@
             ],
             "title": "Notes"
           },
+          "onset_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onset At"
+          },
           "symptoms": {
             "description": "Empty list = none of these.",
             "items": {
               "enum": [
                 "chest_pain",
-                "short_breath",
+                "shortness_of_breath",
                 "back_pain",
-                "numbness",
                 "weakness",
+                "numbness",
                 "vision_change",
-                "speech_difficulty"
+                "difficulty_speaking",
+                "severe_headache",
+                "confusion",
+                "dizziness",
+                "nausea",
+                "palpitations",
+                "other"
               ],
               "type": "string"
             },
@@ -1047,13 +2619,15 @@
       "SymptomReportOut": {
         "properties": {
           "id": {
+            "format": "uuid",
             "title": "Id",
-            "type": "integer"
+            "type": "string"
           },
           "measurement_id": {
             "anyOf": [
               {
-                "type": "integer"
+                "format": "uuid",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1061,36 +2635,48 @@
             ],
             "title": "Measurement Id"
           },
-          "notes": {
+          "onset_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Notes"
+            "title": "Onset At"
           },
           "patient_id": {
+            "format": "uuid",
             "title": "Patient Id",
-            "type": "integer"
+            "type": "string"
           },
           "reported_at": {
             "format": "date-time",
             "title": "Reported At",
             "type": "string"
           },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
           "symptoms": {
             "items": {
               "enum": [
                 "chest_pain",
-                "short_breath",
+                "shortness_of_breath",
                 "back_pain",
-                "numbness",
                 "weakness",
+                "numbness",
                 "vision_change",
-                "speech_difficulty"
+                "difficulty_speaking",
+                "severe_headache",
+                "confusion",
+                "dizziness",
+                "nausea",
+                "palpitations",
+                "other"
               ],
               "type": "string"
             },
@@ -1103,8 +2689,9 @@
           "patient_id",
           "symptoms",
           "measurement_id",
-          "notes",
-          "reported_at"
+          "onset_at",
+          "reported_at",
+          "source"
         ],
         "title": "SymptomReportOut",
         "type": "object"
@@ -1125,7 +2712,15 @@
             "$ref": "#/components/schemas/EvaluationOut"
           },
           "report": {
-            "$ref": "#/components/schemas/SymptomReportOut"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SymptomReportOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the answer was 'none of these' and could not be stored yet (pending migration M3)."
           }
         },
         "required": [
@@ -1158,6 +2753,183 @@
         "title": "TargetOut",
         "type": "object"
       },
+      "TransitionIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required to resolve a severe or emergency alert.",
+            "title": "Note"
+          },
+          "to": {
+            "enum": [
+              "acknowledged",
+              "reviewed",
+              "resolved"
+            ],
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "title": "TransitionIn",
+        "type": "object"
+      },
+      "TrustedContactIn": {
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "contact_consented": {
+            "const": true,
+            "description": "The patient confirms the contact agreed to be listed.",
+            "title": "Contact Consented",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "pattern": "^\\+?[0-9 ()-]{6,20}$",
+            "title": "Phone",
+            "type": "string"
+          },
+          "relationship": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship"
+          }
+        },
+        "required": [
+          "name",
+          "phone",
+          "contact_consented"
+        ],
+        "title": "TrustedContactIn",
+        "type": "object"
+      },
+      "TrustedContactOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "consented_at": {
+            "format": "date-time",
+            "title": "Consented At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "relationship": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "relationship",
+          "phone",
+          "consented_at",
+          "active"
+        ],
+        "title": "TrustedContactOut",
+        "type": "object"
+      },
+      "TrustedContactPatch": {
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "pattern": "^\\+?[0-9 ()-]{6,20}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "relationship": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship"
+          }
+        },
+        "title": "TrustedContactPatch",
+        "type": "object"
+      },
       "UserOut": {
         "properties": {
           "email": {
@@ -1169,15 +2941,22 @@
             "type": "string"
           },
           "id": {
+            "format": "uuid",
             "title": "Id",
-            "type": "integer"
+            "type": "string"
           },
           "role": {
             "enum": [
               "patient",
-              "doctor"
+              "doctor",
+              "admin"
             ],
             "title": "Role",
+            "type": "string"
+          },
+          "timezone": {
+            "description": "IANA time zone used to display times, e.g. Africa/Algiers.",
+            "title": "Timezone",
             "type": "string"
           }
         },
@@ -1185,57 +2964,25 @@
           "id",
           "role",
           "full_name",
-          "email"
+          "email",
+          "timezone"
         ],
         "title": "UserOut",
         "type": "object"
-      },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError",
-        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "description": "Supabase Auth access token from POST /auth/login.",
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
   "info": {
     "description": "Hypertension monitoring prototype. Not a medical device.",
     "title": "PULSE API",
-    "version": "0.1.0"
+    "version": "1.0.0-contract"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1248,8 +2995,9 @@
             "name": "alert_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Alert Id",
-              "type": "integer"
+              "type": "string"
             }
           }
         ],
@@ -1264,18 +3012,181 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorOut"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "Get Alert",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Alert with the readings attached to it",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
+    "/api/v1/alerts/{alert_id}/transition": {
+      "post": {
+        "operationId": "transition_api_v1_alerts__alert_id__transition_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "open\u2192acknowledged (patient or doctor); \u2192reviewed, reviewed\u2192resolved (doctor). Others: 409",
         "tags": [
           "alerts"
         ]
@@ -1299,26 +3210,502 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LoginOut"
+                  "$ref": "#/components/schemas/SessionOut"
                 }
               }
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorOut"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "Login",
+        "summary": "Log in with email + password (proxied to Supabase Auth)",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "summary": "Exchange a refresh token for a new session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/config/emergency": {
+      "get": {
+        "operationId": "emergency_config_api_v1_config_emergency_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyConfigOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Emergency numbers and offline fallback constants (no login; cache it on the device)",
+        "tags": [
+          "emergency"
+        ]
+      }
+    },
+    "/api/v1/emergency-events/{event_id}": {
+      "patch": {
+        "operationId": "patch_event_api_v1_emergency_events__event_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmergencyEventPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyEventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: location (only with consent), outcome, end time",
+        "tags": [
+          "emergency"
+        ]
+      }
+    },
+    "/api/v1/emergency-events/{event_id}/actions": {
+      "post": {
+        "operationId": "add_actions_api_v1_emergency_events__event_id__actions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmergencyActionsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyEventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: append actions; known client_action_id values are ignored",
+        "tags": [
+          "emergency"
+        ]
+      }
+    },
+    "/api/v1/emergency-events/{event_id}/report": {
+      "get": {
+        "operationId": "event_report_api_v1_emergency_events__event_id__report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Event, linked alert, readings and symptom reports within \u00b124 h",
+        "tags": [
+          "emergency"
         ]
       }
     },
@@ -1341,6 +3728,104 @@
         ]
       }
     },
+    "/api/v1/journal/{entry_id}/review": {
+      "post": {
+        "operationId": "review_journal_api_v1_journal__entry_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor (deferrable)",
+        "tags": [
+          "follow-up"
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "operationId": "me_api_v1_me_get",
@@ -1354,9 +3839,74 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "Me",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Current user and role",
         "tags": [
           "auth"
         ]
@@ -1364,7 +3914,6 @@
     },
     "/api/v1/patients": {
       "get": {
-        "description": "Doctor only: assigned patients, most urgent first, then oldest last reading.",
         "operationId": "list_patients_api_v1_patients_get",
         "responses": {
           "200": {
@@ -1380,9 +3929,74 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "List Patients",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Doctor: assigned patients, most urgent active alert first, then oldest last reading",
         "tags": [
           "patients"
         ]
@@ -1397,13 +4011,14 @@
             "name": "patient_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Patient Id",
-              "type": "integer"
+              "type": "string"
             }
           },
           {
             "in": "query",
-            "name": "state",
+            "name": "status",
             "required": false,
             "schema": {
               "default": "active",
@@ -1411,7 +4026,7 @@
                 "active",
                 "all"
               ],
-              "title": "State",
+              "title": "Status",
               "type": "string"
             }
           }
@@ -1431,20 +4046,907 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorOut"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "List Alerts",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Alerts; active = open or acknowledged",
         "tags": [
           "patients"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/care-plan": {
+      "get": {
+        "operationId": "get_care_plan_api_v1_patients__patient_id__care_plan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CarePlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Active care plan, or the default target 140/90 (is_default=true)",
+        "tags": [
+          "profile"
+        ]
+      },
+      "put": {
+        "operationId": "put_care_plan_api_v1_patients__patient_id__care_plan_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CarePlanIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CarePlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor: new active plan, previous one superseded (deferrable)",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/daily": {
+      "get": {
+        "operationId": "daily_api_v1_patients__patient_id__daily_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DailyPoint"
+                  },
+                  "title": "Response Daily Api V1 Patients  Patient Id  Daily Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Per local day: morning/evening means of valid readings (deferrable)",
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/emergency-card": {
+      "get": {
+        "operationId": "emergency_card_api_v1_patients__patient_id__emergency_card_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyCardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "What a bystander or responder needs; cache it for offline use",
+        "tags": [
+          "emergency"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/emergency-events": {
+      "get": {
+        "operationId": "list_events_api_v1_patients__patient_id__emergency_events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EmergencyEventOut"
+                  },
+                  "title": "Response List Events Api V1 Patients  Patient Id  Emergency Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Events",
+        "tags": [
+          "emergency"
+        ]
+      },
+      "post": {
+        "operationId": "create_event_api_v1_patients__patient_id__emergency_events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmergencyEventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyEventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: open an emergency event; repeating the same client id returns the stored event",
+        "tags": [
+          "emergency"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/journal": {
+      "get": {
+        "operationId": "list_journal_api_v1_patients__patient_id__journal_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JournalOut"
+                  },
+                  "title": "Response List Journal Api V1 Patients  Patient Id  Journal Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Deferrable",
+        "tags": [
+          "follow-up"
+        ]
+      },
+      "post": {
+        "operationId": "create_journal_api_v1_patients__patient_id__journal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JournalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient only (deferrable)",
+        "tags": [
+          "follow-up"
         ]
       }
     },
@@ -1457,8 +4959,9 @@
             "name": "patient_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Patient Id",
-              "type": "integer"
+              "type": "string"
             }
           },
           {
@@ -1506,6 +5009,16 @@
               "title": "Limit",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "include_invalid",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Invalid",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -1523,18 +5036,73 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorOut"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "List Measurements",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Readings, newest first; invalid readings only with include_invalid=true",
         "tags": [
           "patients"
         ]
@@ -1547,8 +5115,9 @@
             "name": "patient_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Patient Id",
-              "type": "integer"
+              "type": "string"
             }
           }
         ],
@@ -1573,20 +5142,585 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorOut"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "Create Measurement",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: record a manual reading; returns the rule evaluation in the same response",
         "tags": [
           "patients"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/notes": {
+      "get": {
+        "operationId": "list_notes_api_v1_patients__patient_id__notes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NoteOut"
+                  },
+                  "title": "Response List Notes Api V1 Patients  Patient Id  Notes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Doctor sees full notes; the patient sees advice and follow-up date only",
+        "tags": [
+          "follow-up"
+        ]
+      },
+      "post": {
+        "operationId": "create_note_api_v1_patients__patient_id__notes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor only",
+        "tags": [
+          "follow-up"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/predictions/latest": {
+      "get": {
+        "operationId": "latest_prediction_api_v1_patients__patient_id__predictions_latest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Doctor only: latest ML estimate (synthetic training data); never used for alerts",
+        "tags": [
+          "patients"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/profile": {
+      "get": {
+        "operationId": "get_profile_api_v1_patients__patient_id__profile_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Profile",
+        "tags": [
+          "profile"
+        ]
+      },
+      "put": {
+        "operationId": "put_profile_api_v1_patients__patient_id__profile_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient only",
+        "tags": [
+          "profile"
         ]
       }
     },
@@ -1599,8 +5733,9 @@
             "name": "patient_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Patient Id",
-              "type": "integer"
+              "type": "string"
             }
           }
         ],
@@ -1615,18 +5750,73 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorOut"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "Summary",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "7/30-day statistics on valid readings, trend direction and target",
         "tags": [
           "patients"
         ]
@@ -1641,8 +5831,9 @@
             "name": "patient_id",
             "required": true,
             "schema": {
+              "format": "uuid",
               "title": "Patient Id",
-              "type": "integer"
+              "type": "string"
             }
           }
         ],
@@ -1667,20 +5858,480 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorOut"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
           }
         },
-        "summary": "Create Symptom Report",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: symptom check; any red-flag symptom returns show_emergency=true",
         "tags": [
           "patients"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/trusted-contacts": {
+      "get": {
+        "operationId": "list_contacts_api_v1_patients__patient_id__trusted_contacts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrustedContactOut"
+                  },
+                  "title": "Response List Contacts Api V1 Patients  Patient Id  Trusted Contacts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Contacts",
+        "tags": [
+          "profile"
+        ]
+      },
+      "post": {
+        "operationId": "create_contact_api_v1_patients__patient_id__trusted_contacts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustedContactIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedContactOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient only; consented_at is set by the server",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/api/v1/trusted-contacts/{contact_id}": {
+      "delete": {
+        "operationId": "delete_contact_api_v1_trusted_contacts__contact_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient only",
+        "tags": [
+          "profile"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_contact_api_v1_trusted_contacts__contact_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrustedContactPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustedContactOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient only",
+        "tags": [
+          "profile"
         ]
       }
     }

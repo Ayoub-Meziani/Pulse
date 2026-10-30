@@ -25,7 +25,11 @@ RECHECK_WINDOW = timedelta(minutes=15)
 TREND_WINDOW = timedelta(days=7)
 TREND_MIN_READINGS = 3
 
-RED_FLAG_SYMPTOMS = frozenset(texts.SYMPTOM_LABELS)
+KNOWN_SYMPTOMS = frozenset(texts.SYMPTOM_LABELS)
+# AHA hypertensive-crisis warning signs. Other recorded symptoms are kept for the doctor but do not
+# trigger the emergency rule (pending clinician review, e.g. severe_headache, confusion).
+RED_FLAG_SYMPTOMS = frozenset({"chest_pain", "shortness_of_breath", "back_pain", "numbness",
+                               "weakness", "vision_change", "difficulty_speaking"})
 
 
 def is_severe(systolic: int, diastolic: int) -> bool:
@@ -117,13 +121,15 @@ def evaluate_trend(readings: list[Reading], target: Target, active_alerts: list[
 def evaluate_symptoms(symptoms: list[str], active_alerts: list[ActiveAlert],
                       now: datetime) -> Evaluation:
     """Symptom check. Any red-flag symptom means emergency, whatever the reading."""
-    unknown = [s for s in symptoms if s not in RED_FLAG_SYMPTOMS]
+    unknown = [s for s in symptoms if s not in KNOWN_SYMPTOMS]
     if unknown:
         raise ValueError(f"Unknown symptom codes: {unknown}")
-    if not symptoms:
+    red = [s for s in symptoms if s in RED_FLAG_SYMPTOMS]
+    if not red:
         return Evaluation(level="none", rule_id=None, reason="No red-flag symptoms reported.",
-                          next_step="Follow the instructions for your reading.", alert_action="none")
-    labels = ", ".join(texts.SYMPTOM_LABELS[s] for s in symptoms)
+                          next_step=texts.NO_RED_FLAG_NEXT_STEP if symptoms
+                          else "Follow the instructions for your reading.", alert_action="none")
+    labels = ", ".join(texts.SYMPTOM_LABELS[s] for s in red)
     # Raise the most recent active severe alert (from the last hour) instead of creating a second one.
     recent = [a for a in active_alerts
               if a.level in ("severe", "emergency") and now - a.triggered_at <= timedelta(hours=1)]

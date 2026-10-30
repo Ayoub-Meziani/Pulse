@@ -1,28 +1,52 @@
 """Settings from environment variables. Never commit real secrets (.env is gitignored)."""
 from __future__ import annotations
 
+import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-DEV_SECRET = "dev-only-insecure-secret-change-me-0000000"
+# Decision D3 is open: neither number is confirmed for the main emergency button. Both stay
+# verified=False until a medical mentor confirms them. Never dial them in tests or the demo.
+DEFAULT_EMERGENCY_NUMBERS = (
+    {"id": "dz-14", "label_fr": "Protection civile", "label_ar": "الحماية المدنية", "number": "14",
+     "verified": False, "source": "Widely listed for Protection civile; UK FCDO lists 14 as fire. Unconfirmed (D3)."},
+    {"id": "dz-1021", "label_fr": "Protection civile (ambulance)", "label_ar": "الحماية المدنية (إسعاف)",
+     "number": "1021", "verified": False,
+     "source": "UK FCDO lists 1021 as ambulance; Wikipedia lists it as Civil Defence. Unconfirmed (D3)."},
+)
+DEMO_NUMBER_ID = "demo"
 
 
 @dataclass(frozen=True)
 class Settings:
-    env: str
-    database_url: str
-    jwt_secret: str
-    jwt_minutes: int
+    env: str = "dev"
+    database_url: str | None = None
+    supabase_url: str | None = None
+    supabase_anon_key: str | None = None
+    # Demo mode replaces the emergency number with a teammate's phone and shows a DEMO banner.
+    demo_mode: bool = True
+    demo_number: str | None = None
+    emergency_numbers: tuple[dict, ...] = field(default=DEFAULT_EMERGENCY_NUMBERS)
+    primary_number_id: str = "dz-14"
+
+
+def _bool(value: str | None, default: bool) -> bool:
+    return default if value is None else value.strip().lower() in ("1", "true", "yes", "on")
 
 
 def load_settings() -> Settings:
     env = os.getenv("PULSE_ENV", "dev")
-    secret = os.getenv("PULSE_JWT_SECRET", DEV_SECRET)
-    if env != "dev" and secret == DEV_SECRET:
-        raise RuntimeError("Set PULSE_JWT_SECRET when PULSE_ENV is not 'dev'.")
-    return Settings(
+    numbers = os.getenv("PULSE_EMERGENCY_NUMBERS")
+    settings = Settings(
         env=env,
-        database_url=os.getenv("PULSE_DATABASE_URL", "sqlite:///./pulse.db"),
-        jwt_secret=secret,
-        jwt_minutes=int(os.getenv("PULSE_JWT_MINUTES", "720")),
+        database_url=os.getenv("PULSE_DATABASE_URL"),
+        supabase_url=os.getenv("SUPABASE_URL"),
+        supabase_anon_key=os.getenv("SUPABASE_ANON_KEY"),
+        demo_mode=_bool(os.getenv("PULSE_DEMO_MODE"), True),
+        demo_number=os.getenv("PULSE_DEMO_NUMBER"),
+        emergency_numbers=tuple(json.loads(numbers)) if numbers else DEFAULT_EMERGENCY_NUMBERS,
+        primary_number_id=os.getenv("PULSE_PRIMARY_NUMBER_ID", "dz-14"),
     )
+    if env != "dev" and settings.demo_mode and not settings.demo_number:
+        raise RuntimeError("Set PULSE_DEMO_NUMBER (a teammate's phone) when PULSE_DEMO_MODE is on.")
+    return settings
