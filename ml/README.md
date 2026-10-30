@@ -78,6 +78,15 @@ Night statistic per metric: heart rate, HRV and skin temperature use the night m
 2. `monitor --follow` + `stream --scenario spo2_dip --patient cohort_1 --minutes 1`: a live `outside_reference` SpO2 flag for Fatima about 10 s after the stream starts, and for no one else.
 3. Known limitation: Fatima also gets night SpO2 `outside_reference` flags from the population reference alone. The doctor-approved personal band handles exactly this.
 
+## Training commands (all from `ml/`, synthetic data from `python -m pulse_data.simulate csv` at the repo root)
+| Command | Model | Time |
+|---|---|---|
+| `..\.venv\Scripts\python -m pulse_ml.train` | `mbp-v1` next-day morning BP (**served**) | ~70 s |
+| `..\.venv\Scripts\python -m pulse_ml.ring_train` | `ring-v1` ring monitor (IsolationForest + evaluation of all flag methods) | ~15 s |
+| `..\.venv\Scripts\python -m pulse_ml.classify` | `wcls-v1` weekly P(next week above target) | ~40 s |
+| `..\.venv\Scripts\python -m pulse_ml.mbp_v2` | `mbp-v2` experiment vs v1 (**not served**) | ~80 s |
+Metrics and their honest reading: [MODEL_CARD.md](MODEL_CARD.md).
+
 ## Weekly doctor loop
 | Command (from `ml/`) | What |
 |---|---|
@@ -88,7 +97,7 @@ Night statistic per metric: heart rate, HRV and skin temperature use the night m
 **`weekly_reports` row:**
 - `home_bp_category`: ACC/AHA 2017 home column, from the week's valid readings.
 - `control_status`: vs the active `care_plans` target, default 140/90; insufficient_data if fewer than 3 readings.
-- `next_week_above_target_prob`: filled by the classifier (step P3).
+- `next_week_above_target_prob`: from `wcls-v1` when that week has ≥ 3 valid readings, built with the same `week_examples()` as in training.
 - `model_versions`.
 - `summary`, numbers only: BP means and target, ring night values, flag counts by kind and review status, latest mbp estimate.
 

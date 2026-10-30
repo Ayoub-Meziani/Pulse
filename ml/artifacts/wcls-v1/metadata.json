@@ -1,0 +1,138 @@
+{
+  "model_version": "wcls-v1",
+  "algorithm": "logistic_regression:bp_only",
+  "features": [
+    "mean_sys",
+    "mean_dia",
+    "n",
+    "m_sys",
+    "e_sys",
+    "slope_sys",
+    "sd_sys",
+    "last3_sys",
+    "gap_sys",
+    "gap_dia",
+    "above_now"
+  ],
+  "trained_on": "synthetic:pulse-sim-v1",
+  "label": "next week's mean of valid home readings >= target (systolic OR diastolic); targets from patients.csv, fallback (135, 85)",
+  "split": {
+    "method": "patient-level 70/15/15",
+    "seed": 7,
+    "train_weeks": 1795,
+    "val_weeks": 387,
+    "test_weeks": 385
+  },
+  "validation_auroc": {
+    "logistic_regression:bp_only": 0.9869,
+    "hist_gradient_boosting:bp_only": 0.9863,
+    "logistic_regression:bp_and_ring": 0.9867,
+    "hist_gradient_boosting:bp_and_ring": 0.9865
+  },
+  "test": {
+    "model": {
+      "n": 385,
+      "positives": 237,
+      "brier": 0.0602,
+      "balanced_accuracy": 0.903,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          128,
+          20
+        ],
+        [
+          14,
+          223
+        ]
+      ],
+      "auroc": 0.977,
+      "auroc_ci95": [
+        0.949,
+        0.992
+      ],
+      "balanced_accuracy_ci95": [
+        0.848,
+        0.949
+      ]
+    },
+    "baseline_status_persists": {
+      "n": 385,
+      "positives": 237,
+      "brier": 0.0883,
+      "balanced_accuracy": 0.907,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          131,
+          17
+        ],
+        [
+          17,
+          220
+        ]
+      ],
+      "auroc": 0.907,
+      "auroc_ci95": [
+        0.85,
+        0.953
+      ],
+      "balanced_accuracy_ci95": [
+        0.85,
+        0.953
+      ]
+    }
+  },
+  "test_status_changes_only": {
+    "model": {
+      "n": 34,
+      "positives": 17,
+      "brier": 0.4848,
+      "balanced_accuracy": 0.176,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          3,
+          14
+        ],
+        [
+          14,
+          3
+        ]
+      ],
+      "auroc": 0.097,
+      "auroc_ci95": [
+        0.015,
+        0.179
+      ],
+      "balanced_accuracy_ci95": [
+        0.053,
+        0.281
+      ]
+    },
+    "baseline_status_persists": {
+      "n": 34,
+      "positives": 17,
+      "brier": 1.0,
+      "balanced_accuracy": 0.0,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          0,
+          17
+        ],
+        [
+          17,
+          0
+        ]
+      ],
+      "auroc": 0.0,
+      "auroc_ci95": [
+        0.0,
+        0.0
+      ],
+      "balanced_accuracy_ci95": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "limitations": "Synthetic data; ring features carry an invented coupling. Shown to the doctor as a probability with its limits; never an alert, never a treatment suggestion.",
+  "trained_at": "2026-10-30T05:24:59+00:00"
+}

@@ -345,6 +345,8 @@ def band(db, patient, status="proposed", low=55, high=75):
 
 
 def test_m7_tables_are_doctor_only(db):
+    for table in ("wearable_flags", "weekly_reports", "patient_bands"):  # local job runs may have left rows
+        db.execute(f"delete from public.{table}")
     band(db, KARIM)
     db.execute("insert into public.weekly_reports (patient_id, week_start, control_status)"
                " values (%s, date_trunc('week', now())::date, 'above_target')", (KARIM,))

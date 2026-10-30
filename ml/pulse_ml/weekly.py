@@ -15,11 +15,14 @@ import os
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+import joblib
+import pandas as pd
 import psycopg
 from psycopg.types.json import Jsonb
 
-from . import bands, reference, ring
+from . import bands, classify, reference, ring
 from .predict import LOCAL_DB, PATIENTS
+from .train import ARTIFACTS
 
 DEFAULT_TARGET = (140, 90)  # contract default when there is no active care plan
 MIN_WEEK_READINGS = 3
@@ -65,7 +68,32 @@ def bp_part(conn, patient: str, start: datetime, end: datetime) -> tuple[dict, s
     return part, reference.home_bp_category(s, d), status
 
 
-def ring_part(conn, patient: str, tz: str, start: datetime, end: datetime) -> tuple[dict, list[dict]]:
+def classifier_prob(conn, bundle, patient: str, tz: str, start: datetime, end: datetime, nights,
+                    target: list) -> float | None:
+    """P(next week above target) from the classifier, built with the SAME week_examples() as training."""
+    if bundle is None:
+        return None
+    rows = conn.execute("select measured_at, coalesce(measured_tz, %s), systolic, diastolic from public.measurements"
+                        " where patient_id = %s and validation_status = 'valid' and measured_at >= %s and measured_at < %s",
+                        (tz, patient, start, end)).fetchall()
+    if not rows:
+        return None
+    readings = pd.DataFrame({"patient": patient,
+                             "local_dt": [m.astimezone(ZoneInfo(z)).replace(tzinfo=None) for m, z, _, _ in rows],
+                             "systolic": [r[2] for r in rows], "diastolic": [r[3] for r in rows]})
+    ex = classify.week_examples(readings, nights, {patient: tuple(target)})
+    row = ex[ex.week == pd.Timestamp(start.date())] if len(ex) else ex
+    if row.empty:
+        return None
+    return round(float(bundle["model"].predict_proba(row[bundle["features"]])[0, 1]), 3)
+
+
+def load_classifier():
+    path = ARTIFACTS / classify.MODEL_VERSION / "model.joblib"
+    return joblib.load(path) if path.exists() else None
+
+
+def ring_part(conn, patient: str, tz: str, start: datetime, end: datetime) -> tuple[dict, list[dict], pd.DataFrame | None]:
     rows = conn.execute("select patient_id::text, metric, value, measured_at from public.wearable_samples"
                         " where patient_id = %s and measured_at >= %s - interval '28 days' and measured_at < %s",
                         (patient, start, end)).fetchall()
@@ -73,23 +101,26 @@ def ring_part(conn, patient: str, tz: str, start: datetime, end: datetime) -> tu
                          " and window_start >= %s and window_start < %s group by 1, 2", (patient, start, end)).fetchall()
     part = {"flags": [{"kind": k, "review_status": r, "count": c} for k, r, c in flags]}
     if not rows:
-        return part, []
+        return part, [], None
     nights = ring.night_table(ring.from_db(rows, {patient: tz}))
     week = nights[nights.night >= start.replace(tzinfo=None)]
     part["nights_this_week"] = int(len(week))
     for m in ring.METRICS:
         if len(week) and week[m].notna().any():
             part[f"{m}_{ring.NIGHT_STAT[m]}"] = round(float(week[m].median()), 2)
-    return part, bands.propose_for_patient(nights)
+    return part, bands.propose_for_patient(nights), nights
 
 
 def run(conn, week: date | None = None) -> dict:
-    out = {"reports": 0, "band_proposals": 0}
+    out = {"reports": 0, "band_proposals": 0, "with_classifier": 0}
+    classifier = load_classifier()
     for patient, tz in conn.execute(PATIENTS).fetchall():
         week_start = monday(week) if week else monday(datetime.now(ZoneInfo(tz)).date()) - timedelta(days=7)
         start, end = week_window(week_start, tz)
         bp, category, control = bp_part(conn, patient, start, end)
-        ring_summary, proposals = ring_part(conn, patient, tz, start, end)
+        ring_summary, proposals, nights = ring_part(conn, patient, tz, start, end)
+        prob = classifier_prob(conn, classifier, patient, tz, start, end, nights, bp["target"])
+        out["with_classifier"] += prob is not None
         mbp = conn.execute("select model_version, target_date, predicted_systolic, predicted_diastolic"
                            " from public.ml_predictions where patient_id = %s and status = 'ok'"
                            " order by target_date desc, created_at desc limit 1", (patient,)).fetchone()
@@ -99,9 +130,10 @@ def run(conn, week: date | None = None) -> dict:
             summary["mbp_estimate"] = {"target_date": mbp[1].isoformat(), "systolic": float(mbp[2]),
                                        "diastolic": float(mbp[3])}
         conn.execute(UPSERT, dict(patient_id=patient, week_start=week_start, home_bp_category=category,
-                                  control_status=control, prob=None, summary=Jsonb(summary),
+                                  control_status=control, prob=prob, summary=Jsonb(summary),
                                   model_versions=Jsonb({"mbp": mbp[0] if mbp else None, "ring": ring.MODEL_VERSION,
-                                                        "weekly_classifier": None})))
+                                                        "weekly_classifier": classify.MODEL_VERSION
+                                                        if prob is not None else None})))
         out["reports"] += 1
         for p in proposals:
             cur = conn.execute(PROPOSE, (patient, p["metric"], p["statistic"], p["low"], p["high"], ring.MODEL_VERSION,

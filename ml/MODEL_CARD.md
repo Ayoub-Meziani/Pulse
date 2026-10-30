@@ -71,6 +71,51 @@ This writes `artifacts/mbp-v1/metadata.json` with the same split and metrics. Th
 - Consumer ring SpO2 is less accurate than a clinical oximeter, and can be overestimated in people with darker skin (FDA 2021).
 - No real ring data has been used.
 
+---
+
+# Model card: `wcls-v1` (weekly classifier, doctor report)
+- **Question:** will next week's mean of valid home readings be at or above the patient's target? The rule is **systolic OR diastolic**.
+- **Targets:** per-patient synthetic targets (135/85 or 130/80, `patients.csv`); in production, the care-plan target.
+- **Output:** `weekly_reports.next_week_above_target_prob`. Shown to the doctor as a probability, never an alert or a treatment suggestion.
+- **Features:** that week only, built by the same `week_examples()` in training and serving: means, morning / evening, within-week slope and spread, last 3 days, gap to target, current status. The ring variant was tried as well.
+- **Selection** on validation AUROC:
+
+  | variant | validation AUROC |
+  |---|---|
+  | logistic regression, BP only (**chosen**) | 0.9869 |
+  | logistic regression, BP + ring | 0.9867 |
+  | gradient boosting, BP + ring | 0.9865 |
+  | gradient boosting, BP only | 0.9863 |
+
+  **Ring features add nothing here.**
+- **Split:** patients 70 / 15 / 15 (seed 7); weeks 1,795 / 387 / 385.
+
+| test set (synthetic) | model AUROC | baseline "status persists" AUROC | model balanced acc. | baseline balanced acc. | model Brier | baseline Brier |
+|---|---|---|---|---|---|---|
+| all 385 weeks | **0.977** (0.949–0.992) | 0.907 (0.850–0.953) | 0.903 | 0.907 | **0.060** | 0.088 |
+| 34 weeks where the status changes | 0.097 | 0.000 | 0.176 | 0.000 | 0.485 | 1.000 |
+
+**Honest reading (review M7):**
+- The model is better ranked and better calibrated than "status persists" overall.
+- Its yes / no accuracy is the same as the baseline.
+- On the weeks that actually change status it is **worse than chance**: it mostly follows the current status, because synthetic week-to-week changes are near-target noise.
+- Use it as a calibrated "how close to the line" probability for the doctor, **not** as a predictor of change.
+
+---
+
+# Experiment: `mbp-v2` (mbp-v1 features + ring night features), NOT served
+Same examples and same split as mbp-v1. Ring features: last night and 7-night means (heart rate, HRV, SpO2, skin temperature), from nights strictly before the target day.
+
+| test (synthetic), MAE mmHg | systolic | diastolic |
+|---|---|---|
+| v1 features (ridge) | 5.23 (5.00–5.48) | 3.31 (3.16–3.44) |
+| v2 features (ridge) | 5.20 (4.97–5.44) | 3.29 (3.14–3.43) |
+
+- **Comparison:**
+  - v2 is ahead on validation by 0.04 mmHg, and the confidence intervals overlap completely.
+  - The simulator's ring↔BP coupling is invented, so any gain is by construction.
+- **Decision:** mbp-v1 stays served (contract §4); switching needs a real win and the backend's agreement.
+
 ## Before any real use
 - Real, consented home readings: no open multi-patient home-BP dataset was found (`docs/data/DATA_SOURCES.md`).
 - Retraining and evaluation on real data, by patient and over time.
