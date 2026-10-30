@@ -105,6 +105,8 @@ Metrics and their honest reading: [MODEL_CARD.md](MODEL_CARD.md).
 | `..\.venv\Scripts\python -m pulse_ml.real_bands` | real population pulse / BP bands → `pulse_ml/reference_nhanes.json` (aggregated, committed) |
 | `..\.venv\Scripts\python -m pulse_ml.wrisk` | `wrisk-v1` on real NHANES people (evaluated; not used in reports, see MODEL_CARD) |
 | `..\.venv\Scripts\python -m pulse_ml.real_tests all` | realism check on real home BP + ring SpO2 rules on real overnight SpO2 → `real_tests` in the metadata |
+| `..\.venv\Scripts\python -m pulse_ml.real_data fetch nhanes_2021` | NHANES Aug 2021–Aug 2023 (later survey, never used in training) for the external wrisk-v1 test |
+| `..\.venv\Scripts\python -m pulse_data.simulate csv --out data/holdout --patients 100 --days 90 --seed 2026 --prefix H` (repo root), then `..\.venv\Scripts\python -m pulse_ml.backtest` | 30-day day-by-day test of every frozen model on unseen patients + the real NHANES 2021–2023 test → `artifacts/backtest-30d/results.json` (MODEL_CARD) |
 
 The weekly report adds `summary.pulse_vs_population`: the week's mean **seated cuff** pulse as a percentile among US adults of the same sex and age (NHANES). It's context, not a threshold, and it is never applied to ring night heart rate. Terms: NHANES statistics only, no re-identification; Mendeley non-commercial; PhysioNet attribution.
 

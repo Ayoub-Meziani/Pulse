@@ -706,6 +706,77 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 </table>
 <div class="box small"><b>Proposed safety rule R-RING-1, for the backend:</b> SpO2 median over 10 minutes &lt; 94 % with ≥ 2 samples → prompt a cuff reading, a symptom check and re-seating the ring. Never an emergency by itself; symptoms keep their own emergency path. It runs on raw <code>wearable_samples</code> in the backend, so the safety path never waits for an ML job. Spec: <code>ml/pulse_ml/reference.py</code> (<code>R_RING_1</code>). Reviewed by the medical mentor on 30 Oct. <span class="pill prop">TO BUILD</span> (backend)</div>
 
+<h3>6.9 30-day day-by-day test on patients no model has seen (30 Oct)</h3>
+<div class="box small"><b>How it was run</b> (<code>ml/pulse_ml/backtest.py</code>):
+<ul>
+<li><b>New patients:</b> 100 synthetic patients × 90 days, made with another random seed and other IDs (<code>H0001…</code>; training used <code>S0001…</code>). No patient, day or ring profile overlaps the training data, and a test checks this.</li>
+<li><b>Frozen models:</b> no model was retrained or tuned on this data.</li>
+<li><b>Day by day:</b> days 1–60 are history; the test days are 2–31 March. On each test day every model sees only data from before that day, through the same code as in serving, and its output is compared with what actually happened that day.</li>
+</ul></div>
+<table class="small">
+<tr><th>Next-morning BP: 2,271 patient-days (65–82 patients a day; 11 too little history)</th><th class="num">systolic MAE (95 % CI)</th><th class="num">RMSE</th><th class="num">diastolic MAE (95 % CI)</th><th class="num">within 10 mmHg</th></tr>
+<tr><td>"same as yesterday"</td><td class="num">9.50 (9.21–9.80)</td><td class="num">11.85</td><td class="num">5.48 (5.30–5.65)</td><td class="num">60.9 %</td></tr>
+<tr><td>"7-day mean"</td><td class="num">8.41 (8.17–8.69)</td><td class="num">10.51</td><td class="num">4.83 (4.66–5.01)</td><td class="num">65.9 %</td></tr>
+<tr><td><b>mbp-v1.1</b> (served)</td><td class="num"><b>7.88 (7.65–8.11)</b></td><td class="num"><b>9.80</b></td><td class="num"><b>4.56 (4.41–4.71)</b></td><td class="num"><b>68.6 %</b></td></tr>
+<tr><td>mbp-v2.1 (+ ring, experiment)</td><td class="num">7.88 (7.65–8.11)</td><td class="num">9.79</td><td class="num">4.56 (4.41–4.71)</td><td class="num">68.9 %</td></tr>
+</table>
+<p class="small" style="margin-bottom:2px"><b>Reading:</b></p>
+<ul class="small">
+<li><code>mbp-v1.1</code> had a lower error than "same as yesterday" on <b>30 / 30</b> days and lower than the 7-day mean on <b>28 / 30</b> days.</li>
+<li>Its 90 % interval covered the real value <b>90.7 %</b> (systolic) and <b>91.0 %</b> (diastolic) of the time.</li>
+<li>The error on new patients (7.88) is close to the original test (7.75), so the model did not just memorise its training patients.</li>
+<li>Ring data adds nothing: <code>mbp-v2.1</code> beat v1.1 on only 15 / 30 days, a coin flip.</li>
+</ul>
+<figure>
+<div class="legend"><span class="sw" style="background:#2a78d6;margin-left:0"></span>mbp-v1.1 (30-day average 7.9) <span class="sw" style="background:#eb6834"></span>7-day mean (8.4) <span class="sw" style="background:#1baf7a"></span>same as yesterday (9.5)</div>
+<svg viewBox="0 0 720 215" role="img" aria-label="Daily systolic error over the 30 test days: mbp-v1.1 is lower than the 7-day mean on 28 of 30 days and lower than same-as-yesterday on every day.">
+<g stroke="#e1e0d9" stroke-width="1"><line x1="46" y1="190.0" x2="640" y2="190.0"/><line x1="46" y1="155.6" x2="640" y2="155.6"/><line x1="46" y1="121.2" x2="640" y2="121.2"/><line x1="46" y1="86.8" x2="640" y2="86.8"/><line x1="46" y1="52.4" x2="640" y2="52.4"/><line x1="46" y1="18.0" x2="640" y2="18.0"/></g>
+<g font-size="9" fill="#898781" text-anchor="end"><text x="40" y="193.0">4</text><text x="40" y="158.6">6</text><text x="40" y="124.2">8</text><text x="40" y="89.8">10</text><text x="40" y="55.4">12</text><text x="40" y="21.0">14</text></g>
+<line x1="46" y1="190" x2="640" y2="190" stroke="#c3c2b7"/>
+<g font-size="9" fill="#898781" text-anchor="middle"><text x="46.0" y="204">03-02</text><text x="148.4" y="204">03-07</text><text x="250.8" y="204">03-12</text><text x="353.2" y="204">03-17</text><text x="455.7" y="204">03-22</text><text x="558.1" y="204">03-27</text></g>
+<path d="M46.0,106.6 L66.5,111.4 L87.0,104.5 L107.4,78.0 L127.9,76.7 L148.4,74.2 L168.9,110.2 L189.4,101.8 L209.9,118.6 L230.3,73.2 L250.8,90.1 L271.3,116.7 L291.8,109.0 L312.3,99.4 L332.8,94.5 L353.2,99.2 L373.7,98.7 L394.2,83.7 L414.7,69.8 L435.2,95.4 L455.7,94.7 L476.1,83.0 L496.6,106.2 L517.1,104.7 L537.6,102.8 L558.1,85.3 L578.6,94.0 L599.0,83.2 L619.5,87.8 L640.0,105.7" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M46.0,107.6 L66.5,143.2 L87.0,106.4 L107.4,109.2 L127.9,93.2 L148.4,83.5 L168.9,126.5 L189.4,104.5 L209.9,117.8 L230.3,91.6 L250.8,115.9 L271.3,131.2 L291.8,121.0 L312.3,116.0 L332.8,107.1 L353.2,114.1 L373.7,130.1 L394.2,110.7 L414.7,103.7 L435.2,123.3 L455.7,126.7 L476.1,85.4 L496.6,129.8 L517.1,119.7 L537.6,118.3 L558.1,104.5 L578.6,113.1 L599.0,126.5 L619.5,136.5 L640.0,103.3" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M46.0,127.0 L66.5,147.2 L87.0,119.3 L107.4,113.5 L127.9,97.6 L148.4,97.5 L168.9,133.6 L189.4,109.5 L209.9,135.5 L230.3,104.5 L250.8,131.0 L271.3,132.9 L291.8,135.6 L312.3,130.5 L332.8,116.4 L353.2,120.2 L373.7,136.0 L394.2,109.5 L414.7,111.7 L435.2,125.8 L455.7,134.8 L476.1,106.8 L496.6,138.2 L517.1,123.4 L537.6,136.3 L558.1,108.3 L578.6,123.4 L599.0,126.2 L619.5,145.5 L640.0,117.6" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="46" y="12" font-size="9" fill="#898781">mmHg, mean absolute error per day (lower is better)</text>
+</svg>
+<figcaption>Figure 6. Systolic error on each of the 30 test days. The blue line (the model) is the lowest on almost every day.</figcaption>
+</figure>
+<figure>
+<div class="legend"><span class="sw" style="background:#eb6834;margin-left:0;border-radius:5px"></span>measured morning systolic <span class="sw" style="background:#2a78d6"></span>mbp-v1.1 estimate, made the day before <span class="sw" style="background:rgba(42,120,214,0.18)"></span>90 % interval</div>
+<svg viewBox="0 0 720 215" role="img" aria-label="One unseen patient over 30 days: 28 of 30 measured mornings fall inside the model estimate band.">
+<g stroke="#e1e0d9" stroke-width="1"><line x1="46" y1="190.0" x2="640" y2="190.0"/><line x1="46" y1="165.4" x2="640" y2="165.4"/><line x1="46" y1="140.9" x2="640" y2="140.9"/><line x1="46" y1="116.3" x2="640" y2="116.3"/><line x1="46" y1="91.7" x2="640" y2="91.7"/><line x1="46" y1="67.1" x2="640" y2="67.1"/><line x1="46" y1="42.6" x2="640" y2="42.6"/><line x1="46" y1="18.0" x2="640" y2="18.0"/></g>
+<g font-size="9" fill="#898781" text-anchor="end"><text x="40" y="193.0">140</text><text x="40" y="168.4">150</text><text x="40" y="143.9">160</text><text x="40" y="119.3">170</text><text x="40" y="94.7">180</text><text x="40" y="70.1">190</text><text x="40" y="45.6">200</text><text x="40" y="21.0">210</text></g>
+<line x1="46" y1="190" x2="640" y2="190" stroke="#c3c2b7"/>
+<g font-size="9" fill="#898781" text-anchor="middle"><text x="46.0" y="204">03-02</text><text x="148.4" y="204">03-07</text><text x="250.8" y="204">03-12</text><text x="353.2" y="204">03-17</text><text x="455.7" y="204">03-22</text><text x="558.1" y="204">03-27</text></g>
+<path d="M46.0,49.9 L66.5,62.7 L87.0,63.0 L107.4,72.5 L127.9,70.1 L148.4,70.6 L168.9,72.5 L189.4,62.0 L209.9,61.5 L230.3,61.2 L250.8,78.4 L271.3,81.1 L291.8,93.9 L312.3,92.0 L332.8,91.2 L353.2,94.2 L373.7,86.8 L394.2,88.3 L414.7,83.1 L435.2,84.1 L455.7,68.4 L476.1,65.4 L496.6,69.4 L517.1,69.6 L537.6,66.4 L558.1,64.2 L578.6,71.1 L599.0,75.5 L619.5,68.6 L640.0,61.7 L640.0,141.3 L619.5,148.2 L599.0,155.1 L578.6,150.7 L558.1,143.8 L537.6,146.0 L517.1,149.2 L496.6,149.0 L476.1,145.0 L455.7,148.0 L435.2,163.7 L414.7,162.7 L394.2,167.9 L373.7,166.4 L353.2,173.8 L332.8,170.8 L312.3,171.6 L291.8,173.5 L271.3,160.8 L250.8,158.1 L230.3,140.9 L209.9,141.1 L189.4,141.6 L168.9,152.2 L148.4,150.2 L127.9,149.7 L107.4,152.2 L87.0,142.6 L66.5,142.3 L46.0,129.6 Z" fill="#2a78d6" fill-opacity="0.10" stroke="none"/>
+<path d="M46.0,89.7 L66.5,102.5 L87.0,102.8 L107.4,112.4 L127.9,109.9 L148.4,110.4 L168.9,112.4 L189.4,101.8 L209.9,101.3 L230.3,101.1 L250.8,118.3 L271.3,121.0 L291.8,133.7 L312.3,131.8 L332.8,131.0 L353.2,134.0 L373.7,126.6 L394.2,128.1 L414.7,122.9 L435.2,123.9 L455.7,108.2 L476.1,105.2 L496.6,109.2 L517.1,109.4 L537.6,106.2 L558.1,104.0 L578.6,110.9 L599.0,115.3 L619.5,108.4 L640.0,101.5" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/>
+<g fill="#eb6834" stroke="#fff" stroke-width="2"><circle cx="46.0" cy="133.5" r="4"/><circle cx="66.5" cy="111.4" r="4"/><circle cx="87.0" cy="116.3" r="4"/><circle cx="107.4" cy="100.3" r="4"/><circle cx="127.9" cy="105.2" r="4"/><circle cx="148.4" cy="113.8" r="4"/><circle cx="168.9" cy="96.6" r="4"/><circle cx="189.4" cy="84.3" r="4"/><circle cx="209.9" cy="102.8" r="4"/><circle cx="230.3" cy="150.7" r="4"/><circle cx="250.8" cy="135.9" r="4"/><circle cx="271.3" cy="147.0" r="4"/><circle cx="291.8" cy="132.3" r="4"/><circle cx="312.3" cy="128.6" r="4"/><circle cx="332.8" cy="133.5" r="4"/><circle cx="353.2" cy="99.1" r="4"/><circle cx="373.7" cy="123.7" r="4"/><circle cx="394.2" cy="112.6" r="4"/><circle cx="414.7" cy="115.1" r="4"/><circle cx="435.2" cy="86.8" r="4"/><circle cx="455.7" cy="96.6" r="4"/><circle cx="476.1" cy="104.0" r="4"/><circle cx="496.6" cy="118.7" r="4"/><circle cx="517.1" cy="106.5" r="4"/><circle cx="537.6" cy="94.2" r="4"/><circle cx="558.1" cy="117.5" r="4"/><circle cx="578.6" cy="104.0" r="4"/><circle cx="599.0" cy="99.1" r="4"/><circle cx="619.5" cy="77.0" r="4"/><circle cx="640.0" cy="74.5" r="4"/></g>
+<text x="46" y="12" font-size="9" fill="#898781">mmHg, morning systolic · 28 of 30 measured days inside the 90 % band</text>
+</svg>
+<figcaption>Figure 7. One unseen patient (H0020, synthetic) over the 30 test days. Each estimate was made the evening before, from earlier days only. 28 of the 30 measured mornings fall inside the band.</figcaption>
+</figure>
+<table class="small" style="break-inside: avoid">
+<tr><th>Ring, every night: 2,703 nights of 100 patients, 14 planted events</th><th class="num">events found</th><th class="num">flagged nights</th><th class="num">precision</th><th class="num">other flags / patient-week</th></tr>
+<tr><td>medical limit only (SpO2 &lt; 94 %)</td><td class="num">6 / 14</td><td class="num">443</td><td class="num">0.02</td><td class="num">1.12*</td></tr>
+<tr><td><b>personal baseline, z &gt; 3.5</b></td><td class="num"><b>13 / 14</b></td><td class="num">107</td><td class="num">0.22</td><td class="num"><b>0.22</b></td></tr>
+<tr><td>IsolationForest</td><td class="num">9 / 14</td><td class="num">44</td><td class="num">0.32</td><td class="num">0.08</td></tr>
+<tr><td>personal or IsolationForest</td><td class="num">13 / 14</td><td class="num">117</td><td class="num">0.21</td><td class="num">0.24</td></tr>
+</table>
+<p class="small">The personal baseline found every heart-rate rise (7 / 7) and every HRV drop (2 / 2), and 4 / 5 oxygen dips. *433 of the 443 medical-limit flags come from the 31 sleep-apnea patients, whose night oxygen really is low: they're real findings, counted here only because they aren't planted events. 14 events is a small sample; on the original test the same rule found 3 / 7.</p>
+<table class="small" style="break-inside: avoid">
+<tr><th>Weekly classifier: 400 predictions (100 patients × 4 weeks, 285 above target)</th><th class="num">AUROC (95 % CI)</th><th class="num">balanced accuracy</th><th class="num">Brier</th><th>Confusion [TN FP / FN TP]</th></tr>
+<tr><td><b>wcls-v1.1</b></td><td class="num"><b>0.963 (0.937–0.980)</b></td><td class="num">0.873</td><td class="num"><b>0.072</b></td><td>95 20 / 23 262</td></tr>
+<tr><td>"status persists"</td><td class="num">0.881 (0.831–0.919)</td><td class="num">0.881</td><td class="num">0.100</td><td>-</td></tr>
+<tr><td>only the 40 weeks where status changed</td><td class="num">0.055</td><td class="num">0.076</td><td class="num">0.555</td><td>-</td></tr>
+</table>
+<p class="small">The same pattern as the original test: well ranked and well calibrated, but no skill on the weeks that actually change. It stays shown as "how close to the target line".</p>
+<table class="small" style="break-inside: avoid">
+<tr><th>REAL people: wrisk-v1 on NHANES Aug 2021–Aug 2023 (a later survey it never saw; 1,851 treated adults, 31.1 % uncontrolled)</th><th class="num">AUROC (95 % CI)</th><th class="num">weighted</th><th class="num">Brier</th><th class="num">bal. acc.</th></tr>
+<tr><td>wrisk-v1 (trained on 2017–2020)</td><td class="num">0.596 (0.568–0.624)</td><td class="num">0.592</td><td class="num">0.210</td><td class="num">0.508</td></tr>
+<tr><td>age + sex only (same training people)</td><td class="num">0.565 (0.534–0.597)</td><td class="num">0.555</td><td class="num">0.213</td><td class="num">0.500</td></tr>
+</table>
+<p class="small">On new real people it is stable (0.60 again) and slightly above age and sex, but still weak, so it stays hidden from reports. The survey renamed two variables in 2021–2023 (exam weight <code>WTMEC2YR</code>; BP medicine <code>BPQ150</code>); the meaning was checked against the CDC codebooks. <b>Not testable on real data:</b> next-day BP and the weekly classifier need daily home BP of many patients, and no open dataset has that. The ring SpO2 rule's real test (8 PhysioNet nights) is in 6.3.</p>
+
 <h2>7. Live ring monitoring and the weekly doctor loop</h2>
 <figure>
 <svg viewBox="0 0 760 215" role="img" aria-label="Weekly doctor loop: ring samples are checked by the monitor, which writes flags; the weekly job writes reports and proposes bands; the doctor reviews flags and approves or edits bands; the active band is then used for the next nights; reviewed flags feed a feedback gate that never deploys automatically.">

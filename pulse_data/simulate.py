@@ -568,9 +568,10 @@ def build_seed_sql(password: str) -> str:
 ML_START = date(2026, 1, 1)
 
 
-def _ml_cohort(patients: int, days: int, seed: int, noise: Noise = NOISE_V2):
+def _ml_cohort(patients: int, days: int, seed: int, noise: Noise = NOISE_V2, prefix: str = "S"):
     """The synthetic ML cohort, patient by patient: (key, on_medication, context, readings, daily BP effects).
-    One shared generator for BP; day-to-day variation from `noise` (pulse-sim-v2: calibrated on real home BP)."""
+    One shared generator for BP; day-to-day variation from `noise` (pulse-sim-v2: calibrated on real home BP).
+    Another seed + prefix gives an unseen cohort (ring profiles are keyed by patient key)."""
     rng = random.Random(seed)
     for i in range(1, patients + 1):
         sys_ = rng.uniform(110, 165)
@@ -579,10 +580,10 @@ def _ml_cohort(patients: int, days: int, seed: int, noise: Noise = NOISE_V2):
                     on_med, rng.uniform(0, 0.3) if on_med else 0.0)
         effects: list[float] = []
         context, readings = simulate_patient(rng, p, days, entry_error_prob=0.003, effect_out=effects, noise=noise)
-        yield f"S{i:04d}", on_med, context, readings, effects
+        yield f"{prefix}{i:04d}", on_med, context, readings, effects
 
 
-def write_ml_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int = 7) -> None:
+def write_ml_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int = 7, prefix: str = "S") -> None:
     tz = ZoneInfo(TZ)
     start = ML_START
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -592,7 +593,7 @@ def write_ml_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int =
                      "is_synthetic", "generator_version"])
         cw.writerow(["patient_key", "local_date", "on_medication", "missed_dose", "activity_minutes",
                      "sodium_mg_estimated", "sleep_hours", "sleep_quality", "is_synthetic"])
-        for key, on_med, context, readings, _ in _ml_cohort(patients, days, seed):
+        for key, on_med, context, readings, _ in _ml_cohort(patients, days, seed, prefix=prefix):
             for r in readings:
                 local = datetime.combine(start + timedelta(days=r.day), datetime.min.time(), tz) + timedelta(minutes=r.minute)
                 rw.writerow([key, local.isoformat(), local.date().isoformat(), r.session, r.systolic, r.diastolic,
@@ -603,7 +604,7 @@ def write_ml_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int =
                              c.sleep_hours, c.sleep_quality, "true"])
 
 
-def write_ring_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int = 7) -> None:
+def write_ring_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int = 7, prefix: str = "S") -> None:
     """Ring data for the same cohort:
     - wearable_samples.csv: same columns as public.wearable_samples (+ is_synthetic)
     - ring_episodes.csv: injected, labelled anomaly episodes (to score the ring monitor)
@@ -619,7 +620,7 @@ def write_ring_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int
                      "is_synthetic", "generator_version"])
         we.writerow(["patient_key", "episode_type", "start_date", "end_date", "is_synthetic"])
         wp.writerow(["patient_key", "target_systolic", "target_diastolic", "conditions", "is_synthetic"])
-        for key, _, _, _, effects in _ml_cohort(patients, days, seed):
+        for key, _, _, _, effects in _ml_cohort(patients, days, seed, prefix=prefix):
             rr = random.Random(f"{GENERATOR_VERSION}:{key}:ring")
             # No age / sex in this cohort: overall rates (STEPS diabetes 17.5 %, BREATHE COPD 3.6 %, assumptions).
             conditions = [c for c, p in (("diabetes", 0.175), ("copd", 0.036), ("obstructive_sleep_apnea", 0.30),
@@ -672,6 +673,7 @@ def main() -> None:
     c.add_argument("--patients", type=int, default=200)
     c.add_argument("--days", type=int, default=90)
     c.add_argument("--seed", type=int, default=7)
+    c.add_argument("--prefix", default="S", help="patient key prefix; e.g. H for the unseen holdout cohort")
     sub.add_parser("sample").add_argument("--out", type=Path, default=ROOT / "samples" / "readings_sample.csv")
     sub.add_parser("ring-demo-sql").add_argument("--out", type=Path, default=ROOT / "data" / "cloud_ring_demo.sql")
     a = ap.parse_args()
@@ -681,8 +683,8 @@ def main() -> None:
             sys.exit("set PULSE_DEMO_PASSWORD (demo accounts' password; never commit it)")
         a.out.write_text(build_seed_sql(password), encoding="utf-8")
     elif a.cmd == "csv":
-        write_ml_csv(a.out, a.patients, a.days, a.seed)
-        write_ring_csv(a.out, a.patients, a.days, a.seed)
+        write_ml_csv(a.out, a.patients, a.days, a.seed, a.prefix)
+        write_ring_csv(a.out, a.patients, a.days, a.seed, a.prefix)
     elif a.cmd == "ring-demo-sql":
         a.out.parent.mkdir(parents=True, exist_ok=True)
         a.out.write_text(cloud_ring_demo_sql(), encoding="utf-8")

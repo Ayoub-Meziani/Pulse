@@ -34,6 +34,18 @@ def test_bp_csv_files_unchanged(tmp_path):
         assert sha((tmp_path / name).read_bytes()) == FINGERPRINTS[name], name
 
 
+def test_holdout_cohort_is_unseen(tmp_path):
+    """The 30-day backtest cohort (other seed + prefix) shares no patient key or BP series with training."""
+    import csv
+    simulate.write_ml_csv(tmp_path / "train", patients=5, days=10)
+    simulate.write_ml_csv(tmp_path / "holdout", patients=5, days=10, seed=2026, prefix="H")
+    rows = {k: list(csv.DictReader(open(tmp_path / k / "readings.csv"))) for k in ("train", "holdout")}
+    keys = {k: {r["patient_key"] for r in v} for k, v in rows.items()}
+    assert not keys["train"] & keys["holdout"] and all(k.startswith("H") for k in keys["holdout"])
+    series = {k: [(r["systolic"], r["diastolic"]) for r in v] for k, v in rows.items()}
+    assert series["train"] != series["holdout"]
+
+
 def test_ring_samples_pass_the_table_checks():
     """Same metric/unit pairs and plausible ranges as the wearable_samples CHECKs (M6), episodes included."""
     import random

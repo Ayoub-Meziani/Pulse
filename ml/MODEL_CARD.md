@@ -115,6 +115,40 @@ The 0.04 mmHg gain is within the noise, and the ring↔BP coupling is invented, 
 
 ---
 
+## 30-day day-by-day test on patients no model has seen (30 Oct 2026)
+`python -m pulse_ml.backtest` → `artifacts/backtest-30d/results.json`.
+- **Data:** a new synthetic cohort (`pulse-sim-v2`, seed 2026, keys `H0001–H0100`; training used `S0001–S0200`). No patient, day or ring profile overlaps training.
+- **Method:** frozen models, nothing retrained. Days 1–60 are history and the test days are 2–31 March. On each test day every model sees only earlier data (same feature code as serving) and is scored against what happened.
+
+| next-morning BP, 2,271 patient-days | systolic MAE (95 % CI) | diastolic MAE (95 % CI) | within 10 mmHg (sys) |
+|---|---|---|---|
+| "same as yesterday" | 9.50 (9.21–9.80) | 5.48 (5.30–5.65) | 60.9 % |
+| "7-day mean" | 8.41 (8.17–8.69) | 4.83 (4.66–5.01) | 65.9 % |
+| **mbp-v1.1** | **7.88 (7.65–8.11)** | **4.56 (4.41–4.71)** | **68.6 %** |
+| mbp-v2.1 | 7.88 (7.65–8.11) | 4.56 (4.41–4.71) | 68.9 % |
+
+mbp-v1.1 had a lower error than "same as yesterday" on 30 / 30 days and than the 7-day mean on 28 / 30 days. Its interval covered the real value 90.7 % / 91.0 % of the time (target 90 %). mbp-v2.1 beat v1.1 on 15 / 30 days.
+
+| ring, 2,703 nights, 14 planted events | events found | other flags / patient-week |
+|---|---|---|
+| medical limit only | 6 / 14 | 1.12 (433 of 443 flags are real low night SpO2 in the 31 sleep-apnea patients) |
+| **personal baseline, z > 3.5** | **13 / 14** (HR 7/7, HRV 2/2, SpO2 4/5) | 0.22 |
+| IsolationForest | 9 / 14 | 0.08 |
+
+| weekly classifier, 400 predictions | AUROC (95 % CI) | Brier |
+|---|---|---|
+| **wcls-v1.1** | **0.963 (0.937–0.980)** | **0.072** |
+| "status persists" | 0.881 (0.831–0.919) | 0.100 |
+| 40 weeks where the status changed: wcls-v1.1 | 0.055 | 0.555 |
+
+**REAL external test, wrisk-v1 on NHANES Aug 2021–Aug 2023** (a later survey it never saw; 1,851 treated adults, 31.1 % uncontrolled):
+- wrisk-v1: AUROC 0.596 (0.568–0.624), weighted 0.592
+- age + sex: 0.565 (0.534–0.597)
+
+It's stable but weak, so it stays hidden. In the 2021–2023 survey the exam weight is `WTMEC2YR` and BP medicine is `BPQ150`, with the meaning checked against the CDC codebooks.
+
+**Not testable on real data:** next-day BP and the weekly classifier need daily home BP of many patients, and no open dataset has it.
+
 ## History
 | version | change |
 |---|---|

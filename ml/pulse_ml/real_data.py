@@ -27,6 +27,9 @@ EXTERNAL = ROOT / "data" / "external"
 UA = {"User-Agent": "PULSE-hackathon-research/0.1 (non-commercial)"}
 NHANES_BASE = "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2017/DataFiles/"
 NHANES_FILES = ("P_DEMO", "P_BPXO", "P_BMX", "P_SMQ", "P_DIQ", "P_BPQ", "P_TCHOL", "P_MCQ", "P_KIQ_U")
+# A later cycle, never used for training: external test of wrisk-v1 on other real people (backtest.py).
+NHANES_2021_BASE = "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2021/DataFiles/"
+NHANES_2021_FILES = ("DEMO_L", "BPXO_L", "BMX_L", "SMQ_L", "DIQ_L", "BPQ_L", "MCQ_L", "KIQ_U_L")
 APNEA_BASE = "https://physionet.org/files/apnea-ecg/1.0.0/"
 APNEA_RECORDS = ("a01r", "a02r", "a03r", "a04r", "b01r", "c01r", "c02r", "c03r")   # the 8 records with SpO2
 MENDELEY_API = "https://data.mendeley.com/public-api/datasets/pjcv33hpp7/files?folder_id=root&version=1"
@@ -37,6 +40,12 @@ SOURCES = {
         "licence": "NCHS data user agreement: statistical analysis only; no re-identification; no linkage "
                    "(https://www.cdc.gov/nchs/data_access/restrictions.htm)",
         "credit": "National Center for Health Statistics, NHANES 2017-March 2020 pre-pandemic data files",
+    },
+    "nhanes_2021": {
+        "name": "NHANES August 2021-August 2023 (CDC / NCHS)",
+        "licence": "NCHS data user agreement: statistical analysis only; no re-identification; no linkage "
+                   "(https://www.cdc.gov/nchs/data_access/restrictions.htm)",
+        "credit": "National Center for Health Statistics, NHANES August 2021-August 2023 data files",
     },
     "mendeley_hbpm": {
         "name": "Data for: Trends and seasonality extracting from Home Blood Pressure Monitoring readings",
@@ -94,6 +103,8 @@ def _save(source: str, items: list[tuple[str, str, str | None]]) -> dict:
 def fetch(source: str) -> dict:
     if source == "nhanes":
         return _save(source, [(f"{n}.xpt", f"{NHANES_BASE}{n}.xpt", None) for n in NHANES_FILES])
+    if source == "nhanes_2021":
+        return _save(source, [(f"{n}.xpt", f"{NHANES_2021_BASE}{n}.xpt", None) for n in NHANES_2021_FILES])
     if source == "mendeley_hbpm":
         files = json.loads(_get(MENDELEY_API))
         return _save(source, [(f["filename"], f["content_details"]["download_url"], f["content_details"]["sha256_hash"])
@@ -106,10 +117,10 @@ def fetch(source: str) -> dict:
 
 # ---------------------------------------------------------------- loaders (tidy, documented columns)
 
-def _xpt(name: str) -> pd.DataFrame:
-    path = EXTERNAL / "nhanes" / f"{name}.xpt"
+def _xpt(name: str, source: str = "nhanes") -> pd.DataFrame:
+    path = EXTERNAL / source / f"{name}.xpt"
     if not path.exists():
-        raise SystemExit("NHANES not downloaded: python -m pulse_ml.real_data fetch nhanes")
+        raise SystemExit(f"NHANES not downloaded: python -m pulse_ml.real_data fetch {source}")
     return pd.read_sas(path, format="xport", encoding="infer")
 
 
@@ -124,13 +135,22 @@ NHANES_COLUMNS = {  # NHANES variable -> PULSE name (checked against the CDC cod
     "P_MCQ": {"SEQN": "seqn", "MCQ160B": "chf_told", "MCQ160F": "stroke_told", "MCQ160P": "copd_told"},
     "P_KIQ_U": {"SEQN": "seqn", "KIQ022": "kidney_told"},
 }
+# 2021-2023 cycle (checked against its CDC codebooks, 30 Oct 2026): same questions and codes, except the exam
+# weight (WTMEC2YR) and "now taking prescribed medicine for high blood pressure" (BPQ150, was BPQ050A).
+NHANES_2021_COLUMNS = {
+    "DEMO_L": {"SEQN": "seqn", "RIAGENDR": "sex_code", "RIDAGEYR": "age", "WTMEC2YR": "weight"},
+    "BPXO_L": NHANES_COLUMNS["P_BPXO"], "BMX_L": NHANES_COLUMNS["P_BMX"], "SMQ_L": NHANES_COLUMNS["P_SMQ"],
+    "DIQ_L": NHANES_COLUMNS["P_DIQ"],
+    "BPQ_L": {"SEQN": "seqn", "BPQ020": "hbp_told", "BPQ150": "bp_med_now", "BPQ080": "high_chol_told"},
+    "MCQ_L": NHANES_COLUMNS["P_MCQ"], "KIQ_U_L": NHANES_COLUMNS["P_KIQ_U"],
+}
 
 
-def load_nhanes() -> pd.DataFrame:
+def load_nhanes(source: str = "nhanes") -> pd.DataFrame:
     """One row per examined participant. Yes/no answers become 1 / 0 (refused / don't know -> NaN)."""
     df = None
-    for name, cols in NHANES_COLUMNS.items():
-        raw = _xpt(name)
+    for name, cols in (NHANES_COLUMNS if source == "nhanes" else NHANES_2021_COLUMNS).items():
+        raw = _xpt(name, source)
         missing = [c for c in cols if c not in raw.columns]
         if missing:
             raise SystemExit(f"{name}: expected NHANES variables missing {missing}; check the CDC codebook")
