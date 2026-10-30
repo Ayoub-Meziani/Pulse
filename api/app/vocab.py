@@ -18,6 +18,7 @@ RULE_VERSION = "pulse-rules-1"
 
 # Manual readings posted by patients through the API.
 MANUAL_SOURCE, MANUAL_PROVENANCE, MANUAL_METHOD = "manual", "measured", "unknown"
+SIMULATED_PROVENANCE = "simulated"  # generated demo data: shown and labelled, never an input to R-TRD-1
 PATIENT_SYMPTOM_SOURCE = "patient_reported"
 
 DEFAULT_TARGET = (140, 90)  # used when no active care plan sets a target

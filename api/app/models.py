@@ -218,3 +218,28 @@ class MlPrediction(Base):  # migration M4; written only by the ML batch job
     features_until: Mapped[datetime] = mapped_column(TS)
     n_readings_used: Mapped[int] = mapped_column(SmallInteger)
     created_at: Mapped[datetime] = _server(TS)
+
+
+class Device(Base):  # read only: devices are registered by the device sync / simulator, not by the API
+    __tablename__ = "devices"
+    id: Mapped[uuid.UUID] = _id()
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    device_type: Mapped[str] = mapped_column(Text)
+    bp_capability: Mapped[str] = mapped_column(Text)
+    manufacturer: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(Text)
+    label: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _server(TS)
+
+
+class WearableSample(Base):  # migration M6; read only, never an input to rules, alerts or emergency guidance
+    __tablename__ = "wearable_samples"
+    id: Mapped[uuid.UUID] = _id()
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    device_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    metric: Mapped[str] = mapped_column(Text)
+    value: Mapped[Decimal] = mapped_column(Numeric(6, 2))
+    unit: Mapped[str] = mapped_column(Text)
+    measured_at: Mapped[datetime] = mapped_column(TS)
+    source: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _server(TS)

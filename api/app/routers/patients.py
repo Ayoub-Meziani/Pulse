@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import AwareDatetime
 from sqlalchemy.orm import Session
 
@@ -23,7 +23,7 @@ from ..schemas import (AlertOut, DailyPoint, EvaluationOut, MeasurementIn, Measu
                        SymptomResult)
 from ..services import alerts as alert_service
 from ..services.measurements import list_readings, record_manual_reading
-from ..services.symptoms import record_symptoms
+from ..services.symptoms import list_reports, record_symptoms
 from .alerts import alert_brief, alert_out
 
 
@@ -44,11 +44,17 @@ def list_patients(request: Request, user: CurrentUser = Depends(current_user),
 
 
 @router.post("/patients/{patient_id}/measurements", response_model=MeasurementResult, status_code=201,
-             summary="Patient: record a manual reading; returns the rule evaluation in the same response")
-def create_measurement(patient_id: UUID, body: MeasurementIn, request: Request,
+             summary="Patient: record a manual reading; returns the rule evaluation in the same response",
+             responses={200: {"model": MeasurementResult,
+                              "description": "A reading with this client-generated id already exists; it is returned "
+                                             "and no alert is changed (safe retry)."},
+                        201: {"description": "Reading stored and evaluated."}})
+def create_measurement(patient_id: UUID, body: MeasurementIn, request: Request, response: Response,
                        user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
     require_patient_access(db, user, patient_id, write=True)
-    m, ev, alert, trend_alert = record_manual_reading(db, user, body, request.app.state.clock())
+    m, ev, alert, trend_alert, created = record_manual_reading(db, user, body, request.app.state.clock())
+    if not created:
+        response.status_code = 200
     return MeasurementResult(measurement=MeasurementOut.model_validate(m), evaluation=evaluation_out(ev),
                              alert=alert_brief(alert), trend_alert=alert_brief(trend_alert))
 
@@ -86,10 +92,25 @@ def create_symptom_report(patient_id: UUID, body: SymptomReportIn, request: Requ
                           user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
     require_patient_access(db, user, patient_id, write=True)
     report, ev, alert = record_symptoms(db, user, body, request.app.state.clock())
-    out = SymptomReportOut(id=report.id, patient_id=report.patient_id, symptoms=report.symptoms,
-                           measurement_id=None, onset_at=report.onset_at, reported_at=report.reported_at,
-                           source=report.source)
-    return SymptomResult(report=out, evaluation=evaluation_out(ev), alert=alert_brief(alert))
+    return SymptomResult(report=symptom_report_out(report), evaluation=evaluation_out(ev), alert=alert_brief(alert))
+
+
+def symptom_report_out(report) -> SymptomReportOut:
+    # measurement_id stays null: the link to a reading is not stored until a migration adds it (B24).
+    return SymptomReportOut(id=report.id, patient_id=report.patient_id, symptoms=report.symptoms,
+                            measurement_id=None, onset_at=report.onset_at, reported_at=report.reported_at,
+                            source=report.source)
+
+
+@router.get("/patients/{patient_id}/symptom-reports", response_model=list[SymptomReportOut],
+            summary="Symptom reports, newest first (patient or assigned doctor); measurement_id is always null (B24)")
+def list_symptom_reports(patient_id: UUID,
+                         from_: AwareDatetime | None = Query(None, alias="from"),
+                         to: AwareDatetime | None = None,
+                         limit: int = Query(100, ge=1, le=500),
+                         user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
+    require_patient_access(db, user, patient_id)
+    return [symptom_report_out(r) for r in list_reports(db, patient_id, from_, to, limit)]
 
 
 @router.get("/patients/{patient_id}/alerts", response_model=list[AlertOut],

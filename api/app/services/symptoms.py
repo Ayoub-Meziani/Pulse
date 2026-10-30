@@ -7,7 +7,9 @@ request; no ML.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import vocab
@@ -42,3 +44,14 @@ def record_symptoms(db: Session, patient: CurrentUser, data: SymptomReportIn,
     alert = apply_evaluation(db, patient.id, evaluation, symptom_report_id=report.id)
     db.commit()
     return report, evaluation, alert
+
+
+def list_reports(db: Session, patient_id: UUID, start: datetime | None, end: datetime | None,
+                 limit: int) -> list[SymptomReport]:
+    """Symptom reports, newest first. Read only: listing never evaluates rules or changes alerts."""
+    q = select(SymptomReport).where(SymptomReport.patient_id == patient_id)
+    if start:
+        q = q.where(SymptomReport.reported_at >= start)
+    if end:
+        q = q.where(SymptomReport.reported_at <= end)
+    return list(db.scalars(q.order_by(SymptomReport.reported_at.desc(), SymptomReport.id).limit(limit)))

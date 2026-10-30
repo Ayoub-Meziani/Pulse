@@ -30,7 +30,7 @@ def test_all_api_tables_are_mapped():
     names = {m.local_table.name for m in MAPPED}
     assert {"profiles", "patient_profiles", "doctor_patient_assignments", "care_plans", "measurements",
             "symptom_reports", "alerts", "alert_measurements", "trusted_contacts", "emergency_events",
-            "doctor_notes", "journal_entries", "ml_predictions", "users"} <= names
+            "doctor_notes", "journal_entries", "ml_predictions", "users", "devices", "wearable_samples"} <= names
 
 
 def test_alert_classes_exist_in_database(conn):

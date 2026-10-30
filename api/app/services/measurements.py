@@ -15,6 +15,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import vocab
@@ -23,7 +24,7 @@ from ..analysis.rules import TREND_WINDOW
 from ..analysis.types import Evaluation, Reading, Target
 from ..auth import CurrentUser
 from ..errors import ApiError
-from ..models import Alert, CarePlan, Measurement
+from ..models import Alert, AlertMeasurement, CarePlan, Measurement
 from ..schemas import MeasurementIn
 from .alerts import active_alerts, apply_evaluation
 
@@ -64,22 +65,39 @@ def to_reading(m: Measurement) -> Reading:
 
 
 def recent_readings(db: Session, patient_id: UUID, now: datetime) -> list[Reading]:
+    """Input of the clinical trend rule (R-TRD-1). Simulated readings are excluded: generated data must never
+    decide a clinical alert. They stay in the history (labelled by provenance) and the descriptive summary."""
     q = select(Measurement).where(Measurement.patient_id == patient_id,
+                                  Measurement.provenance != vocab.SIMULATED_PROVENANCE,
                                   Measurement.measured_at >= now - TREND_WINDOW,
                                   Measurement.measured_at <= now + timedelta(minutes=5))
     return [to_reading(m) for m in db.scalars(q)]
 
 
 def record_manual_reading(db: Session, patient: CurrentUser, data: MeasurementIn,
-                          now: datetime) -> tuple[Measurement, Evaluation, Alert | None, Alert | None]:
+                          now: datetime) -> tuple[Measurement, Evaluation, Alert | None, Alert | None, bool]:
+    """Returns (reading, evaluation, alert, trend_alert, created). A repeated client id replays the stored one."""
     _check_timezone(data.measured_tz)
+    if data.id is not None and (stored := db.get(Measurement, data.id)) is not None:
+        return (*replay_reading(db, stored, patient, data), False)
     m = Measurement(patient_id=patient.id, source=vocab.MANUAL_SOURCE, provenance=vocab.MANUAL_PROVENANCE,
                     method=vocab.MANUAL_METHOD, systolic=data.systolic, diastolic=data.diastolic,
                     pulse=data.pulse, measured_at=data.measured_at or now,
                     measured_tz=data.measured_tz or patient.timezone, body_position=data.body_position,
                     arm=data.arm, rested_5_min=data.rested_5_min, context=data.context, created_by=patient.id)
+    if data.id is not None:
+        m.id = data.id
     db.add(m)
-    db.flush()  # the pulse-v1 trigger sets validation_status / quality_flags; read back via RETURNING
+    try:
+        # The pulse-v1 trigger sets validation_status / quality_flags; read back via RETURNING. A concurrent
+        # request with the same id waits here on the primary key until the first one commits.
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        stored = db.get(Measurement, data.id) if data.id is not None else None
+        if stored is None:
+            raise
+        return (*replay_reading(db, stored, patient, data), False)
     alert = trend_alert = None
     if m.validation_status == "invalid":
         evaluation = invalid_evaluation(m)
@@ -92,6 +110,35 @@ def record_manual_reading(db: Session, patient: CurrentUser, data: MeasurementIn
             if trend is not None:
                 trend_alert = apply_evaluation(db, patient.id, trend, measurement_id=m.id)
     db.commit()
+    return m, evaluation, alert, trend_alert, True
+
+
+def _same_reading(m: Measurement, data: MeasurementIn) -> bool:
+    return ((m.systolic, m.diastolic, m.pulse) == (data.systolic, data.diastolic, data.pulse)
+            and (data.measured_at is None or m.measured_at == data.measured_at))
+
+
+def replay_reading(db: Session, m: Measurement, patient: CurrentUser,
+                   data: MeasurementIn) -> tuple[Measurement, Evaluation, Alert | None, Alert | None]:
+    """The stored reading for a repeated client id. Alerts are never changed by a retry.
+
+    The evaluation is recomputed for the stored reading with the alerts it created itself set aside, so it
+    matches the first answer while nothing else changed in between."""
+    if m.patient_id != patient.id or m.source != vocab.MANUAL_SOURCE or not _same_reading(m, data):
+        # Never reveal another patient's reading, nor what the first request contained.
+        raise ApiError(409, "conflict", "This reading id is already used. Generate a new id.")
+    attached = select(AlertMeasurement.alert_id).where(AlertMeasurement.measurement_id == m.id)
+    linked = list(db.scalars(select(Alert).where(Alert.patient_id == patient.id,
+                                                 (Alert.measurement_id == m.id) | Alert.id.in_(attached))
+                             .order_by(Alert.created_at)))
+    if m.validation_status == "invalid":
+        evaluation = invalid_evaluation(m)
+    else:
+        own = {a.id for a in linked if a.measurement_id == m.id}
+        others = [a for a in active_alerts(db, patient.id) if a.id not in own]
+        evaluation = evaluate_measurement(to_reading(m), current_target(db, patient.id), others)
+    alert = next((a for a in linked if a.alert_class != vocab.LEVEL_TO_ALERT_CLASS["trend"]), None)
+    trend_alert = next((a for a in linked if a.alert_class == vocab.LEVEL_TO_ALERT_CLASS["trend"]), None)
     return m, evaluation, alert, trend_alert
 
 

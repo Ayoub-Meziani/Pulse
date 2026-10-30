@@ -28,6 +28,9 @@ PROTECTED = [
     ("GET", f"/patients/{PID}/summary", None),
     ("GET", f"/patients/{PID}/daily", None),
     ("POST", f"/patients/{PID}/symptom-reports", {"symptoms": ["chest_pain"]}),
+    ("GET", f"/patients/{PID}/symptom-reports", None),
+    ("GET", f"/patients/{PID}/devices", None),
+    ("GET", f"/patients/{PID}/wearable-samples", None),
     ("GET", f"/patients/{PID}/alerts", None),
     ("GET", f"/patients/{PID}/predictions/latest", None),
     ("GET", f"/patients/{PID}/profile", None),
@@ -73,7 +76,9 @@ BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/p
          ("POST", f"/patients/{PID}/emergency-events"), ("GET", f"/patients/{PID}/emergency-events"),
          ("POST", f"/emergency-events/{EID}/actions"), ("PATCH", f"/emergency-events/{EID}"),
          ("GET", f"/emergency-events/{EID}/report"),  # test_emergency_events.py
-         ("GET", f"/patients/{PID}/notes"), ("POST", f"/patients/{PID}/notes")}  # test_notes.py
+         ("GET", f"/patients/{PID}/notes"), ("POST", f"/patients/{PID}/notes"),  # test_notes.py
+         ("GET", f"/patients/{PID}/symptom-reports"), ("GET", f"/patients/{PID}/devices"),
+         ("GET", f"/patients/{PID}/wearable-samples")}  # test_patient_records.py
 UNBUILT = [p for p in PROTECTED if (p[0], p[1]) not in BUILT]
 
 

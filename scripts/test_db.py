@@ -28,7 +28,7 @@ IMAGES = ("public.ecr.aws/supabase/postgres:17.11.0.003", "supabase/postgres:17.
 PASSWORD = "pulse-test-only"
 MIGRATIONS = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
 # Last migration VERIFIED on the live project `pulse` (sync policy §5). Update only after verification.
-LIVE_UNTIL = "20261030150000"  # M7 ml_monitoring; M1-M7 verified live 2026-10-30 (382/382 statements identical)
+LIVE_UNTIL = "20261030160000"  # M8 chronic_conditions; M1-M8 verified live 2026-10-30 (M8 statements identical to the AI file, blob 5404d38)
 PROFILES = {"latest": ("pulse-test-db", 55432, None), "live": ("pulse-test-db-live", 55433, LIVE_UNTIL)}
 
 
