@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/* PULSE design tokens (docs/frontend/PULSE_FRONTEND_DESIGN_SYSTEM.md §2). Semantic names only in components:
+   bg-surface, text-ink-muted, border-line, bg-level-severe-soft ... Light theme only (G-UX-04). */
+@theme {
+  --font-sans: "Inter", "Segoe UI", ui-sans-serif, system-ui, -apple-system, Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", "Noto Sans Arabic", sans-serif;
+
+  --color-canvas: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef2f6;
+  --color-line: #d9e0e8;
+  --color-line-strong: #9aa7b5;
+  --color-ink: #14202b;
+  --color-ink-muted: #4a5866;
+  --color-ink-subtle: #66737f;
+
+  --color-brand: #0b5cad;
+  --color-brand-hover: #094b8e;
+  --color-brand-soft: #e3eef9;
+  --color-navy: #0f2744;
+  --color-navy-soft: #1a3a63;
+  --color-focus: #1f7ae0;
+
+  /* Alert levels (API Level / AlertLevel). Never the only signal: always with a text label. */
+  --color-level-none: #1e5b35;
+  --color-level-none-soft: #e8f3ec;
+  --color-level-notice: #6b4a00;
+  --color-level-notice-soft: #fff4d6;
+  --color-level-trend: #7a3a00;
+  --color-level-trend-soft: #fde8d4;
+  --color-level-severe: #8a1111;
+  --color-level-severe-soft: #fbe0e0;
+  --color-emergency: #c62828;
+  --color-emergency-hover: #a61f1f;
+
+  /* Data origin: simulated (violet), wearable (teal), model estimate (indigo). */
+  --color-sim: #5b21b6;
+  --color-sim-soft: #f1ebfd;
+  --color-wear: #0e6f78;
+  --color-wear-soft: #e2f3f4;
+  --color-ml: #4b3fa8;
+  --color-ml-soft: #ecebfa;
+
+  --color-success: #1e7a3c;
+  --color-success-soft: #e8f3ec;
+  --color-warning: #7a5000;
+  --color-warning-soft: #fff4d6;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fbe0e0;
+
+  --color-chart-sys: #0b5cad;
+  --color-chart-dia: #0e7c86;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Blood-pressure values line up and never shift width. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
