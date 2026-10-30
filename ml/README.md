@@ -54,5 +54,6 @@ Doctor-only model estimate, trained on **synthetic data**. It is not a measureme
 | Karim | rising trend, gaps | `ok`, about 159/97 (7-day mean 153/94) | the estimate continues the upward trend, above the plain average |
 | Nadia | severe event + chest pain | `ok`, about 153/96 | ML stays separate: the emergency came from the rules, not the model |
 | Yacine | unassigned, sparse | **no row** | the job skips patients without an assigned doctor |
+| 8 cohort patients (risk factors from STEPS shares) | assigned | `ok` for all 8 | fuller doctor list (11 assigned patients) |
 | any patient, `--date` 20 days ahead | – | `insufficient_history` | shows the eligibility rule |
 Values move slightly with each re-seed, because seed timestamps are relative to "now".

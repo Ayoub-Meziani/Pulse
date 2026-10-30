@@ -38,6 +38,9 @@ Generate the seed first (it is git-ignored): `set PULSE_DEMO_PASSWORD=<choose on
 | karim.demo@pulse.test | patient | rising trend with gaps |
 | nadia.demo@pulse.test | patient | severe reading (186/118, repeated) + chest pain report 2 days ago |
 | yacine.demo@pulse.test | patient | unassigned, sparse, one double entry + one invalid entry |
+| fatima, khadija, houria, samir, rachid, mourad, djamel, hocine `.demo@pulse.test` | patient | cohort, assigned: risk factors drawn from Algerian STEPS 2016–2017 shares (`docs/data/DATA_SOURCES.md`) |
+Karim, Nadia and Fatima have a simulated ring (`wearable_samples`, last 7 days). Amina has two fasting days. Every patient has factors (sex, birth year, smoking, conditions, salt habits, language) and body measurements.
+The cloud project `pulse` holds the same demo data (seeded 30 Oct with the password in the local git-ignored `.env`).
 
 ## Commands
 ```
