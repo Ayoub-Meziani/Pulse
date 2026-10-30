@@ -36,3 +36,24 @@ jobs:
         run: |
           python -m app.export_openapi
           git diff --exit-code -- ../contract/openapi.json || (echo "contract/openapi.json is stale: run 'python -m app.export_openapi' from api/ and commit it" && exit 1)
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build

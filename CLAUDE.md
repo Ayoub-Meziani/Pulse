@@ -30,7 +30,7 @@ Full procedure and commands: `PULSE_DATABASE_SYNC_POLICY.md`.
 |---|---|---|
 | Backend + integration (merge lead) | Ayoub | `api/app/` except `analysis/`, `contract/`, `docs/`, `.github/`, this file |
 | Data / analytics / ML | Data/AI developer | `api/app/analysis/`, future `ml/`, their tests |
-| Frontend | Frontend developer | `web/` (not created yet; the frontend developer creates it) |
+| Frontend | Frontend developer | `frontend/` (React + Vite; the single frontend app) |
 
 Editing outside your area needs coordination with Ayoub first.
 
@@ -63,7 +63,8 @@ Editing outside your area needs coordination with Ayoub first.
 - No diagnoses, no prescriptions, no advice to start/stop/change medication, no implied clinical validation.
   Patient-facing wording lives in `app/analysis/texts.py` for clinician review.
 - Never commit `.env` files, credentials, tokens or real patient data. Demo data is fictional.
-- Never run destructive commands against a shared database. `--reset` only on your local SQLite file.
+- Never run destructive commands against a shared database. Destructive local commands only on the local dev stack
+  (`scripts/dev_stack.py`) or the throwaway test databases (`scripts/test_db.py`).
 - Never dial or test real emergency numbers.
 
 ## Working style
@@ -87,13 +88,15 @@ pytest                              # rules + contract tests
 python -m app.export_openapi        # regenerate contract/openapi.json after schema changes
 ```
 
-Contract v1 stage: routes and schemas are final; most handlers return 501 until the Supabase
-integration (`PULSE_BACKEND_IMPLEMENTATION_PLAN.md`). The SQLite slice and its seed were removed on
-`feat/api-contract-v1`; the shared database is Supabase (schema on branch `AI`, `supabase/migrations/`).
+Local full stack (Supabase Postgres + Auth on 127.0.0.1, fictional demo accounts): see
+`docs/LOCAL_DEVELOPMENT.md` (`scripts/dev_stack.py`, `scripts/dev_seed.py`, `scripts/dev_api.py`).
+Frontend (from `frontend/`): `npm ci`, `npm run dev`, `npm run lint`, `npm test`, `npm run build`.
+Backend tests need the throwaway databases: `python scripts/test_db.py up live|latest` (see the same doc).
+Still 501: `/patients/{id}/daily`, `/patients/{id}/journal`, `/journal/{id}/review`.
 
 Settings via environment variables: `PULSE_ENV` (default `dev`), `PULSE_DEMO_MODE` (default on),
 `PULSE_DEMO_NUMBER` (required outside dev when demo mode is on), `PULSE_EMERGENCY_NUMBERS` (JSON),
-`PULSE_PRIMARY_NUMBER_ID`; for the database phase `PULSE_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+`PULSE_PRIMARY_NUMBER_ID`, `PULSE_ML_MODEL_VERSION` (default `mbp-v1`), `PULSE_DATABASE_URL`, `SUPABASE_URL`,
+`SUPABASE_ANON_KEY`.
 
-Not set up yet (do not invent commands for them): linting, type checking, database migrations,
-frontend tooling, ML training.
+Not set up yet (do not invent commands for them): type checking, a deployment, ML training in this repo's CI.

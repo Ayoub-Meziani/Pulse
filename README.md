@@ -10,25 +10,24 @@ The patient's own doctor reviews alerts and incidents later in a doctor dashboar
 
 | Part | State |
 |---|---|
-| Backend API (`api/`) | Contract v1: all routes and schemas defined (`contract/openapi.json`); alert rules tested; `GET /config/emergency` works; other routes return 501 until the Supabase integration |
-| Database | Supabase project `pulse`; schema = `supabase/migrations/` (branch `AI`) |
-| Frontend (`frontend/`, branch `feature/frontend`) | Screens with demo data; API integration pending |
-| ML pipeline | Not started |
-| Device integration | None; demo readings are labelled `simulated` |
+| Backend API (`api/`) | FastAPI on Supabase Postgres + Auth: readings, symptoms, alerts, summaries, profile, care plan, contacts, emergency card and events, doctor notes, devices and wearable samples, stored predictions (doctor only). Still 501: `/daily`, `/journal`. Contract: `contract/openapi.json` |
+| Database | Supabase; schema = `supabase/migrations/` (M1–M8 verified live). Local development uses a local stack, never the shared project |
+| Frontend (`frontend/`) | React + Vite on the real API: patient (dashboard, reading and symptom flow, emergency screen, history, alerts, profile), doctor (assigned patients and their record), minimal admin |
+| ML | Stored experimental estimates are shown to doctors only and never used by alerts; no model runs in the API |
+| Devices | Optional; wearable data is advisory and never triggers an alert. Simulated data is always labelled |
 
-See `PULSE_BACKEND_ARCHITECTURE.md`, `PULSE_INTEGRATION_CONTRACTS.md` and `CLAUDE.md`.
+Not deployed. See `docs/LOCAL_DEVELOPMENT.md` to run everything locally with fictional demo accounts.
 
-## Run the backend
+## Run locally
 
 ```bash
-cd api
-python -m venv .venv
-# Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:create_app --factory --reload
+python scripts/dev_stack.py up      # local Supabase Postgres + Auth (once)
+python scripts/dev_seed.py          # fictional demo accounts (once); passwords in .dev/demo-credentials.txt
+python scripts/dev_api.py           # API  http://127.0.0.1:8000/api/v1/docs
+cd frontend && npm ci && npm run dev  # app  http://localhost:5173
 ```
 
-Open http://127.0.0.1:8000/api/v1/docs. Run tests with `pytest` (from `api/`).
+Details, prerequisites and tests: `docs/LOCAL_DEVELOPMENT.md`.
 
 ## Docs
 
@@ -36,3 +35,5 @@ Open http://127.0.0.1:8000/api/v1/docs. Run tests with `pytest` (from `api/`).
 - `docs/API_CONTRACT.md` and `contract/openapi.json` — API contract
 - `docs/SAFETY_AND_LIMITATIONS.md` — alert rules and what PULSE does not do
 - `docs/decisions.md` — decisions log
+- `docs/LOCAL_DEVELOPMENT.md` — run the app locally
+- `docs/incidents/` — incident records
