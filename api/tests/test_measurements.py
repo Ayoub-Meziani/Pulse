@@ -103,7 +103,12 @@ def test_retry_of_the_same_reading_is_kept_flagged_and_still_gets_guidance(api, 
     assert first["measurement"]["validation_status"] == "valid"
     assert second["measurement"]["quality_flags"] == ["possible_duplicate"]
     assert second["measurement"]["id"] != first["measurement"]["id"]
-    assert second["evaluation"]["rule_id"] == "R-SEV-1"  # a duplicate never suppresses safety guidance
+    # a duplicate never suppresses safety guidance ...
+    assert second["evaluation"]["level"] == "severe" and second["evaluation"]["requires_symptom_check"]
+    # ... but a retry is not a recheck: no alert change, the episode is not marked persistent
+    assert second["alert"] is None and first["alert"]["persistent"] is False
+    detail = api.get(f"{API}/alerts/{first['alert']['id']}", headers=auth_header(patient)).json()
+    assert detail["persistent"] is False and [m["id"] for m in detail["measurements"]] == [first["measurement"]["id"]]
 
 
 def test_explicit_and_invalid_time_zones(api, patient):

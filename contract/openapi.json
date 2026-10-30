@@ -2606,6 +2606,7 @@
                 "type": "null"
               }
             ],
+            "description": "The reading that led to this check. Must be one of the patient's readings (else 422); not stored until migration M7 adds the column.",
             "title": "Measurement Id"
           },
           "notes": {
@@ -2676,6 +2677,7 @@
                 "type": "null"
               }
             ],
+            "description": "Always null until migration M7 stores the link.",
             "title": "Measurement Id"
           },
           "onset_at": {

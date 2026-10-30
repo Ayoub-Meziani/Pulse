@@ -18,8 +18,12 @@ from ..db import require_session
 from ..errors import AUTH_RESPONSES, not_implemented
 from ..permissions import require_patient_access
 from ..schemas import (AlertOut, DailyPoint, EvaluationOut, MeasurementIn, MeasurementOut, MeasurementResult,
-                       PatientListItem, PredictionOut, SummaryOut, SymptomReportIn, SymptomResult)
+                       PatientListItem, PredictionOut, SummaryOut, SymptomReportIn, SymptomReportOut,
+                       SymptomResult)
+from ..services import alerts as alert_service
 from ..services.measurements import list_readings, record_manual_reading
+from ..services.symptoms import record_symptoms
+from .alerts import alert_brief, alert_out
 
 
 def evaluation_out(ev: Evaluation) -> EvaluationOut:
@@ -41,9 +45,9 @@ def list_patients():
 def create_measurement(patient_id: UUID, body: MeasurementIn, request: Request,
                        user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
     require_patient_access(db, user, patient_id, write=True)
-    m, ev = record_manual_reading(db, user, body, request.app.state.clock())
-    # alert / trend_alert stay null until alert persistence (integration plan step 5).
-    return MeasurementResult(measurement=MeasurementOut.model_validate(m), evaluation=evaluation_out(ev))
+    m, ev, alert, trend_alert = record_manual_reading(db, user, body, request.app.state.clock())
+    return MeasurementResult(measurement=MeasurementOut.model_validate(m), evaluation=evaluation_out(ev),
+                             alert=alert_brief(alert), trend_alert=alert_brief(trend_alert))
 
 
 @router.get("/patients/{patient_id}/measurements", response_model=list[MeasurementOut],
@@ -73,14 +77,22 @@ def daily(patient_id: UUID, days: int = Query(30, ge=1, le=90)):
 
 @router.post("/patients/{patient_id}/symptom-reports", response_model=SymptomResult, status_code=201,
              summary="Patient: symptom check; any red-flag symptom returns show_emergency=true")
-def create_symptom_report(patient_id: UUID, body: SymptomReportIn):
-    not_implemented()
+def create_symptom_report(patient_id: UUID, body: SymptomReportIn, request: Request,
+                          user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
+    require_patient_access(db, user, patient_id, write=True)
+    report, ev, alert = record_symptoms(db, user, body, request.app.state.clock())
+    out = SymptomReportOut(id=report.id, patient_id=report.patient_id, symptoms=report.symptoms,
+                           measurement_id=None, onset_at=report.onset_at, reported_at=report.reported_at,
+                           source=report.source)
+    return SymptomResult(report=out, evaluation=evaluation_out(ev), alert=alert_brief(alert))
 
 
 @router.get("/patients/{patient_id}/alerts", response_model=list[AlertOut],
             summary="Alerts; active = open or acknowledged")
-def list_alerts(patient_id: UUID, status: Literal["active", "all"] = "active"):
-    not_implemented()
+def list_alerts(patient_id: UUID, status: Literal["active", "all"] = "active",
+                user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
+    require_patient_access(db, user, patient_id)
+    return [alert_out(a) for a in alert_service.list_alerts(db, patient_id, active_only=status == "active")]
 
 
 @router.get("/patients/{patient_id}/predictions/latest", response_model=PredictionOut,

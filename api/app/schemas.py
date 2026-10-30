@@ -134,7 +134,8 @@ class MeasurementResult(BaseModel):
 # ---------------------------------------------------------------- symptoms
 class SymptomReportIn(BaseModel):
     symptoms: list[Symptom] = Field(default_factory=list, description="Empty list = none of these.")
-    measurement_id: UUID | None = None
+    measurement_id: UUID | None = Field(None, description="The reading that led to this check. Must be one of the "
+                                        "patient's readings (else 422); not stored until migration M7 adds the column.")
     onset_at: AwareDatetime | None = None
     notes: str | None = Field(None, max_length=1000)
 
@@ -143,7 +144,7 @@ class SymptomReportOut(ORM):
     id: UUID
     patient_id: UUID
     symptoms: list[Symptom]
-    measurement_id: UUID | None
+    measurement_id: UUID | None = Field(description="Always null until migration M7 stores the link.")
     onset_at: datetime | None
     reported_at: datetime
     source: str

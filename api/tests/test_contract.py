@@ -61,7 +61,9 @@ PROTECTED = [
 SETTINGS = Settings(demo_mode=True, demo_number="+213 555 12 34 56")
 FAKE_PATIENT = CurrentUser(id=PID, role="patient", full_name="Test", email="t@pulse.test", timezone="Africa/Algiers")
 # Implemented and tested against the database (test_auth.py, test_measurements.py).
-BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/patients/{PID}/measurements")}
+BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/patients/{PID}/measurements"),
+         ("POST", f"/patients/{PID}/symptom-reports"), ("GET", f"/patients/{PID}/alerts"),
+         ("GET", f"/alerts/{AID}"), ("POST", f"/alerts/{AID}/transition")}  # test_alerts.py
 UNBUILT = [p for p in PROTECTED if (p[0], p[1]) not in BUILT]
 
 

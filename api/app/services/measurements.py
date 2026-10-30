@@ -4,13 +4,13 @@ The database trigger (policy pulse-v1) is the only authority on validation_statu
 computes or sends it. Rule evaluation is the deterministic analysis package, in the same request.
 No ML is involved here.
 
-Step 4 of the integration plan: alerts are not persisted yet (step 5), so the rules see no active
-alerts. A repeat severe reading is therefore evaluated as R-SEV-1 again (symptom check + recheck),
-which is the more cautious answer, and `alert`/`trend_alert` stay null.
+Alerts are persisted in the same transaction (services/alerts.py). A reading the database flags as
+`possible_duplicate` (e.g. a network retry) still gets the rules' guidance but does not change any
+alert, so a retry is never counted as a recheck.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -18,12 +18,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import vocab
-from ..analysis import evaluate_measurement, texts
+from ..analysis import evaluate_measurement, evaluate_trend, texts
+from ..analysis.rules import TREND_WINDOW
 from ..analysis.types import Evaluation, Reading, Target
 from ..auth import CurrentUser
 from ..errors import ApiError
-from ..models import CarePlan, Measurement
+from ..models import Alert, CarePlan, Measurement
 from ..schemas import MeasurementIn
+from .alerts import active_alerts, apply_evaluation
 
 UPPER_LIMIT_FLAGS = {"systolic_implausible": 300, "diastolic_implausible": 200}  # pulse-v1 upper bounds
 
@@ -57,8 +59,19 @@ def invalid_evaluation(m: Measurement) -> Evaluation:
                       requires_symptom_check=above_limit)
 
 
+def to_reading(m: Measurement) -> Reading:
+    return Reading(m.systolic, m.diastolic, m.measured_at, m.pulse, m.validation_status, m.id)
+
+
+def recent_readings(db: Session, patient_id: UUID, now: datetime) -> list[Reading]:
+    q = select(Measurement).where(Measurement.patient_id == patient_id,
+                                  Measurement.measured_at >= now - TREND_WINDOW,
+                                  Measurement.measured_at <= now + timedelta(minutes=5))
+    return [to_reading(m) for m in db.scalars(q)]
+
+
 def record_manual_reading(db: Session, patient: CurrentUser, data: MeasurementIn,
-                          now: datetime) -> tuple[Measurement, Evaluation]:
+                          now: datetime) -> tuple[Measurement, Evaluation, Alert | None, Alert | None]:
     _check_timezone(data.measured_tz)
     m = Measurement(patient_id=patient.id, source=vocab.MANUAL_SOURCE, provenance=vocab.MANUAL_PROVENANCE,
                     method=vocab.MANUAL_METHOD, systolic=data.systolic, diastolic=data.diastolic,
@@ -67,13 +80,19 @@ def record_manual_reading(db: Session, patient: CurrentUser, data: MeasurementIn
                     arm=data.arm, rested_5_min=data.rested_5_min, context=data.context, created_by=patient.id)
     db.add(m)
     db.flush()  # the pulse-v1 trigger sets validation_status / quality_flags; read back via RETURNING
+    alert = trend_alert = None
     if m.validation_status == "invalid":
         evaluation = invalid_evaluation(m)
     else:  # valid and needs_review readings both go through the safety rules
-        reading = Reading(m.systolic, m.diastolic, m.measured_at, m.pulse, m.validation_status)
-        evaluation = evaluate_measurement(reading, current_target(db, patient.id), active_alerts=[])
+        target = current_target(db, patient.id)
+        evaluation = evaluate_measurement(to_reading(m), target, active_alerts(db, patient.id))
+        if "possible_duplicate" not in m.quality_flags:
+            alert = apply_evaluation(db, patient.id, evaluation, measurement_id=m.id)
+            trend = evaluate_trend(recent_readings(db, patient.id, now), target, active_alerts(db, patient.id), now)
+            if trend is not None:
+                trend_alert = apply_evaluation(db, patient.id, trend, measurement_id=m.id)
     db.commit()
-    return m, evaluation
+    return m, evaluation, alert, trend_alert
 
 
 def list_readings(db: Session, patient_id: UUID, start: datetime | None, end: datetime | None,
