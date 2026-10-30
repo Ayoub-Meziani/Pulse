@@ -81,7 +81,7 @@ Both as new files after `20261029120100`, never edits of applied files. Tests in
 6. **Done** (`feat/api-supabase` `ab778d8`): doctor list, summary, profile, trusted contacts (consent enforced; phone change needs a new consented contact), care plan GET/PUT, emergency card (no notes, no M6 fields, no wearable data; last reading labelled with source/provenance); 282 tests on M1–M6. **Demo readiness:** the seeded `pulse` has readings but no alerts, so the doctor list shows no alert levels and no alert history until the step 9 replay job runs the rules over the seed; nothing is invented in the meantime.
 7. **Done (plan step 8)** (`feat/api-supabase` `d9bcbee`): emergency events (idempotent create, actions as unconfirmed attempts, consent-gated location, ±24 h report) and private doctor notes; 344 tests on M1–M7 (both profiles). Journal stays 501 (deferrable). Test DBs aligned with live M1–M7 in `219fb87`.
 8. **Done (plan step 7)** (`feat/api-supabase` `6eef991`): predictions endpoint, doctor only, configured model version (`PULSE_ML_MODEL_VERSION`, default `mbp-v1`), stale rows → `model_unavailable`; 297 tests on M1–M6. Live `pulse` has 0 prediction rows until the data/AI developer runs `pulse_ml.predict` against it.
-9. Replay job for seeded history; demo reset script.
+9. **Deferred (Ayoub, 2026-10-30): frontend-backend integration first.** Replay job for seeded history; demo reset script; prediction generation on `pulse` (B23, B27).
 10. Run against `pulse` with the fictional seed (after sign-up is disabled).
 
 Acceptance: every contract test that returns 501 today returns the specified status; A1–A10 scenarios from the conception pass on the test DB; contract export unchanged unless a reviewed contract change.
