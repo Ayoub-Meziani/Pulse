@@ -1,30 +1,6 @@
 import { Link } from "react-router";
-const demoPatients = [
-  {
-    id: 1,
-    name: "Amine Benali",
-    age: 45,
-    systolic: 125,
-    diastolic: 80,
-    lastMeasurement: "Aujourd'hui, 09:30",
-  },
-  {
-    id: 2,
-    name: "Sara Haddad",
-    age: 52,
-    systolic: 138,
-    diastolic: 88,
-    lastMeasurement: "Aujourd'hui, 08:15",
-  },
-  {
-    id: 3,
-    name: "Karim Mansouri",
-    age: 61,
-    systolic: 132,
-    diastolic: 84,
-    lastMeasurement: "Hier, 18:45",
-  },
-];
+import demoPatients from "../../data/demoPatients";
+
 
 export default function DoctorDashboard() {
   return (
