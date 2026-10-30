@@ -147,3 +147,31 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Python (PULSE backend)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# ---- PULSE data/AI (Python, Supabase, data)
+.env
+.env.*
+# regenerate with: python -m pulse_data.simulate csv
+/data/
+# generated, contains the demo password hash input: PULSE_DEMO_PASSWORD=... python -m pulse_data.simulate seed
+supabase/seed.sql
+# never commit real patient exports
+*.real.csv
+
+# Local development stack (scripts/dev_stack.py): generated secrets and demo credentials
+/.dev/
