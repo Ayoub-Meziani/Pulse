@@ -38,7 +38,7 @@ Resolved since the previous version: B1 (code is on branch `AI`), B2 (both devel
 | B5 | ~~alert_class update, created_by, emergency_events columns~~ **Resolved by live inspection** (contracts §3.1 item 8). Remaining: expected JSON shape inside `emergency_events.actions_attempted` | Phase 8 | Data/AI developer | No | P2 |
 | B6 | ~~Create cloud project~~ **Exists**: `pulse` (org `lwiza`, ref `nfmfdhpxipdndggxtqho`, Paris), both migrations applied, tables empty. Remaining: fictional seed (after B9 and B16), and **who applied the migrations and how** (the data/AI inventory says no cloud project existed when it was written) | Shared environment; one migration owner | Ayoub to confirm with the data/AI developer | Seed needed for frontend integration on shared data | P1 |
 | B7 | ~~Cloud signing method~~ **Resolved: ES256 via JWKS** (VERIFIED LIVE). Remaining: local stack method (seen from `supabase status` once B1 lands) | Phase 2 config for local tests | Ayoub | No | P2 |
-| B16 | **Switch off public sign-up on `pulse`**: Dashboard → Authentication → Sign In / Providers → "Allow new users to sign up" = off. Live today: `disable_signup: false` | With the publishable key (public by design) anyone can register and receive a `patient` profile. I could not change it safely: the dashboard session had expired (not signing in on your behalf) and `supabase config push` would overwrite the whole remote auth config from a local file we do not have | **Ayoub** (2 minutes) | Must be done before seeding or sharing the URL | **P0** |
+| B16 | ~~Switch off public sign-up~~ **Resolved**: `disable_signup: true` observed live 2026-10-30 (changelog row 6) | — | — | No | — |
 | B17 | Exact row counts and `auth.users` count on `pulse` | Estimates say empty; confirm before seeding | Ayoub (SQL editor: `select count(*) from auth.users;`) or next CLI session | No | P3 |
 | B8 | Secrets distribution, out of band (never in git or chat logs): FastAPI gets `PULSE_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, JWT config; data/AI gets `DATABASE_URL` and the service-role key for seeding; frontend gets **nothing** | Least privilege | Ayoub | Phase 10 | P2 |
 | B9 | ~~Seed password from env~~ **Resolved** on branch `AI` (`build_seed_sql(password)` from `PULSE_DEMO_PASSWORD`; `seed.sql` not committed) | — | — | No | — |
@@ -78,3 +78,12 @@ Resolved since the previous version: B1 (code is on branch `AI`), B2 (both devel
 | Anon key for the frontend | Not needed: the frontend calls FastAPI only (A2); FastAPI uses the anon key server-side for login |
 | `seed.sql` on the shared project | Fictional seed allowed on `pulse` only, password from env (B9) |
 | Email confirmation | Sign-up disabled; accounts created by seed tooling, so confirmation is not needed |
+
+## New (audit 2026-10-30, `AI` `0505993`)
+
+| # | Item | Why | Who | Blocks? | Priority |
+|---|---|---|---|---|---|
+| B21 | M6 was applied to `pulse` without backend review | Breaks the sync policy's approval rule; this time the change is additive and verified | Ayoub to remind the data/AI developer: write migration → PR → Ayoub approves → `db push` | No | P1 |
+| B22 | Contract decision for M6 data (sex, smoking, condition codes, salt habits, preferred language, body measurements, wearable samples) | Not in contract v1; frontend profile screens may want them; wearable data must never feed rules or alerts | Ayoub | No (additive) | P2 |
+| B23 | Seeded `pulse` has readings but 0 alerts | Doctor views will be empty until the backend replay job (plan step 9) runs our rules over the seed | Ayoub (backend) | Demo only | P1 |
+
