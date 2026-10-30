@@ -172,3 +172,6 @@ venv/
 supabase/seed.sql
 # never commit real patient exports
 *.real.csv
+
+# Local development stack (scripts/dev_stack.py): generated secrets and demo credentials
+/.dev/
