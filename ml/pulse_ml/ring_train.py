@@ -85,7 +85,7 @@ def fit_and_evaluate(nights: pd.DataFrame, episodes: pd.DataFrame, contamination
     test = zdf[zdf.patient.isin(split["test"])].reset_index(drop=True)
     flags = ring.night_flags(test, iforest=forest, conditions=conditions)
     meta = {
-        "model_version": ring.MODEL_VERSION, "trained_on": "synthetic:pulse-sim-v1 ring (invented BP coupling)",
+        "model_version": ring.MODEL_VERSION, "trained_on": "synthetic:pulse-sim-v2 ring (invented BP coupling)",
         "features": zcols, "baseline": f"rolling {ring.BASELINE_DAYS} days before the night, >= "
                                        f"{ring.MIN_BASELINE_NIGHTS} nights, robust z (median / MAD)",
         "z_limit": ring.Z_LIMIT, "contamination": contamination,

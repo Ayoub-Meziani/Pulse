@@ -6,16 +6,16 @@ Doctor-only model estimate, trained on **synthetic data**. It is not a measureme
 | path | what |
 |---|---|
 | `pulse_ml/features.py` | features + eligibility, shared by training and prediction |
-| `pulse_ml/train.py` | offline training and evaluation → `artifacts/mbp-v1/` |
+| `pulse_ml/train.py` | offline training and evaluation → `artifacts/mbp-v1.1/` |
 | `pulse_ml/predict.py` | batch job → `public.ml_predictions` |
-| `artifacts/mbp-v1/model.joblib`, `metadata.json` | trained model (2.6 KB, needs the pinned scikit-learn) + metrics |
+| `artifacts/mbp-v1.1/model.joblib`, `metadata.json` | trained model (2.6 KB, needs the pinned scikit-learn) + metrics |
 | `tests/test_ml.py` | split, leakage, eligibility, determinism, job writes only predictions |
 
 ## Commands (Windows, from `ml/`)
 ```
 ..\.venv\Scripts\python -m pip install -r requirements.txt
 ..\.venv\Scripts\python -m pulse_data.simulate csv        # run from the repo root: data/synthetic/ (git-ignored)
-..\.venv\Scripts\python -m pulse_ml.train                 # ~70 s; rewrites artifacts/mbp-v1/
+..\.venv\Scripts\python -m pulse_ml.train                 # ~70 s; rewrites artifacts/mbp-v1.1/
 ..\.venv\Scripts\python -m pulse_ml.predict --all --dry-run
 ..\.venv\Scripts\python -m pulse_ml.predict --all [--date YYYY-MM-DD]
 ```
@@ -34,7 +34,7 @@ Doctor-only model estimate, trained on **synthetic data**. It is not a measureme
 | `status` | `ok`, or `insufficient_history` when the 7 days before the target day have < 6 valid readings, < 4 days with readings, or no morning reading |
 | `predicted_systolic`, `predicted_diastolic` | mmHg, 1 decimal; **null unless `ok`** (DB CHECK) |
 | `interval_*_low/high` | ± split-conformal half-width (90 % nominal on synthetic validation patients); null unless `ok` |
-| `model_version` | `mbp-v1` |
+| `model_version` | `mbp-v1.1` |
 | `trained_on` | `synthetic:pulse-sim-v1` |
 | `features_until` | start of the target day (patient-local), the cutoff for every input |
 | `n_readings_used` | valid readings in the 7-day window |
@@ -52,7 +52,7 @@ Built as required by the backend review (`PULSE_ML_phase2_review.pdf`). **Flags 
 
 | Command (from `ml/`) | What |
 |---|---|
-| `..\.venv\Scripts\python -m pulse_ml.ring_train` | trains IsolationForest on synthetic personal z-scores, scores all methods on test patients → `artifacts/ring-v1/` |
+| `..\.venv\Scripts\python -m pulse_ml.ring_train` | trains IsolationForest on synthetic personal z-scores, scores all methods on test patients → `artifacts/ring-v1.1/` |
 | `..\.venv\Scripts\python -m pulse_ml.monitor --nights` | night windows (00:00–06:00 local) of assigned patients: reference, personal baseline or approved band, IsolationForest |
 | `..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5` | live 10-minute windows; polls `wearable_samples` by `created_at` with a 5-minute overlap; never re-flags a window |
 | `..\.venv\Scripts\python -m pulse_data.stream --scenario spo2_dip --minutes 1` (repo root) | **simulated** live ring samples for every demo patient (scenario on Nadia by default); refuses a cloud URL without `--i-confirmed-cloud` |
@@ -64,7 +64,7 @@ Built as required by the backend review (`PULSE_ML_phase2_review.pdf`). **Flags 
 | `outside_reference` | night or live_10min | deterministic: SpO2 below 94 % (BTS) or resting heart rate above 100 bpm; live windows need ≥ 2 samples |
 | `personal_anomaly` | night | the doctor-approved band if one exists, else robust z > 3.5 against the patient's own 28 previous days (≥ 14 nights, confirmed anomalies excluded) |
 | `personal_anomaly` | live_10min | outside an active `live_10min_median` band in 2 consecutive windows |
-| `multivariate_anomaly` | night | IsolationForest (`ring-v1`) on the 4 personal z-scores |
+| `multivariate_anomaly` | night | IsolationForest (`ring-v1.1`) on the 4 personal z-scores |
 
 Night statistic: the night **median** for every metric. For SpO2 (6 samples per night) the median avoids flagging the normal dips of healthy sleepers (mean lowest saturation 90.4 %, Gries & Brooks 1996).
 
@@ -90,10 +90,10 @@ Night statistic: the night **median** for every metric. For SpO2 (6 samples per 
 ## Training commands (all from `ml/`, synthetic data from `python -m pulse_data.simulate csv` at the repo root)
 | Command | Model | Time |
 |---|---|---|
-| `..\.venv\Scripts\python -m pulse_ml.train` | `mbp-v1` next-day morning BP (**served**) | ~70 s |
-| `..\.venv\Scripts\python -m pulse_ml.ring_train` | `ring-v1` ring monitor (IsolationForest + evaluation of all flag methods) | ~15 s |
-| `..\.venv\Scripts\python -m pulse_ml.classify` | `wcls-v1` weekly P(next week above target) | ~40 s |
-| `..\.venv\Scripts\python -m pulse_ml.mbp_v2` | `mbp-v2` experiment vs v1 (**not served**) | ~80 s |
+| `..\.venv\Scripts\python -m pulse_ml.train` | `mbp-v1.1` next-day morning BP (**served**) | ~70 s |
+| `..\.venv\Scripts\python -m pulse_ml.ring_train` | `ring-v1.1` ring monitor (IsolationForest + evaluation of all flag methods) | ~15 s |
+| `..\.venv\Scripts\python -m pulse_ml.classify` | `wcls-v1.1` weekly P(next week above target) | ~40 s |
+| `..\.venv\Scripts\python -m pulse_ml.mbp_v2` | `mbp-v2.1` experiment vs v1 (**not served**) | ~80 s |
 Metrics and their honest reading: [MODEL_CARD.md](MODEL_CARD.md).
 
 ## Real public data (NHANES, Mendeley home BP, PhysioNet Apnea-ECG)
@@ -116,7 +116,7 @@ The weekly report adds `summary.pulse_vs_population`: the week's mean **seated c
 **`weekly_reports` row:**
 - `home_bp_category`: ACC/AHA 2017 home column, from the week's valid readings.
 - `control_status`: vs the active `care_plans` target, default 140/90; insufficient_data if fewer than 3 readings.
-- `next_week_above_target_prob`: from `wcls-v1` when that week has ≥ 3 valid readings, built with the same `week_examples()` as in training.
+- `next_week_above_target_prob`: from `wcls-v1.1` when that week has ≥ 3 valid readings, built with the same `week_examples()` as in training.
 - `model_versions`.
 - `summary`, numbers only: BP means and target, ring night values, flag counts by kind and review status, latest mbp estimate.
 
@@ -140,8 +140,8 @@ A report the doctor already reviewed is never overwritten.
 ## Demo scenarios (local seed, 30 Oct 2026, target = next day)
 | demo patient | seed scenario | job result | why it is useful in the demo |
 |---|---|---|---|
-| Amina | controlled | `ok`, about 127/79 (7-day mean 125/78) | stable patient: estimate stays near target |
-| Karim | rising trend, gaps | `ok`, about 159/97 (7-day mean 153/94) | the estimate continues the upward trend, above the plain average |
+| Amina | controlled | `ok`, about 127/79 (range 111–143) | stable patient: estimate stays near target |
+| Karim | rising trend, gaps | `ok`, about 160/98 (range 144–176) | the estimate continues the upward trend, above the plain average |
 | Nadia | severe event + chest pain | `ok`, about 153/96 | ML stays separate: the emergency came from the rules, not the model |
 | Yacine | unassigned, sparse | **no row** | the job skips patients without an assigned doctor |
 | 8 cohort patients (risk factors from STEPS shares) | assigned | `ok` for all 8 | fuller doctor list (11 assigned patients) |

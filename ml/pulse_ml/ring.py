@@ -23,7 +23,7 @@ MIN_LIVE_SAMPLES = 2
 # would flag healthy people against the 94 % reference.
 NIGHT_STAT = {"heart_rate": "night_median", "hrv_rmssd": "night_median", "spo2": "night_median",
               "skin_temperature": "night_median"}
-MODEL_VERSION = "ring-v1"
+MODEL_VERSION = "ring-v1.1"
 
 
 # ---------------------------------------------------------------- one sample frame for CSV and DB

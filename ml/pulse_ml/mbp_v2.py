@@ -1,8 +1,8 @@
-"""mbp-v2 EXPERIMENT: mbp-v1 features + ring night features, same examples and same patient split.
+"""mbp-v2.1 EXPERIMENT: mbp-v1.1 features + ring night features, same examples and same patient split.
 
     cd ml && ..\\.venv\\Scripts\\python -m pulse_ml.mbp_v2
 
-Reported side by side with v1. mbp-v1 stays the served model unless v2 wins on validation AND the backend
+Reported side by side with v1. mbp-v1.1 stays the served model unless v2 wins on validation AND the backend
 agrees (contract §4: BP history only for the MVP). Ring nights strictly before the target day. Any gain is
 on synthetic data whose ring <-> BP coupling was invented, so it is a gain by construction.
 """
@@ -26,7 +26,7 @@ from .features import FEATURES, build_examples, daily_table
 from .ring_train import load_nights
 from .train import ARTIFACTS, SEED, load_readings, score, split_patients
 
-MODEL_VERSION = "mbp-v2"
+MODEL_VERSION = "mbp-v2.1"
 RING_FEATURES = ["hr_last_night", "hrv_last_night", "spo2_last_night", "temp_last_night",
                  "hr_7_nights", "hrv_7_nights", "ring_nights_7"]
 
@@ -72,13 +72,13 @@ def fit_and_evaluate(readings: pd.DataFrame, nights: pd.DataFrame):
                             "test_metrics_mmHg": score(pred, y["test"], part["test"].patient.to_numpy())}
     v2_best = results["v2_features"]["chosen"]
     meta = {
-        "model_version": MODEL_VERSION, "status": "experiment, not served", "trained_on": "synthetic:pulse-sim-v1",
+        "model_version": MODEL_VERSION, "status": "experiment, not served", "trained_on": "synthetic:pulse-sim-v2",
         "ring_features": RING_FEATURES, "split": {"method": "patient-level 70/15/15", "seed": SEED,
                                                   **{f"{k}_examples": len(v) for k, v in part.items()}},
         "comparison": results,
         "v2_wins_on_validation": min(results["v2_features"]["validation_mae_mean_of_sys_dia"].values())
                                  < min(results["v1_features"]["validation_mae_mean_of_sys_dia"].values()),
-        "serving_decision": "mbp-v1 stays served unless v2 wins on validation AND the backend agrees",
+        "serving_decision": "mbp-v1.1 stays served unless v2 wins on validation AND the backend agrees",
         "limitations": "Ring <-> BP coupling in the simulator is invented: any v2 gain is by construction.",
     }
     return {"model": models[("v2_features", v2_best)], "features": FEATURES + RING_FEATURES}, meta

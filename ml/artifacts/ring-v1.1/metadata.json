@@ -1,6 +1,6 @@
 {
-  "model_version": "ring-v1",
-  "trained_on": "synthetic:pulse-sim-v1 ring (invented BP coupling)",
+  "model_version": "ring-v1.1",
+  "trained_on": "synthetic:pulse-sim-v2 ring (invented BP coupling)",
   "features": [
     "z_heart_rate",
     "z_hrv_rmssd",
@@ -29,31 +29,31 @@
     },
     "personal_baseline": {
       "episodes": 7,
-      "episodes_detected": 6,
-      "episode_recall": 0.857,
-      "flagged_nights": 101,
-      "night_precision": 0.109,
-      "false_flags_per_patient_week": 0.257
+      "episodes_detected": 3,
+      "episode_recall": 0.429,
+      "flagged_nights": 104,
+      "night_precision": 0.077,
+      "false_flags_per_patient_week": 0.274
     },
     "isolation_forest": {
       "episodes": 7,
-      "episodes_detected": 3,
-      "episode_recall": 0.429,
-      "flagged_nights": 20,
-      "night_precision": 0.2,
-      "false_flags_per_patient_week": 0.046
+      "episodes_detected": 1,
+      "episode_recall": 0.143,
+      "flagged_nights": 23,
+      "night_precision": 0.13,
+      "false_flags_per_patient_week": 0.057
     },
     "personal_or_isolation_forest": {
       "episodes": 7,
-      "episodes_detected": 6,
-      "episode_recall": 0.857,
-      "flagged_nights": 104,
-      "night_precision": 0.106,
-      "false_flags_per_patient_week": 0.266
+      "episodes_detected": 3,
+      "episode_recall": 0.429,
+      "flagged_nights": 107,
+      "night_precision": 0.075,
+      "false_flags_per_patient_week": 0.283
     }
   },
   "limitations": "Ring data and episodes are simulated. Flags are advisory for the doctor; they never create alerts and are not the safety path.",
-  "trained_at": "2026-10-30T06:01:50+00:00",
+  "trained_at": "2026-10-30T07:59:25+00:00",
   "real_tests": {
     "apnea_ecg": {
       "source": "real:apnea_ecg",

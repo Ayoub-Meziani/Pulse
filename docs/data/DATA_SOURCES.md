@@ -76,7 +76,7 @@ All raw files stay in git-ignored `data/external/<source>/`, with a `MANIFEST.js
 **What the real data showed:**
 - **Safety band (pulse):** among US adults, the middle 95 % of seated pulse is about 50–97 bpm (e.g. men 45–59: 49.7–96.8). A pulse under 60 is common, which supports flagging only a **high** resting heart rate.
 - **Ring SpO2 rule:** the night median below 94 % at ring cadence (6 samples) flagged **4 / 4** apnea nights and **0 / 4** borderline / control nights. The night minimum would be useless, because even controls reach 57–69 % from sensor artefacts.
-- **The simulator is too smooth:** this real patient's systolic BP moves 10.0 mmHg between measurements 3 days apart (SD 11.7), against 6.5 (SD 6.7) for our synthetic treated patients sampled the same way. Real mbp-v1 errors will likely be larger than the synthetic 5.2 mmHg.
+- **The simulator was too smooth, now fixed:** this real patient's systolic BP moves 10.0 mmHg between measurements 3 days apart (SD 11.7), against 6.5 (SD 6.7) for the first generator. **`pulse-sim-v2`** (ML cohort only) was calibrated on it and now gives 10.0 (SD 11.8, lag-1 r 0.41 vs 0.40). The models were retrained (`mbp-v1.1`: systolic MAE 7.75 mmHg, up from the over-optimistic 5.23). The demo seed stays on v1, so the demo accounts and cloud data are unchanged.
 - **The simulator's sleep apnea is milder than the real severe cases:** real night medians are 86–92 %, about 60 desaturations per hour.
 - **Risk factors alone barely predict BP control** under treatment: `wrisk-v1` AUROC 0.60 (0.54–0.66), no better than age and sex (0.62). It is **not** shown in doctor reports.
 

@@ -282,6 +282,7 @@ def test_doctor_notes_hidden_from_patient(db):
 
 
 def test_ml_predictions_doctor_only(db):
+    db.execute("delete from public.ml_predictions")   # the local predict job may have written rows
     q = ("insert into public.ml_predictions (patient_id, target_date, target, status, predicted_systolic,"
          " predicted_diastolic, model_version, trained_on, features_until, n_readings_used)"
          " values (%s, current_date, 'morning_mean_bp', %s, %s, %s, 'test', 'synthetic:pulse-sim-v1', now(), 10)")

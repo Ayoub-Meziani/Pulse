@@ -63,10 +63,28 @@ class SimReading:
     pulse: int
 
 
+@dataclass(frozen=True)
+class Noise:
+    """Day-to-day BP variation. V1 = first generator (demo seed, unchanged). V2 = calibrated on a REAL home-BP
+    series (Mendeley pjcv33hpp7: systolic SD ~11.7 and change ~10 mmHg between measurements 3 days apart; V1
+    gave 6.7 and 6.5): a slower, larger latent drift plus day-level noise."""
+    latent_phi: float = 0.7
+    latent_sd: float = 3.0
+    day_sd: float = 0.0
+
+
+NOISE_V1 = Noise()
+# Chosen from a small grid: every-3-days systolic SD / change / lag-1 r = 11.8 / 10.0 / 0.41 vs real 11.7 / 10.0 / 0.40
+# (diastolic 6.8 / 5.8 / 0.41 vs real 6.4 / 5.1 / 0.37). One real patient: realistic in size, not a population fit.
+NOISE_V2 = Noise(latent_phi=0.95, latent_sd=3.6, day_sd=6.0)
+ML_GENERATOR_VERSION = "pulse-sim-v2"   # the ML cohort (data/synthetic); the demo seed stays pulse-sim-v1
+
+
 def simulate_patient(rng: random.Random, p: Profile, days: int, entry_error_prob: float = 0.0,
-                     effect_out: list[float] | None = None) -> tuple[list[Day], list[SimReading]]:
+                     effect_out: list[float] | None = None, noise: Noise = NOISE_V1) -> tuple[list[Day], list[SimReading]]:
     """effect_out, if given, receives each day's latent BP effect (mmHg). It makes no extra random draws,
-    so BP output is identical with or without it (guarded by tests/test_simulate_stability.py)."""
+    so BP output is identical with or without it (guarded by tests/test_simulate_stability.py).
+    NOISE_V1 makes no day-noise draw, so the demo seed is unchanged."""
     context: list[Day] = []
     readings: list[SimReading] = []
     latent = 0.0
@@ -79,8 +97,9 @@ def simulate_patient(rng: random.Random, p: Profile, days: int, entry_error_prob
         quality = int(min(5, max(1, round((sleep_h - 3.5) / 1.3 + rng.gauss(0, 0.7)))))
         context.append(Day(d, missed, activity, sodium, sleep_h, quality))
 
-        latent = 0.7 * latent + rng.gauss(0, 3)
-        effect = (latent + p.trend_per_day * d + (6 if prev_missed else 0)
+        latent = noise.latent_phi * latent + rng.gauss(0, noise.latent_sd)
+        day_noise = rng.gauss(0, noise.day_sd) if noise.day_sd else 0.0
+        effect = (latent + day_noise + p.trend_per_day * d + (6 if prev_missed else 0)
                   + 1.2 * (sodium - 3200) / 1000 - (2 if activity >= 30 else 0) + (2 if sleep_h < 6 else 0))
         if effect_out is not None:
             effect_out.append(effect)
@@ -529,9 +548,9 @@ def build_seed_sql(password: str) -> str:
 ML_START = date(2026, 1, 1)
 
 
-def _ml_cohort(patients: int, days: int, seed: int):
+def _ml_cohort(patients: int, days: int, seed: int, noise: Noise = NOISE_V2):
     """The synthetic ML cohort, patient by patient: (key, on_medication, context, readings, daily BP effects).
-    One shared generator for BP, exactly as in pulse-sim-v1."""
+    One shared generator for BP; day-to-day variation from `noise` (pulse-sim-v2: calibrated on real home BP)."""
     rng = random.Random(seed)
     for i in range(1, patients + 1):
         sys_ = rng.uniform(110, 165)
@@ -539,7 +558,7 @@ def _ml_cohort(patients: int, days: int, seed: int):
         p = Profile(sys_, 0.62 * sys_ + rng.gauss(0, 4), rng.gauss(0, 0.12), rng.uniform(0.05, 0.45),
                     on_med, rng.uniform(0, 0.3) if on_med else 0.0)
         effects: list[float] = []
-        context, readings = simulate_patient(rng, p, days, entry_error_prob=0.003, effect_out=effects)
+        context, readings = simulate_patient(rng, p, days, entry_error_prob=0.003, effect_out=effects, noise=noise)
         yield f"S{i:04d}", on_med, context, readings, effects
 
 
@@ -557,7 +576,7 @@ def write_ml_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int =
             for r in readings:
                 local = datetime.combine(start + timedelta(days=r.day), datetime.min.time(), tz) + timedelta(minutes=r.minute)
                 rw.writerow([key, local.isoformat(), local.date().isoformat(), r.session, r.systolic, r.diastolic,
-                             r.pulse, "true", GENERATOR_VERSION])
+                             r.pulse, "true", ML_GENERATOR_VERSION])
             for c in context:
                 cw.writerow([key, (start + timedelta(days=c.day)).isoformat(), on_med,
                              "" if c.missed_dose is None else c.missed_dose, c.activity_min, c.sodium_mg,
@@ -602,7 +621,7 @@ def write_ring_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int
                                                                     episode if d in episode_days else None):
                     n += 1
                     ws.writerow([key, f"{key}-ring", metric, value, unit, (day0 + timedelta(minutes=minute)).isoformat(),
-                                 "simulated", f"sim-{key}-{n:06d}", "true", GENERATOR_VERSION])
+                                 "simulated", f"sim-{key}-{n:06d}", "true", ML_GENERATOR_VERSION])
 
 
 def write_sample_csv(path: Path) -> None:

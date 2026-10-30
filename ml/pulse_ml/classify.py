@@ -28,7 +28,7 @@ from . import reference, ring
 from .ring_train import load_nights
 from .train import ARTIFACTS, DATA, SEED, load_readings, split_patients
 
-MODEL_VERSION = "wcls-v1"
+MODEL_VERSION = "wcls-v1.1"
 FALLBACK_TARGET = (135, 85)          # ESH / ACC-AHA home threshold, see reference.py
 MIN_WEEK_READINGS = 3
 BP_FEATURES = ["mean_sys", "mean_dia", "n", "m_sys", "e_sys", "slope_sys", "sd_sys", "last3_sys",
@@ -133,7 +133,7 @@ def fit_and_evaluate(readings: pd.DataFrame, nights: pd.DataFrame | None, target
     prob = model.predict_proba(test[cols])[:, 1]
     persist = test.above_now.to_numpy()
     meta = {
-        "model_version": MODEL_VERSION, "algorithm": best, "features": cols, "trained_on": "synthetic:pulse-sim-v1",
+        "model_version": MODEL_VERSION, "algorithm": best, "features": cols, "trained_on": "synthetic:pulse-sim-v2",
         "label": "next week's mean of valid home readings >= target (systolic OR diastolic); targets from "
                  f"patients.csv, fallback {FALLBACK_TARGET}",
         "split": {"method": "patient-level 70/15/15", "seed": SEED, **{f"{k}_weeks": len(v) for k, v in part.items()}},

@@ -1,8 +1,8 @@
 {
-  "model_version": "mbp-v1",
+  "model_version": "mbp-v1.1",
   "algorithm": "ridge",
   "target": "morning_mean_bp",
-  "trained_on": "synthetic:pulse-sim-v1",
+  "trained_on": "synthetic:pulse-sim-v2",
   "features": [
     "last_m_sys",
     "last_m_dia",
@@ -33,90 +33,90 @@
     "train_patients": 140,
     "val_patients": 30,
     "test_patients": 30,
-    "train_examples": 8781,
-    "val_examples": 1955,
-    "test_examples": 1806
+    "train_examples": 8730,
+    "val_examples": 1918,
+    "test_examples": 1929
   },
   "validation_mae_mean_of_sys_dia": {
-    "ridge": 4.155,
-    "hist_gradient_boosting": 4.239
+    "ridge": 6.178,
+    "hist_gradient_boosting": 6.302
   },
   "test_metrics_mmHg": {
     "persistence_last_morning": {
       "sys": {
-        "mae": 6.3,
+        "mae": 9.56,
         "mae_ci95": [
-          5.97,
-          6.62
+          9.24,
+          9.89
         ],
-        "rmse": 7.95,
+        "rmse": 12.04,
         "rmse_ci95": [
-          7.59,
-          8.31
+          11.66,
+          12.44
         ]
       },
       "dia": {
-        "mae": 4.16,
+        "mae": 5.77,
         "mae_ci95": [
-          3.96,
-          4.34
+          5.58,
+          5.97
         ],
-        "rmse": 5.26,
+        "rmse": 7.31,
         "rmse_ci95": [
-          5.03,
-          5.47
+          7.05,
+          7.59
         ]
       }
     },
     "mean_7_days": {
       "sys": {
-        "mae": 5.68,
+        "mae": 8.29,
         "mae_ci95": [
-          5.45,
-          5.91
+          7.98,
+          8.59
         ],
-        "rmse": 7.21,
+        "rmse": 10.42,
         "rmse_ci95": [
-          6.94,
-          7.49
+          10.07,
+          10.77
         ]
       },
       "dia": {
-        "mae": 3.44,
+        "mae": 4.85,
         "mae_ci95": [
-          3.3,
-          3.58
+          4.7,
+          4.99
         ],
-        "rmse": 4.34,
+        "rmse": 6.11,
         "rmse_ci95": [
-          4.18,
-          4.48
+          5.92,
+          6.3
         ]
       }
     },
     "model:ridge": {
       "sys": {
-        "mae": 5.23,
+        "mae": 7.75,
         "mae_ci95": [
-          5.0,
-          5.48
+          7.49,
+          8.0
         ],
-        "rmse": 6.65,
+        "rmse": 9.8,
         "rmse_ci95": [
-          6.36,
-          6.93
+          9.51,
+          10.11
         ]
       },
       "dia": {
-        "mae": 3.31,
+        "mae": 4.67,
         "mae_ci95": [
-          3.16,
-          3.44
+          4.55,
+          4.8
         ],
-        "rmse": 4.13,
+        "rmse": 5.87,
         "rmse_ci95": [
-          3.98,
-          4.28
+          5.69,
+          6.06
         ]
       }
     }
@@ -124,16 +124,16 @@
   "interval": {
     "method": "split-conformal on validation patients",
     "nominal_coverage": 0.9,
-    "half_width_sys": 10.3,
-    "half_width_dia": 6.9,
-    "test_coverage_sys": 0.879,
-    "test_coverage_dia": 0.909
+    "half_width_sys": 16.2,
+    "half_width_dia": 9.6,
+    "test_coverage_sys": 0.901,
+    "test_coverage_dia": 0.895
   },
   "limitations": "Model estimate trained on synthetic data only. Not a measurement, not clinically validated, not used for alerts, never a basis for medication decisions.",
-  "trained_at": "2026-10-30T02:28:50+00:00",
+  "trained_at": "2026-10-30T07:58:55+00:00",
   "data": {
     "file": "readings.csv",
-    "generator_version": "pulse-sim-v1",
+    "generator_version": "pulse-sim-v2",
     "generator_seed": 7
   },
   "real_tests": {
@@ -169,11 +169,11 @@
         "lag1_correlation": 0.711
       },
       "synthetic_systolic_same_sampling_median_patient": {
-        "patients": 121,
-        "sd": 6.7,
-        "persistence_mae": 6.45,
-        "mean_last3_mae": 5.46,
-        "lag1_correlation": 0.24
+        "patients": 111,
+        "sd": 11.8,
+        "persistence_mae": 10.04,
+        "mean_last3_mae": 9.04,
+        "lag1_correlation": 0.411
       }
     }
   }

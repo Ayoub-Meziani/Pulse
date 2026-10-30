@@ -10,8 +10,9 @@ from datetime import date
 from pulse_data import simulate
 
 FINGERPRINTS = {
-    "readings.csv": "5f16e5d9a5f57675e4b9767729a6e07cc095370ab0cfb8106941fed89cc4c734",
-    "daily_context.csv": "9e330b0f3a62699211da9ad8c4abbc0fd451947b8a33d4f4590f214ed850a835",
+    # Deliberately updated 30 Oct 2026 for pulse-sim-v2 (BP variation calibrated on real home BP); models retrained.
+    "readings.csv": "70ecbc9b0dcf2da7f6374632b1aee4b8058febdce2d545a87cddc9f39672e705",
+    "daily_context.csv": "2935a6dd22f873b135b1ebc1e3b80fceec3d36affbbaa9100cc15736904235f4",
     # BP readings of the demo seed (the measurements insert). Profiles, devices and ring rows may change.
     "seed_measurements": "fc9bc7976c9da7c49d1ec3781bebca0596027a3c753293afb1ecb38b2fe1724d",
 }

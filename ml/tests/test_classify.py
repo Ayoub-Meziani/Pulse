@@ -41,7 +41,7 @@ def test_weekly_report_gets_a_classifier_probability():
     from pulse_ml import weekly
     from pulse_ml.predict import LOCAL_DB
     if weekly.load_classifier() is None:
-        pytest.skip("wcls-v1 not trained; run `python -m pulse_ml.classify`")
+        pytest.skip("wcls-v1.1 not trained; run `python -m pulse_ml.classify`")
     try:
         conn = psycopg.connect(os.environ.get("PULSE_TEST_DATABASE_URL", LOCAL_DB), autocommit=True, connect_timeout=3)
     except psycopg.OperationalError:

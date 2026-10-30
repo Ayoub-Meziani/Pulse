@@ -2,12 +2,12 @@
 
     cd ml && ..\\.venv\\Scripts\\python -m pulse_ml.real_tests [mendeley|apnea|all]
 
-mendeley  real:mendeley_hbpm, 1 patient, 1 measurement every 3 days. mbp-v1 cannot be applied (it needs >= 6
+mendeley  real:mendeley_hbpm, 1 patient, 1 measurement every 3 days. mbp-v1.1 cannot be applied (it needs >= 6
           readings on >= 4 days in 7), so this is a REALISM check: how much does real home BP move between
-          measurements 3 days apart, compared with our simulator? Results -> artifacts/mbp-v1/metadata.json
+          measurements 3 days apart, compared with our simulator? Results -> artifacts/mbp-v1.1/metadata.json
 apnea     real:apnea_ecg, 8 overnight SpO2 recordings (apnea / borderline / control). Our ring SpO2 rules
           (night median vs 94 %, dips of >= 4 %) at ring cadence, plus ODI-4 from the full signal.
-          Results -> artifacts/ring-v1/metadata.json
+          Results -> artifacts/ring-v1.1/metadata.json
 Results are labelled real:<source> and carry n; the data never leaves data/external/.
 """
 from __future__ import annotations
@@ -18,9 +18,10 @@ import json
 import numpy as np
 import pandas as pd
 
-from . import reference
+from . import reference, ring
 from .real_data import APNEA_RECORDS, SOURCES, load_apnea_spo2, load_mendeley
 from .train import ARTIFACTS, DATA
+from .train import MODEL_VERSION as MBP_VERSION
 
 RING_MINUTES = (60, 120, 180, 240, 300, 330)   # the simulated ring's night SpO2 times
 GROUPS = {"a": "apnea", "b": "borderline", "c": "control"}
@@ -63,7 +64,7 @@ def mendeley_test() -> dict:
         "patient": "1 treated 67-year-old man (dataset description), Microlife BP 3AG1, mean of 3 trials, "
                    "1 measurement every 3 days over 384 days",
         "mbp_v1_applicable": False,
-        "why_not": "mbp-v1 needs >= 6 valid readings on >= 4 days in the 7 days before the target day and a "
+        "why_not": "mbp-v1.1 needs >= 6 valid readings on >= 4 days in the 7 days before the target day and a "
                    "morning reading; this series has 1 measurement every 3 days and no clock times",
         "real_systolic": real["systolic"], "real_diastolic": real["diastolic"], "real_pulse": real["pulse"],
         "synthetic_systolic_same_sampling_median_patient": synth,
@@ -126,12 +127,12 @@ def main() -> None:
     a = ap.parse_args()
     if a.which in ("mendeley", "all"):
         res = mendeley_test()
-        _attach("mbp-v1", "mendeley_hbpm", res)
+        _attach(MBP_VERSION, "mendeley_hbpm", res)
         print(json.dumps({k: res[k] for k in ("real_systolic", "real_diastolic",
                                                "synthetic_systolic_same_sampling_median_patient")}, indent=2))
     if a.which in ("apnea", "all"):
         res = apnea_test()
-        _attach("ring-v1", "apnea_ecg", res)
+        _attach(ring.MODEL_VERSION, "apnea_ecg", res)
         print(json.dumps(res["by_group"], indent=2))
 
 
