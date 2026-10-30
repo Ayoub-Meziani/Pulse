@@ -6,6 +6,7 @@ trusted contacts are only stored with the patient's confirmation that the contac
 """
 from __future__ import annotations
 
+from collections import Counter
 from datetime import date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -72,8 +73,13 @@ def summary(db: Session, patient_id: UUID, now: datetime) -> SummaryOut:
     target = current_target(db, patient_id)
     s = compute_summary(usable, target, now.astimezone(zone))
     week = [m for m in rows if m.measured_at > now - timedelta(days=7)]
+    # Same population as count_7d (valid readings of the last 7 days), split by provenance, so the three add up
+    # to count_7d. needs_review and invalid readings are in none of them (see count_needs_review_7d).
+    by_origin = Counter(m.provenance for m in week if m.validation_status == "valid")
     return SummaryOut(
         window_days=s.window_days, timezone=tz, count_7d=s.count_7d,
+        count_7d_measured=by_origin["measured"], count_7d_simulated=by_origin["simulated"],
+        count_7d_estimated=by_origin["estimated"],
         count_needs_review_7d=sum(m.validation_status == "needs_review" for m in week),
         count_invalid_7d=sum(m.validation_status == "invalid" for m in week),
         avg_systolic_7d=s.avg_systolic_7d, avg_diastolic_7d=s.avg_diastolic_7d,

@@ -196,10 +196,19 @@ class TargetOut(BaseModel):
 
 
 class SummaryOut(BaseModel):
+    """Descriptive statistics over the patient's own readings. Every statistic here (count_7d, averages, maximum,
+    pct_above_target_7d, days_with_reading_7d, trend) uses VALID readings of any provenance, so simulated demo
+    readings are included; count_7d_* says how many of them are measured, simulated or estimated. None of this
+    drives alerts: the clinical trend alert (R-TRD-1) ignores simulated readings."""
     window_days: int
     timezone: str
-    count_7d: int
-    count_needs_review_7d: int
+    count_7d: int = Field(description="Valid readings in the last 7 days, any provenance. needs_review and invalid readings are not counted here.")
+    count_7d_measured: int = Field(description="Of count_7d: provenance 'measured' (cuff or manual entry).")
+    count_7d_simulated: int = Field(description="Of count_7d: provenance 'simulated' (generated demo data).")
+    count_7d_estimated: int = Field(description="Of count_7d: provenance 'estimated' (e.g. a wearable estimate, never a cuff reading). "
+                                       "Under validation policy pulse-v1 every estimated reading is needs_review, so this is 0 "
+                                       "until that policy changes; such readings appear in count_needs_review_7d.")
+    count_needs_review_7d: int = Field(description="needs_review readings of the last 7 days, any provenance. Excluded from count_7d, its provenance split and every statistic.")
     count_invalid_7d: int
     avg_systolic_7d: float | None
     avg_diastolic_7d: float | None
@@ -207,9 +216,9 @@ class SummaryOut(BaseModel):
     avg_diastolic_30d: float | None
     max_systolic_7d: int | None
     max_diastolic_7d: int | None
-    pct_above_target_7d: float | None
+    pct_above_target_7d: float | None = Field(description="Share of the valid 7-day readings above target, simulated ones included.")
     days_with_reading_7d: int
-    trend: Trend
+    trend: Trend = Field(description="7-day vs previous 7-day mean of valid readings, simulated ones included. Descriptive only.")
     last_measured_at: datetime | None
     target: TargetOut
 
