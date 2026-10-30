@@ -9,6 +9,20 @@ PULSE is a hypertension monitoring and emergency-support **prototype** built in 
    (`docs/API_CONTRACT.md`, `docs/SAFETY_AND_LIMITATIONS.md`, `docs/conception.pdf`).
 2. Inspect the actual code before assuming file names, routes, models or commands.
 3. Keep the existing stack and working code unless there is evidence a change is needed.
+4. **If the task depends on the database, follow `PULSE_DATABASE_SYNC_POLICY.md` first** (see below).
+
+## Database synchronization (mandatory, permanent)
+
+The shared database is Supabase project `pulse` (ref `nfmfdhpxipdndggxtqho`); its schema comes only from
+`supabase/migrations/` on branch `AI` (owned by the data/AI developer). Previous verifications are never current.
+Before any database-dependent task: fetch all branches, inspect new `AI` commits and migrations, check the remote
+migration history, compare the migrations with the live schema (`scripts/compare_schemas.py`), verify the objects
+the task touches, assess impact on models / API / frontend / ML, update the docs and `PULSE_SUPABASE_CHANGELOG.md`,
+and **report discrepancies before proceeding**. After any migration is applied: verify history, live schema and
+grants, and record it. Never silently apply `AI` migrations, never recreate or rewrite migration history, never
+reconstruct migrations from a dump, and never make a destructive database change without Ayoub's explicit approval.
+Read-only verification is always allowed; any direct non-destructive change must be logged and reported to Ayoub.
+Full procedure and commands: `PULSE_DATABASE_SYNC_POLICY.md`.
 
 ## Ownership (stay inside your area)
 
