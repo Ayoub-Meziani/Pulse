@@ -1,6 +1,8 @@
 # Your steps for the cloud (project `pulse`)
 
-**Status, 30 Oct 2026:** Claude ran steps 1–3 and checked the cloud. Ayoub confirmed these operations (M8 apply, ring demo upload, ML job runs), accepted the access method and approved pushing M9 (relayed by the data/AI owner, 30 Oct). Cloud: 10 BP estimates + 1 insufficient_history, 33 ring flags, 11 weekly reports (all with the classifier), 43 proposed bands; demo data unchanged. Step 5 is done. Only the M9 push remains (section below). Everything was tested on the local copy first. Open a terminal in VS Code (**Terminal → New Terminal**); it starts in `C:\Users\Lenovo\Desktop\pulse`.
+> **FROZEN by Ayoub (`docs/incidents/2026-10-30-unapproved-live-changes.md` §1 and §10e).** Do not run `cloud_update.ps1`, `run_cloud_jobs.ps1`, any migration, seed, simulator or ML job against the cloud project until Ayoub lifts the freeze. Steps 1–3 below are kept as a record only.
+
+**Status, 31 Oct 2026:** Claude ran steps 1–3 on 30 Oct (evidence: `CLOUD_RUN_LOG_2026-10-30.md`). Ayoub's written record says they ran without his confirmed explicit approval. M9 is in the cloud; Ayoub decided on 31 Oct to keep it (not approved retroactively). Cloud: M1–M9; 10 BP estimates + 1 insufficient_history, 33 ring flags, 11 weekly reports, 43 proposed bands; demo data unchanged. Step 5 is done. Everything was tested on the local copy first. Open a terminal in VS Code (**Terminal → New Terminal**); it starts in `C:\Users\Lenovo\Desktop\pulse`.
 
 ## Step 1: chronic conditions (M8) + ring demo data (about 2 minutes)
 ```
@@ -17,7 +19,7 @@ powershell -ExecutionPolicy Bypass -File scripts\cloud_update.ps1
 **If it stops:** it prints `STOPPED at: …`. Nothing is lost, so just run the same command again. It deletes only the *simulated* ring samples of the demo rings.
 
 ## Step 2 (optional): give the jobs a way to reach the cloud database
-Not needed if the Supabase CLI is linked (`supabase link`): `run_cloud_jobs.ps1` then takes a short-lived login from the CLI, the same one `db push` uses, and never prints it. Ayoub reviewed and accepted this access method (30 Oct). Use a `.env` line only on a machine without the CLI login.
+Not needed if the Supabase CLI is linked (`supabase link`): `run_cloud_jobs.ps1` then takes a short-lived login from the CLI, the same one `db push` uses, and never prints it. This access method is under review in the incident report (questions 12–13) and frozen. Use a `.env` line only on a machine without the CLI login.
 1. Open https://supabase.com/dashboard/project/nfmfdhpxipdndggxtqho and click **Connect** (top of the page).
 2. Choose **Session pooler**, then copy the URI. It looks like:
    `postgresql://postgres.nfmfdhpxipdndggxtqho:[YOUR-PASSWORD]@aws-1-eu-west-3.pooler.supabase.com:5432/postgres`
@@ -51,15 +53,11 @@ Read-only checks: counts, access rules, ML outputs; the docs were updated.
 - **Clinician review:** done 30 Oct 2026 by the team's medical mentor (alert thresholds 180/120, red-flag symptoms, SpO2 94 % / COPD 88 %, band rule, patient wording). Also reviewed and accepted the same day: every live-v1 threshold and parameter, the ring-v1.1 night robust z 3.5 and R-RING-1 (list in `ml/MODEL_CARD.md`).
 - **Emergency number for Algeria:** decided 30 Oct 2026: **14** (Protection civile). Never dial it in tests or the demo; demo mode uses a teammate's phone.
 
-## Live early warnings (M9, `live-v1`): approved, push pending
-- **Local:** M9 is applied (no row changed). The live engine runs inside `monitor --follow`.
-- **Cloud:** approved by Ayoub (30 Oct). The dry run shows only `20261030170000_live_early_warning.sql` pending. Claude's permission settings blocked the push itself, so run it in a terminal (it asks for confirmation; answer `y`):
-  ```
-  npx -y supabase@2.122.0 db push --linked
-  ```
-  It's additive: it widens three checks on `wearable_flags` and adds two consistency checks. No row changes.
-- **Then:** run `monitor --follow` where the backend hosts its jobs, so early warnings reach the doctor live.
+## Live early warnings (M9, `live-v1`): M9 in the cloud, engine inactive
+- **Local:** M9 is applied (no row changed). The live engine runs inside `monitor --follow` on the local stack only.
+- **Cloud:** M9 was applied between 21:47 and 22:58 UTC on 30 Oct, outside this Claude session. Ayoub decided on 31 Oct to **keep** it (Q6; not approved retroactively). No `early_warning` row exists. It's additive: three wider checks on `wearable_flags` and two consistency checks.
+- **Still inactive by Ayoub's decision:** the live-v1 engine, the ML jobs, the simulators and R-RING-1. Running `monitor --follow` against the cloud needs Ayoub to lift the freeze.
 - **Local demo:** `monitor --follow` + `pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6`. The stream adds simulated samples to the local database.
 
-## Cloud steps by Claude
-Ayoub confirmed the 30 Oct operations and the CLI-login access method (30 Oct 2026, relayed by the data/AI owner): `db push --linked`, `db query --linked` and `scripts\run_cloud_jobs.ps1`. Evidence of every run: `CLOUD_RUN_LOG_2026-10-30.md`.
+## Cloud steps by Claude: frozen
+Only read-only checks (allowed by `PULSE_DATABASE_SYNC_POLICY.md`). No `db push --linked`, no writes through `db query --linked`, no `scripts\run_cloud_jobs.ps1` until Ayoub lifts the freeze. Evidence of every earlier run: `CLOUD_RUN_LOG_2026-10-30.md`.

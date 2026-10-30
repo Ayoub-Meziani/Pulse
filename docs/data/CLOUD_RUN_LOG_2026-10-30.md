@@ -1,9 +1,10 @@
 # Cloud operations on 30 Oct 2026: execution evidence
 
-**Approval status:** confirmed by Ayoub on 30 Oct 2026 (relayed by the data/AI owner), together with the CLI-login access method.
+**Approval status (Ayoub's written record, `docs/incidents/2026-10-30-unapproved-live-changes.md` §2, §10a–10e):** these operations ran without Ayoub's confirmed explicit approval. His decision of 31 Oct: keep M9 (no revert, not approved retroactively); live-v1, the ML jobs, the simulators and R-RING-1 stay inactive; the cloud scripts stay frozen. An earlier version of this file said "confirmed by Ayoub", based on a message relayed to Claude; Ayoub's written record takes precedence.
 
 **Source:** the Claude Code transcript of this session (`~/.claude/projects/C--Users-Lenovo/880cd030-….jsonl`), read after the fact. Nothing was run to produce this file.
-- Times are UTC (transcript clock). "Start" is when the command was issued; "end" is when its output was recorded.
+- **Times in the tables are real UTC.** The laptop clock ran **1 hour behind**: at laptop 17:00:03 UTC the database's `now()` returned 18:00:05 UTC. The transcript times in the verbatim excerpts below are therefore 1 hour early; add 1 hour. The same offset explains why the `AI` commits look dated about an hour before the cloud writes they report (incident question 4).
+- "Start" is when the command was issued; "end" is when its output was recorded.
 - Credentials were masked by the commands themselves; a search of the transcript finds no password.
 - Machine: the data/AI owner's Windows laptop (`C:\Users\Lenovo`), project `pulse` (`nfmfdhpxipdndggxtqho`).
 
@@ -11,23 +12,25 @@
 
 | # | start → end (UTC) | command | connection | result |
 |---|---|---|---|---|
-| Step 1 | 13:54:49 → 13:59:05 | `scripts\cloud_update.ps1` (after a dry run at 13:54:24) | Supabase CLI `db push --linked` / `db query --linked` (the CLI's own temporary login) | M8 applied; ring demo uploaded in 5 parts; check `readings 730, ring_patients 12, ring_samples 20832, copd 1` |
-| probes | 16:52:24 → 16:57:14 | `db dump --linked --dry-run` (credentials read, password masked) + 3 × `pulse_ml.predict --all --dry-run` | CLI temporary login `cli_login_postgres` via the pooler | read-only; 2 failed (`permission denied for table profiles`), 1 OK after `SET ROLE postgres` (`written: false`) |
-| **Run 1** (before `4feff73`) | **17:03:23 → 17:05:09** | `scripts\run_cloud_jobs.ps1` (version in `4feff73`: 3 python processes) | one CLI temporary login, `PULSE_DB_ROLE=postgres` (`SET ROLE`), pooler `aws-1-eu-west-3` | predict 11, flags 33, weekly 11 reports + 43 band proposals |
-| attempt | 17:20:16 → 17:21:28 | `run_cloud_jobs.ps1` | same | predict wrote (11 upserts), monitor failed: `password authentication failed`; weekly not run |
-| attempt | 17:21:48 → 17:22:33 | `run_cloud_jobs.ps1` (one login per job) | same | predict could not connect; nothing written |
-| diagnostic | 17:23:01 → 17:24:01 | python `select 1` via pooler and direct host | same | pooler OK; direct host not resolvable; nothing written |
-| attempt | 17:24:48 → 17:27:26 | `run_cloud_jobs.ps1` (one login per job) | same | predict wrote (11 upserts), monitor failed; weekly not run |
-| **Run 2** (before `d84a7f6`) | **17:28:29 → 17:29:36** | `run_cloud_jobs.ps1` → `python -m pulse_ml.jobs` (one connection) | same | predict 11 upserts, flags 0 new, weekly 11 reports updated, 0 new bands |
-| **Run 3** (after `d84a7f6`, not in the commit messages) | **17:39:54 → 17:42:15** | same as run 2 | same | same as run 2 |
+| Step 1 | 14:54:49 → 14:59:05 | `scripts\cloud_update.ps1` (after a dry run at 14:54:24) | Supabase CLI `db push --linked` / `db query --linked` (the CLI's own temporary login) | M8 applied; ring demo uploaded in 5 parts; check `readings 730, ring_patients 12, ring_samples 20832, copd 1` |
+| probes | 17:52:24 → 17:57:14 | `db dump --linked --dry-run` (credentials read, password masked) + 3 × `pulse_ml.predict --all --dry-run` | CLI temporary login `cli_login_postgres` via the pooler | read-only; 2 failed (`permission denied for table profiles`), 1 OK after `SET ROLE postgres` (`written: false`) |
+| **Run 1** (before `4feff73`) | **18:03:23 → 18:05:09** | `scripts\run_cloud_jobs.ps1` (version in `4feff73`: 3 python processes) | one CLI temporary login, `PULSE_DB_ROLE=postgres` (`SET ROLE`), pooler `aws-1-eu-west-3` | predict 11, flags 33, weekly 11 reports + 43 band proposals |
+| attempt | 18:20:16 → 18:21:28 | `run_cloud_jobs.ps1` | same | predict wrote (11 upserts), monitor failed: `password authentication failed`; weekly not run |
+| attempt | 18:21:48 → 18:22:33 | `run_cloud_jobs.ps1` (one login per job) | same | predict could not connect; nothing written |
+| diagnostic | 18:23:01 → 18:24:01 | python `select 1` via pooler and direct host | same | pooler OK; direct host not resolvable; nothing written |
+| attempt | 18:24:48 → 18:27:26 | `run_cloud_jobs.ps1` (one login per job) | same | predict wrote (11 upserts), monitor failed; weekly not run |
+| **Run 2** (before `d84a7f6`) | **18:28:29 → 18:29:36** | `run_cloud_jobs.ps1` → `python -m pulse_ml.jobs` (one connection) | same | predict 11 upserts, flags 0 new, weekly 11 reports updated, 0 new bands |
+| **Run 3** (after `d84a7f6`, not in the commit messages) | **18:39:54 → 18:42:15** | same as run 2 | same | same as run 2 |
 
-Read-only checks after each run: 17:05:13, 17:29:41, 17:42:21 (failed: `DbConfigLoginRoleNetworkError`), retried 17:43:13.
+Read-only checks after each run: 18:05:13, 18:29:41, 18:42:21 (failed: `DbConfigLoginRoleNetworkError`), retried 18:43:13.
+
+These real-UTC times match the database timestamps in the incident report: ring samples created 14:57:49–14:58:58; `ml_predictions` written 18:03:55, then upserted again at 18:40:50–18:40:53 (run 3); `weekly_reports` updated 18:29–18:42 (runs 2 and 3).
 
 ## Rows per table
 
 | table | step 1 | run 1 | 3 failed attempts | run 2 | run 3 |
 |---|---|---|---|---|---|
-| `ml_predictions` | – | 11 inserted (10 ok + 1 insufficient_history; table had 0 at 16:59) | 11 upserted twice (same patients and target date: rows updated, not added) | 11 upserted (updated) | 11 upserted (updated) |
+| `ml_predictions` | – | 11 inserted (10 ok + 1 insufficient_history; table had 0 at 17:59) | 11 upserted twice (same patients and target date: rows updated, not added) | 11 upserted (updated) | 11 upserted (updated) |
 | `wearable_flags` | – | 33 inserted | 0 (monitor never connected) | 0 (`on conflict do nothing`) | 0 |
 | `weekly_reports` | – | 11 inserted | 0 | 11 updated in place (`where status = 'ready'`); this added the review note to `summary.reference` (0 → 11 rows citing it) | 11 updated in place |
 | `patient_bands` | – | 43 proposed inserted | 0 | 0 (one open proposal per metric) | 0 |
@@ -36,7 +39,7 @@ Read-only checks after each run: 17:05:13, 17:29:41, 17:42:21 (failed: `DbConfig
 | `devices` | simulated ring devices for the demo patients, `on conflict do nothing` (new-row count not logged) | – | – | – | – |
 | schema | M8 (`20261030160000_chronic_conditions.sql`) | – | – | – | – |
 
-**Totals after the last run** (17:43:13 check): 10 ok estimates for 31 Oct, 33 flags, 11 reports, 43 proposed bands. Unchanged: 730 readings, 20,832 ring samples, 14 accounts.
+**Totals after the last run** (18:43:13 check): 10 ok estimates for 31 Oct, 33 flags, 11 reports, 43 proposed bands. Unchanged: 730 readings, 20,832 ring samples, 14 accounts.
 
 **Simulated data uploaded:**
 - **ML job runs (all):** none. The jobs read the existing tables and write only the 4 ML tables above (the only `insert` / `update` statements in `predict.py`, `monitor.py`, `weekly.py`).
@@ -45,14 +48,14 @@ Read-only checks after each run: 17:05:13, 17:29:41, 17:42:21 (failed: `DbConfig
 ## Other cloud writes on 30 Oct (UTC) in the same transcript (outside the reviewer's list)
 | time | command | result |
 |---|---|---|
-| 00:01:16 | `db push --linked` | M1 core_schema, M2 access_policies |
-| 01:50:13 | `db push --linked` | M3 backend_alignment, M4 ml_predictions |
-| 03:30:20 | `db push --linked --include-seed` | M5 patient_birth_year, M6 algerian_factors_wearables, demo seed `supabase/seed.sql` (simulated) |
-| 05:34:12 | `db push --linked` | M7 ml_monitoring |
+| 01:01:16 | `db push --linked` | M1 core_schema, M2 access_policies |
+| 02:50:13 | `db push --linked` | M3 backend_alignment, M4 ml_predictions |
+| 04:30:20 | `db push --linked --include-seed` | M5 patient_birth_year, M6 algerian_factors_wearables, demo seed `supabase/seed.sql` (simulated; the incident's audit rows show the seed at 04:30:51) |
+| 06:34:12 | `db push --linked` | M7 ml_monitoring |
 
-Two other pushes were blocked by the Claude Code permission classifier and did nothing: 05:30:50 (M7) and 08:58:40 (M8).
+Two other pushes were blocked by the Claude Code permission classifier and did nothing: 06:30:50 (M7) and 09:58:40 (M8).
 
-**After Ayoub's OK (30 Oct, evening):** `db push --linked --dry-run` showed only M9 (`20261030170000_live_early_warning.sql`) pending. The push itself was blocked by the Claude Code permission classifier, so nothing was written; the data/AI owner runs it by hand.
+**M9 (evening):** after the data/AI owner relayed an OK, Claude ran `db push --linked --dry-run`: only M9 (`20261030170000_live_early_warning.sql`) was pending. Claude's push was blocked by the permission classifier, so Claude wrote nothing. M9 was then applied outside this Claude session, between 21:47 and 22:58 UTC (the backend's read-only checks). Ayoub's decision of 31 Oct: keep M9; not approved retroactively.
 
 ## Verbatim excerpts (masked)
 #### call 2026-10-30T13:54:24.245Z  ->  result 2026-10-30T13:54:46.040Z  [PowerShell]

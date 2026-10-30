@@ -7,7 +7,7 @@
 | `wcls-v1.1` | P(next week's home BP above target) | synthetic `pulse-sim-v2` | in the weekly report |
 | `mbp-v2.1` | mbp-v1.1 + ring features | synthetic | experiment, not served |
 | `wrisk-v1` | P(BP uncontrolled despite treatment) | **real** NHANES (2,309 people) | evaluated, **not shown** (too weak) |
-| `live-v1` | live ring: warn the doctor BEFORE SpO2 / HR / temperature cross a limit; night going badly | synthetic minute-level nights (`live_sim`) | built; flags need M9 |
+| `live-v1` | live ring: warn the doctor BEFORE SpO2 / HR / temperature cross a limit; night going badly | synthetic minute-level nights (`live_sim`) | built; M9 in the cloud (kept by Ayoub, 31 Oct); engine inactive (freeze) |
 
 All models are Python (pandas, numpy, scikit-learn). None of them creates alerts, decides an emergency or touches medication. Sources and data terms: `docs/data/DATA_SOURCES.md`.
 
