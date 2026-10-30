@@ -28,8 +28,8 @@ python scripts/dev_seed.py         # three FICTIONAL demo accounts and their dat
 
 | Account | Role | Demo data (all fictional) |
 |---|---|---|
-| `patient.a@demo.pulse.test` | Patient | 20 manual readings over 10 days (mostly normal, two above the general target), one symptom report, a care plan (target 135/85), a follow-up advice from the doctor, a trusted contact. No wearable. |
-| `patient.b@demo.pulse.test` | Patient | 24 **simulated** readings (labelled), then manual readings: a severe reading with a symptom check and a recheck (open severe alert), and a trend alert. A **simulated** ring with heart-rate and SpO₂ samples. |
+| `patient.a@demo.pulse.test` | Patient | 20 manual readings over 10 days (mostly normal, two above the general target), one symptom report, journal entries (food, activity, a question; one read by the doctor), a care plan (target 135/85), a follow-up advice from the doctor, a trusted contact. No wearable. |
+| `patient.b@demo.pulse.test` | Patient | 24 **simulated** readings (labelled), then manual readings: a severe reading with a symptom check and a recheck (open severe alert), and a trend alert. One recorded emergency episode (screen opened, contact call tapped, outcome). A journal entry. A **simulated** ring with heart-rate and SpO₂ samples. |
 | `medecin@demo.pulse.test` | Doctor | Assigned to Patient A and Patient B only. |
 
 ## Every time: start the services

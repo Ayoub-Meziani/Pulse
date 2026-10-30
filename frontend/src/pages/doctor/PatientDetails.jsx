@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { addNote, getLatestPrediction } from "../../api/doctor";
 import {
-  getCarePlan, getProfile, getSummary, listAlerts, listMeasurements, listNotes, listSymptomReports, transitionAlert,
+  getProfile, getSummary, listAlerts, listMeasurements, listNotes, listSymptomReports, transitionAlert,
 } from "../../api/patient";
 import AlertList from "../../components/alerts/AlertList";
 import BloodPressureChart from "../../components/charts/BloodPressureChart";
@@ -15,12 +15,14 @@ import { Card, CardBody, CardHeader } from "../../components/ui/Card";
 import Icon from "../../components/ui/Icon";
 import { EmptyState, ErrorState, Loading, Section } from "../../components/ui/States";
 import WearablePanel from "../../components/wearables/WearablePanel";
+import { DoctorCarePlan, DoctorEmergencies, DoctorJournal } from "../../components/doctor/DoctorRecordSections";
 import { formatDate, formatDateTime, round, TREND } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
 
 const TABS = [
   ["apercu", "Vue d'ensemble"], ["mesures", "Mesures"], ["symptomes", "Symptômes"], ["alertes", "Alertes"],
-  ["bracelet", "Bracelet"], ["estimation", "Estimation"], ["notes", "Notes"], ["plan", "Plan de suivi"],
+  ["urgences", "Urgences"], ["journal", "Journal"], ["bracelet", "Bracelet"], ["estimation", "Estimation"],
+  ["notes", "Notes"], ["plan", "Plan de suivi"],
 ];
 
 function Stat({ label, value, hint }) {
@@ -201,21 +203,6 @@ function Notes({ patientId, timeZone }) {
   );
 }
 
-function CarePlan({ patientId }) {
-  const plan = useResource((signal) => getCarePlan(patientId, { signal }), `plan:${patientId}`);
-  return (
-    <Section state={plan} what="le plan de suivi">
-      {(c) => (
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <Stat label="Cible" value={`${c.target_systolic}/${c.target_diastolic} mmHg`} hint={c.is_default ? "Cible générale (aucun plan actif)" : `Depuis le ${formatDate(c.effective_from)}`} />
-          <Stat label="Mesures par jour" value={c.monitoring_readings_per_day ?? "—"} hint={c.review_date ? `Révision le ${formatDate(c.review_date)}` : null} />
-          {c.clinician_guidance && <div className="rounded-xl border border-line p-4 text-sm text-ink sm:col-span-2">{c.clinician_guidance}</div>}
-        </dl>
-      )}
-    </Section>
-  );
-}
-
 export default function PatientDetails() {
   const { patientId } = useParams();
   const { user } = useAuth();
@@ -323,7 +310,19 @@ export default function PatientDetails() {
       {tab === "plan" && (
         <Card>
           <CardHeader title="Plan de suivi" />
-          <CardBody><CarePlan patientId={patientId} /></CardBody>
+          <CardBody><DoctorCarePlan patientId={patientId} /></CardBody>
+        </Card>
+      )}
+      {tab === "urgences" && (
+        <Card>
+          <CardHeader title="Épisodes d'urgence" />
+          <CardBody><DoctorEmergencies patientId={patientId} timeZone={tz} /></CardBody>
+        </Card>
+      )}
+      {tab === "journal" && (
+        <Card>
+          <CardHeader title="Journal du patient" />
+          <CardBody><DoctorJournal patientId={patientId} timeZone={tz} /></CardBody>
         </Card>
       )}
     </div>

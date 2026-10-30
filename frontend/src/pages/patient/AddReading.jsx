@@ -262,11 +262,12 @@ export default function AddReading() {
   async function sendSymptoms(result, symptoms) {
     try {
       const report = await addSymptomReport(user.id, { symptoms, measurement_id: result?.measurement.id ?? null });
-      setStep(afterSymptoms(result, report));
+      const next = afterSymptoms(result, report);
+      setStep(next.kind === "emergency" ? { ...next, trigger: "symptom", alertId: report.alert?.id ?? null, symptoms } : next);
       return null;
     } catch (error) {
       if (!unreachable(error)) return errorText(error);
-      setStep(whenUnreachable(null, symptoms, config?.client_fallback));
+      setStep({ ...whenUnreachable(null, symptoms, config?.client_fallback), symptoms });
       return null;
     }
   }
@@ -289,7 +290,9 @@ export default function AddReading() {
       // Emergency first; the ticked symptoms are still recorded, without delaying the screen.
       addSymptomReport(user.id, { symptoms, measurement_id: result.measurement.id }).catch(() => {});
     }
-    setStep(next);
+    setStep(next.kind === "emergency"
+      ? { ...next, trigger: symptoms.length ? "symptom" : "severe_reading", alertId: result.alert?.id ?? null, symptoms }
+      : next);
     return null;
   }
 
@@ -318,9 +321,14 @@ export default function AddReading() {
         </>
       )}
 
-      {step.kind === "emergency" && <EmergencyScreen reason={step.reason} nextStep={step.nextStep} initialConfig={config} />}
+      {step.kind === "emergency" && (
+        <EmergencyScreen reason={step.reason} nextStep={step.nextStep} initialConfig={config}
+          trigger={step.trigger} alertId={step.alertId} symptoms={step.symptoms} />
+      )}
 
-      {step.kind === "unreachable" && step.emergency && <EmergencyScreen notSaved initialConfig={config} />}
+      {step.kind === "unreachable" && step.emergency && (
+        <EmergencyScreen notSaved initialConfig={config} trigger={step.symptoms?.length ? "symptom" : "severe_reading"} symptoms={step.symptoms ?? []} />
+      )}
 
       {step.kind === "unreachable" && !step.emergency && (
         <Card className="border-danger/30 bg-danger-soft p-5 text-danger sm:p-7" role="alert">

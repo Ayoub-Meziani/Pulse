@@ -15,6 +15,7 @@ export const NAV = {
     { to: "/patient/mesure", label: "Nouvelle mesure", icon: "plus" },
     { to: "/patient/historique", label: "Historique", icon: "history" },
     { to: "/patient/alertes", label: "Alertes", icon: "bell" },
+    { to: "/patient/journal", label: "Journal", icon: "note" },
     { to: "/patient/profil", label: "Mon profil", icon: "user" },
   ],
   doctor: [{ to: "/doctor", label: "Mes patients", icon: "users", end: true }],
