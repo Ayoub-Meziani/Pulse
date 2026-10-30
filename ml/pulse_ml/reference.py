@@ -33,13 +33,13 @@ def home_bp_category(mean_systolic: float, mean_diastolic: float) -> str:
 # Ring metrics. Only heart rate and SpO2 have population references; HRV and skin temperature are personal only.
 RING_REFERENCE = {
     "heart_rate": {
-        "low": 60, "high": 100, "unit": "bpm", "applies_to": "resting (night median / at rest)",
+        "low": 60, "high": 100, "flag_sides": ("high",), "unit": "bpm", "applies_to": "resting (night median / at rest)",
         "source": "Mayo Clinic, 'Heart rate: what's normal?' (adults at rest 60-100 bpm); "
                   "https://www.mayoclinic.org/healthy-lifestyle/fitness/expert-answers/heart-rate/faq-20057979",
         "limits": "Fit people can be normal below 60. Ring heart rate during movement is less reliable.",
     },
     "spo2": {
-        "low": 94, "high": 100, "unit": "percent", "applies_to": "at rest",
+        "low": 94, "high": 100, "flag_sides": ("low",), "unit": "percent", "applies_to": "at rest",
         "source": "BTS guideline for oxygen use in adults (O'Driscoll et al., Thorax 2017;72 Suppl 1): "
                   "target 94-98% for most acutely ill adults, 88-92% if at risk of hypercapnic failure; "
                   "https://www.brit-thoracic.org.uk/quality-improvement/guidelines/emergency-oxygen",
@@ -63,5 +63,9 @@ R_RING_1 = {
 
 
 def outside_reference(metric: str, value: float) -> bool:
+    """Only the clinically meaningful side is flagged: heart rate too high (a low resting rate is often
+    normal in fit people), SpO2 too low."""
     ref = RING_REFERENCE.get(metric)
-    return ref is not None and not (ref["low"] <= value <= ref["high"])
+    if ref is None:
+        return False
+    return ("low" in ref["flag_sides"] and value < ref["low"]) or ("high" in ref["flag_sides"] and value > ref["high"])

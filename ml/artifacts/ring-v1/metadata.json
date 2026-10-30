@@ -1,0 +1,57 @@
+{
+  "model_version": "ring-v1",
+  "trained_on": "synthetic:pulse-sim-v1 ring (invented BP coupling)",
+  "features": [
+    "z_heart_rate",
+    "z_hrv_rmssd",
+    "z_spo2",
+    "z_skin_temperature"
+  ],
+  "baseline": "rolling 28 days before the night, >= 14 nights, robust z (median / MAD)",
+  "z_limit": 3.5,
+  "contamination": 0.01,
+  "contamination_note": "synthetic setting: tuned to the simulator's invented episode rate",
+  "split": {
+    "method": "patient-level 70/15/15",
+    "seed": 7,
+    "train": 140,
+    "val": 30,
+    "test": 30
+  },
+  "test_metrics": {
+    "reference_only": {
+      "episodes": 11,
+      "episodes_detected": 3,
+      "episode_recall": 0.273,
+      "flagged_nights": 66,
+      "night_precision": 0.076,
+      "false_flags_per_patient_week": 0.176
+    },
+    "personal_baseline": {
+      "episodes": 11,
+      "episodes_detected": 10,
+      "episode_recall": 0.909,
+      "flagged_nights": 93,
+      "night_precision": 0.172,
+      "false_flags_per_patient_week": 0.222
+    },
+    "isolation_forest": {
+      "episodes": 11,
+      "episodes_detected": 2,
+      "episode_recall": 0.182,
+      "flagged_nights": 12,
+      "night_precision": 0.25,
+      "false_flags_per_patient_week": 0.026
+    },
+    "personal_or_isolation_forest": {
+      "episodes": 11,
+      "episodes_detected": 10,
+      "episode_recall": 0.909,
+      "flagged_nights": 95,
+      "night_precision": 0.168,
+      "false_flags_per_patient_week": 0.227
+    }
+  },
+  "limitations": "Ring data and episodes are simulated. Flags are advisory for the doctor; they never create alerts and are not the safety path.",
+  "trained_at": "2026-10-30T05:08:24+00:00"
+}

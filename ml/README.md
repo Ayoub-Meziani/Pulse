@@ -47,6 +47,37 @@ Doctor-only model estimate, trained on **synthetic data**. It is not a measureme
 
 **Never:** the job does not write alerts, measurements or anything outside `ml_predictions`, and it is never called from a patient request.
 
+## Ring monitor (ML phase 2): advisory flags for the doctor
+Built as required by the backend review (`PULSE_ML_phase2_review.pdf`). **Flags never create alerts and are not the safety path.** The proposed safety rule R-RING-1 (`pulse_ml/reference.py: R_RING_1`) is for the backend to evaluate directly on `wearable_samples`.
+
+| Command (from `ml/`) | What |
+|---|---|
+| `..\.venv\Scripts\python -m pulse_ml.ring_train` | trains IsolationForest on synthetic personal z-scores, scores all methods on test patients → `artifacts/ring-v1/` |
+| `..\.venv\Scripts\python -m pulse_ml.monitor --nights` | night windows (00:00–06:00 local) of assigned patients: reference, personal baseline or approved band, IsolationForest |
+| `..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5` | live 10-minute windows; polls `wearable_samples` by `created_at` with a 5-minute overlap; never re-flags a window |
+| `..\.venv\Scripts\python -m pulse_data.stream --scenario spo2_dip --minutes 1` (repo root) | **simulated** live ring samples for Karim, Nadia, Fatima; refuses a cloud URL without `--i-confirmed-cloud` |
+
+**Inputs:** `wearable_samples` of actively assigned patients, `patient_bands` (active), and doctor-confirmed flags (left out of the baseline).
+**Output:** rows in `wearable_flags`. Nothing else is written.
+| kind | window | rule |
+|---|---|---|
+| `outside_reference` | night or live_10min | deterministic: SpO2 below 94 % (BTS) or resting heart rate above 100 bpm; live windows need ≥ 2 samples |
+| `personal_anomaly` | night | the doctor-approved band if one exists, else robust z > 3.5 against the patient's own 28 previous days (≥ 14 nights, confirmed anomalies excluded) |
+| `personal_anomaly` | live_10min | outside an active `live_10min_median` band in 2 consecutive windows |
+| `multivariate_anomaly` | night | IsolationForest (`ring-v1`) on the 4 personal z-scores |
+
+Night statistic per metric: heart rate, HRV and skin temperature use the night median; SpO2 uses the night minimum (6 samples per night).
+
+**Backend to build:**
+- doctor flag review (`review_status`, `reviewed_by` = the doctor, `reviewed_at`, `review_note`)
+- band approval through `private.approve_band(band_id, doctor_id, low, high)`
+- rule R-RING-1 on raw samples
+
+**Local demo (verified 30 Oct 2026):**
+1. `monitor --nights`: 7 flags, including Karim's seeded heart-rate rise as `personal_anomaly` on the 2 episode nights.
+2. `monitor --follow` + `stream --scenario spo2_dip --patient cohort_1 --minutes 1`: a live `outside_reference` SpO2 flag for Fatima about 10 s after the stream starts, and for no one else.
+3. Known limitation: Fatima also gets night SpO2 `outside_reference` flags from the population reference alone. The doctor-approved personal band handles exactly this.
+
 ## Demo scenarios (local seed, 30 Oct 2026, target = next day)
 | demo patient | seed scenario | job result | why it is useful in the demo |
 |---|---|---|---|

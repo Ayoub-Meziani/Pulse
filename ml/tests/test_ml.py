@@ -34,6 +34,7 @@ def test_home_bp_category_uses_home_thresholds():
     assert home_bp_category(134, 84) == "stage_1_range"   # office 140/90 corresponds to home 135/85
     assert home_bp_category(135, 70) == "stage_2_range"
     assert outside_reference("spo2", 91) and not outside_reference("spo2", 96)
+    assert outside_reference("heart_rate", 105) and not outside_reference("heart_rate", 55)  # low HR not flagged
     assert not outside_reference("hrv_rmssd", 3)          # no population reference: personal only
 
 

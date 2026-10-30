@@ -42,6 +42,35 @@ From a clean checkout:
 
 This writes `artifacts/mbp-v1/metadata.json` with the same split and metrics. The pins are in `ml/requirements.txt`.
 
+---
+
+# Model card: `ring-v1` (ring monitoring, advisory)
+**Status:** prototype; **synthetic ring data with invented coupling and injected, labelled episodes.** Its flags are advisory, for the doctor only. They never create alerts and are not the safety path.
+
+- **Inputs:** night windows (00:00–06:00 local) built from raw `wearable_samples` by the same code in training and serving (`ring.py`): heart-rate night median, HRV night median, SpO2 night minimum, skin-temperature night median.
+- **Personal baseline:** median and MAD of the 28 days strictly before the night, at least 14 nights, doctor-confirmed anomaly windows excluded. A doctor-approved band overrides it.
+- **IsolationForest:** 100 trees, `contamination = 0.01` (a synthetic setting, tuned to the simulator's invented episode rate), fitted on all nights of the training patients' personal z-scores.
+- **Data:** `wearable_samples.csv`, 200 patients × 90 days (about 10 % of days not worn); 65 injected episodes (`hr_rise` +15 bpm, `spo2_dip` −5 %, `hrv_drop` −40 %, 1–3 nights). Patient-level split 140 / 30 / 30 (seed 7).
+
+**Results on the 30 test patients (11 episodes), synthetic:**
+| method | episodes detected | night precision | false flags / patient-week |
+|---|---|---|---|
+| reference only (SpO2 < 94, resting HR > 100) | 3 / 11 (0.27) | 0.08 | 0.18 |
+| **personal baseline (robust z > 3.5)** | **10 / 11 (0.91)** | 0.17 | 0.22 |
+| IsolationForest | 2 / 11 (0.18) | 0.25 | 0.03 |
+| personal or IsolationForest | 10 / 11 (0.91) | 0.17 | 0.23 |
+
+**Reading:**
+- The personal baseline finds what population ranges miss.
+- IsolationForest adds little at this contamination setting.
+- 11 episodes is a small test set.
+- **The episode recall on injected episodes is the regression gate** for any retraining with doctor feedback: recall must not drop (review M5).
+
+**Limits:**
+- The episodes and the ring↔BP coupling are invented.
+- Consumer ring SpO2 is less accurate than a clinical oximeter, and can be overestimated in people with darker skin (FDA 2021).
+- No real ring data has been used.
+
 ## Before any real use
 - Real, consented home readings: no open multi-patient home-BP dataset was found (`docs/data/DATA_SOURCES.md`).
 - Retraining and evaluation on real data, by patient and over time.
