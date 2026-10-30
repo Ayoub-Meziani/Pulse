@@ -32,6 +32,28 @@ With 8 cohort patients, the drawn shares will not match the published percentage
 
 World context, for the pitch (not used to generate values): WHO estimates about 33 % of adults aged 30–79 have hypertension, about half are unaware, and about 21 % are controlled (WHO *Global report on hypertension*, Sept 2023, as reported by [Down To Earth](https://www.downtoearth.org.in/health/every-1-in-3-adults-has-hypertension-but-only-half-know-it-91822); check the WHO report itself before quoting exact figures). The global mean salt intake is 10.8 g/day against a target of < 5 g ([WHO global report on sodium intake reduction, 2023](https://www.who.int/publications-detail-redirect/9789240069985)).
 
+### Synthetic ring data (ML phase 2, 30 Oct 2026)
+`python -m pulse_data.simulate csv` also writes (git-ignored):
+- `wearable_samples.csv`: same columns as `public.wearable_samples` + `is_synthetic`.
+  - Heart rate every 10 min at night, hourly by day; 6 SpO2 samples per night; nightly HRV and skin temperature.
+  - About 10 % of days have no ring data (ring not worn).
+- `ring_episodes.csv`: 65 injected, labelled anomaly episodes (`hr_rise`, `spo2_dip`, `hrv_drop`), used to score the ring monitor.
+- `patients.csv`: per-patient synthetic home-BP target (135/85 or 130/80) for the weekly classifier.
+
+Ring values come from a separate random generator per patient, so the BP files are byte-identical to before (`tests/test_simulate_stability.py`). The coupling to blood pressure is **invented**: night heart rate +0.25 bpm and HRV −0.3 ms per mmHg of the latent BP effect. The demo seed holds 28 days of ring data for Karim, Nadia and Fatima; Karim has a simulated night heart-rate rise 3 and 2 days before seeding.
+
+### Medical reference values (`ml/pulse_ml/reference.py`, pending clinician review)
+| Value | Source |
+|---|---|
+| Home-BP categories: 120/80, 130/80, 135/85 (= office 140/90), 145/90 (= office 160/100) | 2017 ACC/AHA guideline, Table 11, home (HBPM) column ([ACC summary](https://www.acc.org/~/media/Non-Clinical/Files-PDFs-Excel-MS-Word-etc/Guidelines/2017/Guidelines_Made_Simple_2017_HBP.pdf)). Applied only to home means, never to office grades |
+| Resting heart rate 60–100 bpm (adults) | [Mayo Clinic](https://www.mayoclinic.org/healthy-lifestyle/fitness/expert-answers/heart-rate/faq-20057979). The AHA page could not be retrieved; fit people can be normal below 60 |
+| SpO2 target 94–98 % (88–92 % if at risk of hypercapnic failure) | [BTS oxygen guideline 2017](https://www.brit-thoracic.org.uk/quality-improvement/guidelines/emergency-oxygen) (O'Driscoll et al., Thorax 2017;72 Suppl 1) |
+| SpO2 accuracy limits (darker skin pigmentation, circulation, nail polish) | FDA safety communication, 19 Feb 2021 ([summary](https://www.hpnonline.com/surgical-critical-care/med-surg-equipment/article/21211195/fda-safety-communication-pulse-oximeter-accuracy-and-limitations)) |
+| HRV, skin temperature | no population reference used; personal baseline only |
+
+### Real wearable dataset considered (not downloaded)
+[PPG-DaLiA](https://archive.ics.uci.edu/dataset/495/ppg+dalia) (UCI, CC BY 4.0): 15 people, wrist PPG with ECG heart-rate ground truth, during daily activities (not rest or night). It is optional: only usable as a real heart-rate series to sanity-check false flags. Credit is required if it is used.
+
 The generator's effects (missed dose +6 mmHg next day, sodium, activity, sleep) are **invented**. A model trained on them demonstrates the pipeline only; metrics on synthetic data say nothing about real patients.
 
 ## Public datasets checked for the ML phase (next-day BP forecasting)

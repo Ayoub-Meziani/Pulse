@@ -26,6 +26,17 @@ def one_patient_days(readings):
     return daily_table(readings[readings.patient == "P00"]).set_index("day").sort_index()
 
 
+def test_home_bp_category_uses_home_thresholds():
+    from pulse_ml.reference import home_bp_category, outside_reference
+    assert home_bp_category(118, 76) == "normal"
+    assert home_bp_category(124, 78) == "elevated"
+    assert home_bp_category(118, 81) == "stage_1_range"   # diastolic alone raises the category
+    assert home_bp_category(134, 84) == "stage_1_range"   # office 140/90 corresponds to home 135/85
+    assert home_bp_category(135, 70) == "stage_2_range"
+    assert outside_reference("spo2", 91) and not outside_reference("spo2", 96)
+    assert not outside_reference("hrv_rmssd", 3)          # no population reference: personal only
+
+
 def test_split_has_no_patient_overlap():
     s = split_patients([f"S{i}" for i in range(200)])
     assert not (s["train"] & s["val"] or s["train"] & s["test"] or s["val"] & s["test"])
