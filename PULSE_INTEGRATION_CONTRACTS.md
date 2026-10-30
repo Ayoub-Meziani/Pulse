@@ -1,7 +1,7 @@
 # PULSE integration contracts (v1, proposed)
 
-Status: **proposal, 2026-10-30**, depends on `PULSE_BACKEND_ARCHITECTURE.md` being approved.
-After approval this file is encoded in `api/app/schemas.py` → `contract/openapi.json` (the machine-readable source of truth; this file then becomes its summary). Database columns referenced here were **VERIFIED LIVE** against the cloud project `pulse` on 2026-10-30 (see architecture §12); the migration files themselves are still only on the data/AI developer's machine.
+Status: **encoded** in `api/app/schemas.py` → `contract/openapi.json` on branch `feat/api-contract-v1` (`fb0acc9`, 34 operations, 49 schemas; most handlers return 501 until the database integration). OpenAPI is the machine-readable source of truth; this file is its summary. Database columns referenced here are **VERIFIED** identical on branch `AI` (`supabase/migrations/`) and the live project `pulse` (`PULSE_BRANCH_RECONCILIATION.md` §3).
+Additions while encoding: `UserOut.timezone`; `PatientListItem.age`, `ProfileOut.birth_year/email/regular_doctor_name`, `EmergencyCardOut.age` (age needs `patient_profiles.birth_year`, M3); `NoteOut.doctor_name`; `TrustedContactPatch`; `SymptomResult.report` nullable; `GET /patients/{id}/emergency-events`.
 
 ---
 
@@ -11,7 +11,7 @@ After approval this file is encoded in `api/app/schemas.py` → `contract/openap
 |---|---|---|
 | `api/**` (routers, services, models, `analysis/` rules and summary, `vocab.py`, jobs), `contract/`, `.github/`, root `PULSE_*.md`, `CLAUDE.md`, `IMPLEMENTATION_PLAN.md` | **Ayoub** (backend + integration, only merger) | PRs from others need Ayoub's review |
 | `supabase/**` (config, migrations, seed generation), `pulse_data/**` (CSV import, simulator; renamed from `pulse_analysis/`, `rules.py` removed), `ml/**` (`pulse_ml` package, training, model card, batch predictions), `docs/data/**` | **Data/AI developer** | Backend requests schema changes by issue/PR; Ayoub approves |
-| `web/**` | **Frontend developer** | Generated `web/src/api/schema.d.ts` is regenerated from the contract, never hand-edited |
+| `frontend/**` (branch `feature/frontend`) | **Frontend developer** | A generated `schema.d.ts` (if adopted) is regenerated from `contract/openapi.json`, never hand-edited. `web/` (Claude's scaffold) is not a second app; see `PULSE_BRANCH_RECONCILIATION.md` §4 |
 
 Change of ownership vs current `CLAUDE.md`: `api/app/analysis/` moves to Ayoub. Reason: the rules are the safety core of the measurement endpoint and already exist; the data/AI developer's time goes to the data layer and ML. To be reflected in `CLAUDE.md` after approval.
 
@@ -229,7 +229,7 @@ PredictionOut {status: ok|insufficient_history|model_unavailable, target_date: d
 2. `alerts.persistent boolean not null default false`.
 3. ~~`alerts.resolution_note`~~ — already exists in the live DB (VERIFIED LIVE; missing from `DATA_SCHEMA.md`). No change.
 4. New table `alert_measurements(alert_id uuid, measurement_id uuid, patient_id uuid, attached_at timestamptz default now(), primary key (alert_id, measurement_id))` with same-patient composite FKs to `alerts (id, patient_id)` and `measurements (id, patient_id)`; RLS select via `private.can_read_patient(patient_id)`; no write grants to `authenticated`.
-5. `measurements.rested_5_min boolean null`.
+5. `measurements.rested_5_min boolean null`; `patient_profiles.birth_year smallint null check (birth_year between 1900 and 2100)` (age on the doctor list, profile and emergency card).
 6. `symptom_reports` CHECK: allow an empty `symptoms` array (replace `cardinality(symptoms) > 0` with the subset check only), so "none of these" answers are recorded.
 7. `doctor_notes`: patients may read only `advice`, `follow_up_at` (today policy `doctor_notes_read` gives them the whole row, VERIFIED LIVE). Either a column-level grant split or a view; the API filters regardless.
 8. Already answered by the live schema (VERIFIED LIVE): `alert_class` has no trigger preventing UPDATE (only the CHECK list); `created_by = coalesce(auth.uid(), new.created_by)`, so a privileged connection can set it explicitly; `emergency_events` columns are `location_lat`, `location_lon`, `location_shared_with_consent`, `reported_outcome` (text), `actions_attempted` (jsonb), `symptoms_snapshot` (text[]), `trigger_reason` (text, no CHECK). Remaining question for the data/AI developer: the expected JSON shape inside `actions_attempted` (docs say `[{action, at, confirmed}]`); the API adds `client_action_id` and `detail`.

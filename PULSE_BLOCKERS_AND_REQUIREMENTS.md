@@ -5,11 +5,12 @@ Priority: **P0** = blocks starting the parallel work, **P1** = blocks a specific
 
 ## Are the materials sufficient to start?
 
-**Yes for the API contract and for database integration against the cloud schema; local tests still need the migration files.** (Updated after the live inspection of project `pulse`, architecture §12.)
-- Backend task 1.1 (contract v1) and the frontend adaptation can start immediately.
-- The schema is now **VERIFIED LIVE**, so model mapping (task 1.4) can start against it.
-- Running the backend tests locally (task 1.6) and CI still need `supabase/migrations/*.sql` in the repo (B1). Do not reconstruct the migrations from the dump ourselves: that would create a second, conflicting history.
-- Before any real account or data goes into the cloud project, public sign-up must be switched off (B16).
+**Yes. Nothing blocks the three developers from starting** (updated after branch reconciliation, `PULSE_BRANCH_RECONCILIATION.md`).
+- Contract v1 is implemented on `feat/api-contract-v1` (local, awaiting push approval).
+- The migrations on branch `AI` are VERIFIED identical to the live schema and apply on the same Postgres build in a throwaway container, so backend DB integration and its tests can start (`PULSE_DB_INTEGRATION_PLAN.md`).
+- Still required before seeding or sharing the cloud URL: public sign-up off (B16).
+
+Resolved since the previous version: B1 (code is on branch `AI`), B2 (both developers have pushed branches), B3 (schema verified by applying the migrations ourselves; their own 48 tests still not run here, now P3), B6 (project exists, migrations applied), B7 (ES256), B9 (generator already reads `PULSE_DEMO_PASSWORD`), B11 (frontend code inspected directly).
 
 ## Decisions needed from Ayoub (before work starts)
 
@@ -27,19 +28,22 @@ Priority: **P0** = blocks starting the parallel work, **P1** = blocks a specific
 
 | # | What is missing | Why it is needed | Who provides | Blocks? | Priority |
 |---|---|---|---|---|---|
-| B1 | **The data/AI developer's code in our repository**: PR `feat/data-layer` to `https://github.com/Ayoub-Meziani/pulse` with `supabase/config.toml`, `supabase/migrations/*.sql`, `pulse_analysis/` (renamed `pulse_data/`, without `rules.py`), `tests/`, `requirements.txt`, `samples/`, docs → `docs/data/`. Not `seed.sql` with a password, not `data/synthetic/`. | Schema is VERIFIED LIVE, but the migration files, importer, simulator and tests exist only on their machine; local stack, tests and CI need them; one migration history in git | Data/AI developer (Ayoub grants write access to the repo first) | **Yes**, Phase 1.3+ | P0 |
-| B2 | GitHub write access for the data/AI and frontend developers (their usernames) | B1 and the frontend PR | Ayoub | Yes for B1 | P0 |
-| B3 | A run of their tests on Ayoub's machine: `npx supabase@2.122.0 start`, `supabase db reset`, `pytest` (their 48 tests, last run 29 Oct) | Converts REPORTED to VERIFIED; triggers the fallback if it fails within 2 h | Ayoub (with data/AI developer available) | Yes, Phase 1 acceptance | P0 |
-| B4 | **Migration M3** (`backend_alignment`, contracts §3.1): `above_target_trend` class, `alerts.persistent`, `alert_measurements` table, `measurements.rested_5_min`, allow empty `symptoms`, `doctor_notes` patient visibility, explicit REVOKEs (live default privileges grant ALL to `anon` on new tables). `alerts.resolution_note` already exists live. | Our alert episodes (R-SEV-2/3, R-EMG-1 raise) cannot be stored in the current `alerts` table | Data/AI developer | Yes, Phase 5 | P1 |
+| B1 | ~~Data/AI code in the repo~~ **Resolved**: branch `AI` (`a004329`) | — | — | No | — |
+| B2 | ~~Write access~~ **Resolved** for pushing branches. Remaining: branch protection reviewers (B15) | — | Ayoub | No | P3 |
+| B3 | Their own test suite (`tests/test_db.py`, `test_ingest.py`) not yet run on Ayoub's machine; it needs a seeded local stack and GoTrue for one live test | Extra assurance only: the schema itself is VERIFIED | Data/AI developer runs it in CI once `AI` is merged | No | P3 |
+| B18 | **Push approval for `feat/api-contract-v1`** (local `fb0acc9`) and PR to `main` after PR #1 | The frontend developer needs `contract/openapi.json` on GitHub | Ayoub | Frontend integration | **P0** |
+| B19 | **Frontend app decision**: `frontend/` (frontend developer, JS) is the single app; `feat/web-scaffold` (TS) is not pushed as a second app; its API client / flow / proxy are offered for porting | Two competing apps otherwise | Ayoub + frontend developer | Frontend structure | **P0** |
+| B20 | Merge order of PR #1, `AI`, contract v1 (reconciliation §5) | `feat/api-supabase` needs `supabase/migrations` in its tree for test scripts and CI | Ayoub | Backend CI only (local work can check out the folder from `origin/AI`) | P1 |
+| B4 | **Migration M3** (`backend_alignment`, contracts §3.1): `above_target_trend` class, `alerts.persistent`, `alert_measurements` table, `measurements.rested_5_min`, `patient_profiles.birth_year`, allow empty `symptoms`, `doctor_notes` patient visibility, explicit REVOKEs (live default privileges grant ALL to `anon` on new tables). `alerts.resolution_note` already exists live. | Our alert episodes (R-SEV-2/3, R-EMG-1 raise) cannot be stored in the current `alerts` table | Data/AI developer | Yes, Phase 5 | P1 |
 | B5 | ~~alert_class update, created_by, emergency_events columns~~ **Resolved by live inspection** (contracts §3.1 item 8). Remaining: expected JSON shape inside `emergency_events.actions_attempted` | Phase 8 | Data/AI developer | No | P2 |
 | B6 | ~~Create cloud project~~ **Exists**: `pulse` (org `lwiza`, ref `nfmfdhpxipdndggxtqho`, Paris), both migrations applied, tables empty. Remaining: fictional seed (after B9 and B16), and **who applied the migrations and how** (the data/AI inventory says no cloud project existed when it was written) | Shared environment; one migration owner | Ayoub to confirm with the data/AI developer | Seed needed for frontend integration on shared data | P1 |
 | B7 | ~~Cloud signing method~~ **Resolved: ES256 via JWKS** (VERIFIED LIVE). Remaining: local stack method (seen from `supabase status` once B1 lands) | Phase 2 config for local tests | Ayoub | No | P2 |
 | B16 | **Switch off public sign-up on `pulse`**: Dashboard → Authentication → Sign In / Providers → "Allow new users to sign up" = off. Live today: `disable_signup: false` | With the publishable key (public by design) anyone can register and receive a `patient` profile. I could not change it safely: the dashboard session had expired (not signing in on your behalf) and `supabase config push` would overwrite the whole remote auth config from a local file we do not have | **Ayoub** (2 minutes) | Must be done before seeding or sharing the URL | **P0** |
 | B17 | Exact row counts and `auth.users` count on `pulse` | Estimates say empty; confirm before seeding | Ayoub (SQL editor: `select count(*) from auth.users;`) or next CLI session | No | P3 |
 | B8 | Secrets distribution, out of band (never in git or chat logs): FastAPI gets `PULSE_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, JWT config; data/AI gets `DATABASE_URL` and the service-role key for seeding; frontend gets **nothing** | Least privilege | Ayoub | Phase 10 | P2 |
-| B9 | Seed generator reads the demo password from `PULSE_DEMO_PASSWORD`; generated `seed.sql` git-ignored | Known password must not be committed or pushed to a public project | Data/AI developer | Before seeding `pulse` | P2 |
+| B9 | ~~Seed password from env~~ **Resolved** on branch `AI` (`build_seed_sql(password)` from `PULSE_DEMO_PASSWORD`; `seed.sql` not committed) | — | — | No | — |
 | B10 | Hackathon clock: exact hours remaining and demo time | Decides cuts (plan §12) and the fallback trigger | Ayoub | Scope decision | P0 |
-| B11 | Frontend developer's feedback on the scaffold (structure, routing, styling, data fetching, types, flow, token storage, next screens, tooling, Claude Code use) | Structural adjustments to `web/` before they build on it | Frontend developer via Ayoub | Frontend only | P1 |
+| B11 | ~~Scaffold feedback~~ Superseded: the frontend developer built `frontend/` (inspected directly; gaps listed in reconciliation §4). Remaining: their confirmation of B19 | — | Frontend developer | No | P1 |
 | B12 | Verified emergency number (D3: 14 vs 1021) and the demo substitute number (a teammate's phone) | `GET /config/emergency`; never dial real numbers in tests | Ayoub + medical mentor | No (config value) | P2 |
 | B13 | Clinician review: thresholds (≥180/≥120), the 7 red flags vs the 13 recorded symptoms (severe_headache and confusion are not red flags in the current rule), plausibility limits, patient wording | Honest pitch; possible rule changes | Medical mentor | No | P2 |
 | B14 | Data/AI developer's ML artefacts once trained: `ml/MODEL_CARD.md`, `metadata.json`, test metrics with baselines | Doctor panel and pitch claims | Data/AI developer | Phase 7 demo content only | P2 |

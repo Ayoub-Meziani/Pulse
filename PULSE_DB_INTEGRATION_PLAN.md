@@ -1,0 +1,85 @@
+# Database integration plan (Workstream 2)
+
+Status: 2026-10-30. Implements phases 1–2 and the persistence side of phases 4–8 of `PULSE_BACKEND_IMPLEMENTATION_PLAN.md`, against the schema that is **VERIFIED identical** on branch `AI` and on the live project `pulse` (`PULSE_BRANCH_RECONCILIATION.md` §3).
+Branch: `feat/api-supabase`, from `feat/api-contract-v1`. Owner: Ayoub. No migration files are created on this branch.
+
+## 1. Table mappings (API ↔ database)
+
+| API object | Table(s) and columns | Mapping rules |
+|---|---|---|
+| `UserOut` | `auth.users.email`; `profiles.id, role, display_name, timezone` | `full_name = display_name`; role from `profiles` only |
+| Assignment check | `doctor_patient_assignments (doctor_id, patient_id, status='active')` | ended assignments give no access |
+| `CarePlanOut` / target | `care_plans` where `status='active'` (one per patient, unique index) | null targets or no plan → 140/90, `is_default=true` |
+| `MeasurementIn/Out` | `measurements` | insert `source='manual'`, `provenance='measured'`, `method='unknown'`, `unit='mmHg'`, `created_by=<user id>`, `measured_tz` default `profiles.timezone`; read back `validation_status`, `quality_flags`, `validation_policy_version`; `rested_5_min` = null until M3 |
+| `SymptomReportIn/Out` | `symptom_reports` (`source='patient_reported'`) | empty list → evaluate, do not insert, `report=null` (CHECK `cardinality>0`) until M3 |
+| `AlertOut/AlertBrief` | `alerts` | `level ↔ alert_class` (notice=`above_target`, trend=`above_target_trend` (M3), severe=`severely_high`, emergency=`possible_emergency`); `rule_id = rule_code`; `rule_version='pulse-rules-1'`; `trigger_source='rule_engine'`; `next_step = actions[0]`; `persistent` false until M3 |
+| Alert episode readings | `alert_measurements` (M3) | before M3: `AlertDetail.measurements` = the triggering reading only |
+| Transitions | `alerts.status` + `acknowledged_at/by`, `reviewed_at/by`, `resolved_at/by`, `resolution_note` | DB CHECKs require the matching timestamp per status |
+| `ProfileOut/In` | `profiles` + `patient_profiles` (`user_id`) | `birth_year` null until M3; `regular_doctor_name` via `profiles` of `regular_doctor_id` |
+| `TrustedContactIn/Out` | `trusted_contacts` | `consented_at = now()` when `contact_consented=true`; phone regex enforced by DB and Pydantic |
+| `EmergencyCardOut` | profiles, patient_profiles, first active contact by `consented_at`, latest non-invalid measurement | `age` from `birth_year` (M3) |
+| `EmergencyEvent*` | `emergency_events` | `trigger_reason` text; actions appended to `actions_attempted` jsonb as `{client_action_id, action, at, detail, confirmed:false}`; `location_lat/lon` only with `location_shared_with_consent=true` (DB CHECK) |
+| `NoteOut/In` | `doctor_notes` | patient reader gets `note=null` |
+| `JournalOut/In` | `journal_entries` | review sets `doctor_review_status`, `reviewed_by/at` |
+| `PredictionOut` | `ml_predictions` (M4) | missing table/row → `model_unavailable` |
+
+## 2. Authentication flow and JWT verification
+
+1. `POST /auth/login`: `httpx.post(f"{SUPABASE_URL}/auth/v1/token?grant_type=password", headers={"apikey": SUPABASE_ANON_KEY}, json={email, password})`. 400/401 from GoTrue → 401 `invalid_credentials`. Response `access_token`, `refresh_token`, `expires_at`; then load the profile → `SessionOut`.
+2. `POST /auth/refresh`: same endpoint, `grant_type=refresh_token`.
+3. Each request: `PyJWKClient(f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json")` (cached) → `jwt.decode(token, key, algorithms=["ES256"], audience="authenticated", issuer=f"{SUPABASE_URL}/auth/v1")`. Cloud project: ES256 (VERIFIED LIVE). Tests: a locally generated ES256 key pair, injected through settings (`jwks` override), so no GoTrue is needed in unit/integration tests.
+4. `sub` → `profiles` row; missing → 401 `invalid_token`. Role `admin` → 403 on patient data.
+5. Dependency: `PyJWT[crypto]` (adds `cryptography`) and `httpx` move to runtime dependencies.
+
+## 3. Database access and permissions
+
+| Item | Decision |
+|---|---|
+| Driver | `psycopg[binary]` 3 via SQLAlchemy 2 (`postgresql+psycopg://`) |
+| Cloud connection | Supavisor **session** pooler `aws-1-eu-west-3.pooler.supabase.com:5432`, user `postgres.nfmfdhpxipdndggxtqho` (the direct host has no IPv4 route from Ayoub's network: VERIFIED `Test-NetConnection` failed for `db.<ref>.supabase.co:5432`, pooler 5432/6543 reachable). Session mode avoids the prepared-statement problems of transaction mode (6543). |
+| Role | `postgres` (bypasses RLS) for the MVP; authorization in `permissions.py`. A dedicated least-privilege role is a post-MVP change (needs a migration by the data/AI developer). |
+| Per transaction | `select set_config('request.jwt.claims', :claims, true)` so `auth.uid()` in triggers (`audit`, `validate_measurement`) records the real user; `created_by` also set explicitly (`coalesce(auth.uid(), new.created_by)`, VERIFIED). |
+| Secrets | `PULSE_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` in local `.env` / host secrets only. No service-role key in the API. |
+
+## 4. Local and CI database for tests
+
+- Supabase CLI 2.54.11 `db start` fails on this Windows machine (container closes connections; VERIFIED). Their documented workaround is `npx supabase@2.122.0`.
+- **Chosen for backend tests:** plain container `public.ecr.aws/supabase/postgres:17.11.0.003` (same build as the live project; includes `auth.users`, `auth.uid()` and the `anon/authenticated/service_role` roles) + apply `supabase/migrations/*.sql` with `psql -v ON_ERROR_STOP=1`. VERIFIED to work in about one minute (`PULSE_BRANCH_RECONCILIATION.md` §3).
+- Script `scripts/test-db.sh` and `scripts/test-db.ps1` (Ayoub): start container on port 55432, apply migrations from the repo, print `PULSE_TEST_DATABASE_URL`. Requires the `AI` branch content in the working tree (merge `AI` first, or check out `supabase/migrations` from `origin/AI`).
+- Fixtures: insert `auth.users (id, email)` (the trigger creates `profiles`, same technique as the data/AI tests), then set roles/assignments as `postgres`; each test in a transaction rolled back at teardown; tokens minted with the test ES256 key.
+- CI: GitHub Actions service container with the same image; step applies migrations; then `pytest` for `api/tests`.
+
+## 5. What is kept, replaced or removed from the SQLite slice
+
+| Item | Fate |
+|---|---|
+| `analysis/rules.py`, `summary.py`, `texts.py`, `types.py` | **kept** (pure); already aligned to DB symptom codes on `feat/api-contract-v1` |
+| `analysis/validation.py` | **removed** in this workstream; DB trigger `pulse-v1` is authoritative |
+| Error format, `ApiError`, contract tests | kept |
+| Alert episode logic (create / attach / raise) from PR #1 `services/alerts.py` | **ported** to the DB `alerts` table (+ `alert_measurements` after M3) |
+| Doctor-list sorting, permissions semantics (patient own; doctor assigned, read-only on readings) | ported |
+| SQLAlchemy models, `create_all`, PBKDF2 passwords, own JWT, `seed.py` | replaced by mapped models of existing tables, Supabase Auth, data/AI seed + backend replay job |
+
+## 6. Required migrations and ownership (data/AI developer writes, Ayoub approves, data/AI applies)
+
+| Migration | Contents | Needed by |
+|---|---|---|
+| **M3 `backend_alignment`** | `alert_class` + `above_target_trend`; `alerts.persistent`; table `alert_measurements` (RLS read via `can_read_patient`, no client writes); `measurements.rested_5_min`; `symptom_reports` allow empty `symptoms`; `patient_profiles.birth_year smallint` (1900–2100, nullable; needed for age on the doctor list and the emergency card, requested by the frontend screens); `doctor_notes` patient visibility limited to `advice`, `follow_up_at`; explicit `REVOKE ALL ... FROM anon, authenticated` on new objects (live default privileges grant ALL) | Phases 4–5 (alerts, symptoms), profile age |
+| **M4 `ml_predictions`** | as in `PULSE_INTEGRATION_CONTRACTS.md` §3.1 | Phase 7 |
+
+Both as new files after `20261029120100`, never edits of applied files. Tests in their `tests/test_db.py`. Applied to `pulse` with `npx supabase@2.122.0 db push` by the data/AI developer after the PR is approved; each push recorded in `PULSE_SUPABASE_CHANGELOG.md`.
+
+## 7. Order of work on `feat/api-supabase` (each step tested and committed)
+
+1. Test DB scripts + `conftest.py` fixtures (auth users, roles, assignment, ES256 test key). Smoke test: migrations applied, profile trigger works.
+2. `db.py` (engine, session per request, claims setter) + mapped models (§1) + `vocab.py`.
+3. Auth: JWKS verification, `/auth/login` + `/auth/refresh` via GoTrue (mocked in tests), `/me`, `permissions.py` (A8 matrix tests).
+4. Measurements POST/GET with DB validation, `DATA-INVALID` handling, error-code mapping (23505/23514/23503).
+5. Rules wiring and alert persistence (create / attach / raise as far as possible before M3); symptom reports; alerts list/detail; transitions.
+6. Doctor list, summary, profile, trusted contacts, care-plan GET, emergency card.
+7. Emergency events (idempotent create, actions, patch, report), notes.
+8. Predictions endpoint (fixture rows until M4/ML).
+9. Replay job for seeded history; demo reset script.
+10. Run against `pulse` with the fictional seed (after sign-up is disabled).
+
+Acceptance: every contract test that returns 501 today returns the specified status; A1–A10 scenarios from the conception pass on the test DB; contract export unchanged unless a reviewed contract change.
