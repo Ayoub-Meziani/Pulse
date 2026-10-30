@@ -47,23 +47,31 @@ This writes `artifacts/mbp-v1/metadata.json` with the same split and metrics. Th
 # Model card: `ring-v1` (ring monitoring, advisory)
 **Status:** prototype; **synthetic ring data with invented coupling and injected, labelled episodes.** Its flags are advisory, for the doctor only. They never create alerts and are not the safety path.
 
-- **Inputs:** night windows (00:00–06:00 local) built from raw `wearable_samples` by the same code in training and serving (`ring.py`): heart-rate night median, HRV night median, SpO2 night minimum, skin-temperature night median.
+- **Inputs:** night windows (00:00–06:00 local) built from raw `wearable_samples` by the same code in training and serving (`ring.py`): night **medians** of heart rate, HRV, SpO2 and skin temperature. SpO2 uses the median because healthy sleepers dip (mean lowest saturation 90.4 %, Gries & Brooks 1996).
+- **Chronic conditions** (`condition_codes`, M8):
+  - COPD moves the SpO2 reference to 88 % (BTS).
+  - With atrial fibrillation, HRV and the multivariate score are skipped.
 - **Personal baseline:** median and MAD of the 28 days strictly before the night, at least 14 nights, doctor-confirmed anomaly windows excluded. A doctor-approved band overrides it.
 - **IsolationForest:** 100 trees, `contamination = 0.01` (a synthetic setting, tuned to the simulator's invented episode rate), fitted on all nights of the training patients' personal z-scores.
-- **Data:** `wearable_samples.csv`, 200 patients × 90 days (about 10 % of days not worn); 65 injected episodes (`hr_rise` +15 bpm, `spo2_dip` −5 %, `hrv_drop` −40 %, 1–3 nights). Patient-level split 140 / 30 / 30 (seed 7).
+- **Data:** `wearable_samples.csv`, 200 patients × 90 days (about 10 % of days not worn).
+  - Ring values are drawn from published figures (`docs/data/DATA_SOURCES.md`).
+  - Chronic conditions: diabetes 17.5 %, COPD 3.6 %, sleep apnea 30 % (assumption), atrial fibrillation 2 % (assumption).
+  - 67 injected episodes (`hr_rise` +15 bpm, `spo2_dip` −5 %, `hrv_drop` −40 %, 1–3 nights).
+  - Patient-level split 140 / 30 / 30 (seed 7).
 
-**Results on the 30 test patients (11 episodes), synthetic:**
+**Results on the 30 test patients (7 episodes), synthetic:**
 | method | episodes detected | night precision | false flags / patient-week |
 |---|---|---|---|
-| reference only (SpO2 < 94, resting HR > 100) | 3 / 11 (0.27) | 0.08 | 0.18 |
-| **personal baseline (robust z > 3.5)** | **10 / 11 (0.91)** | 0.17 | 0.22 |
-| IsolationForest | 2 / 11 (0.18) | 0.25 | 0.03 |
-| personal or IsolationForest | 10 / 11 (0.91) | 0.17 | 0.23 |
+| reference only (SpO2 < 94 or COPD < 88, resting HR > 100) | 2 / 7 (0.29) | 0.03 | 0.39 |
+| **personal baseline (robust z > 3.5)** | **6 / 7 (0.86)** | 0.11 | 0.26 |
+| IsolationForest | 3 / 7 (0.43) | 0.20 | 0.05 |
+| personal or IsolationForest | 6 / 7 (0.86) | 0.11 | 0.27 |
 
 **Reading:**
 - The personal baseline finds what population ranges miss.
-- IsolationForest adds little at this contamination setting.
-- 11 episodes is a small test set.
+- Reference-only flags now come mostly from sleep-apnea patients, whose night SpO2 is genuinely low. That's useful for the doctor, but it counts as "false" against the injected episodes.
+- IsolationForest is the most precise and the least sensitive.
+- 7 episodes is a small test set.
 - **The episode recall on injected episodes is the regression gate** for any retraining with doctor feedback: recall must not drop (review M5).
 
 **Limits:**
@@ -82,18 +90,20 @@ This writes `artifacts/mbp-v1/metadata.json` with the same split and metrics. Th
 
   | variant | validation AUROC |
   |---|---|
-  | logistic regression, BP only (**chosen**) | 0.9869 |
-  | logistic regression, BP + ring | 0.9867 |
-  | gradient boosting, BP + ring | 0.9865 |
-  | gradient boosting, BP only | 0.9863 |
+  | logistic regression, BP only (**chosen**) | 0.9921 |
+  | logistic regression, BP + ring | 0.9909 |
+  | gradient boosting, BP only | 0.9898 |
+  | gradient boosting, BP + ring | 0.9873 |
 
   **Ring features add nothing here.**
 - **Split:** patients 70 / 15 / 15 (seed 7); weeks 1,795 / 387 / 385.
 
 | test set (synthetic) | model AUROC | baseline "status persists" AUROC | model balanced acc. | baseline balanced acc. | model Brier | baseline Brier |
 |---|---|---|---|---|---|---|
-| all 385 weeks | **0.977** (0.949–0.992) | 0.907 (0.850–0.953) | 0.903 | 0.907 | **0.060** | 0.088 |
-| 34 weeks where the status changes | 0.097 | 0.000 | 0.176 | 0.000 | 0.485 | 1.000 |
+| all 385 weeks | **0.985** (0.962–0.997) | 0.927 (0.872–0.969) | 0.924 | 0.927 | **0.049** | 0.070 |
+| 27 weeks where the status changes | 0.022 | 0.000 | 0.071 | 0.000 | 0.542 | 1.000 |
+
+(Retrained 30 Oct after the ring data and synthetic targets were regenerated; same conclusions as the first run.)
 
 **Honest reading (review M7):**
 - The model is better ranked and better calibrated than "status persists" overall.
@@ -109,10 +119,10 @@ Same examples and same split as mbp-v1. Ring features: last night and 7-night me
 | test (synthetic), MAE mmHg | systolic | diastolic |
 |---|---|---|
 | v1 features (ridge) | 5.23 (5.00–5.48) | 3.31 (3.16–3.44) |
-| v2 features (ridge) | 5.20 (4.97–5.44) | 3.29 (3.14–3.43) |
+| v2 features (ridge) | 5.19 (4.96–5.43) | 3.28 (3.13–3.41) |
 
 - **Comparison:**
-  - v2 is ahead on validation by 0.04 mmHg, and the confidence intervals overlap completely.
+  - v2 is ahead on validation by 0.03 mmHg, and the confidence intervals overlap completely.
   - The simulator's ring↔BP coupling is invented, so any gain is by construction.
 - **Decision:** mbp-v1 stays served (contract §4); switching needs a real win and the backend's agreement.
 

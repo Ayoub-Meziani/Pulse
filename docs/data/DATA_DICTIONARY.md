@@ -31,7 +31,7 @@ One row per `auth.users` account, created by trigger.
 Patient-only (trigger-enforced). `relevant_conditions text[]`, `allergies`, `medication_context` (free text for the emergency card), `regular_doctor_id` → doctor profile, `regular_clinic`, `emergency_preferences jsonb`, `consent_location bool`, `data_consent_at`, `birth_year` (M5, year only, 1900–2100, patient-entered). No full date of birth (data minimisation).
 M6 adds:
 - `sex` (female / male) and `smoking_status` (never / former / current).
-- `condition_codes` (controlled list: hypertension, diabetes, dyslipidemia, chronic_kidney_disease, heart_disease, stroke_history, pregnancy).
+- `condition_codes` (controlled list: hypertension, diabetes, dyslipidemia, chronic_kidney_disease, heart_disease, stroke_history, pregnancy; M8 adds copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease). COPD and atrial fibrillation change how ring values are judged (ml/README.md).
 - Salt habits: `bread_portions_per_day` 0–20, plus `adds_salt_at_table` and `salty_processed_food` (never / rarely / sometimes / often / always).
 
 ### body_measurements (M6)

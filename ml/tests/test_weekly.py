@@ -22,7 +22,10 @@ def test_band_proposal_math():
     low, high = bands.propose(df, "heart_rate")
     assert low < 62 < high and high - low >= 2 * bands.FLOOR["heart_rate"] - 0.02   # bands are rounded to 0.01
     low, high = bands.propose(df, "spo2")
-    assert low >= 94                                  # never more permissive than the reference on the safety side
+    assert low >= 94 and high <= 100                  # never more permissive than the reference; SpO2 max 100 %
+    copd = df.assign(spo2=91 + rng.normal(0, 0.3, 20))
+    assert 88 <= bands.propose(copd, "spo2", ("copd",))[0] < 94    # COPD: BTS floor 88 %
+    assert bands.propose(df, "hrv_rmssd", ("atrial_fibrillation",)) is None   # HRV not interpretable with AF
     assert bands.propose(df.head(10), "heart_rate") is None   # < 14 nights: no proposal
 
 

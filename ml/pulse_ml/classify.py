@@ -33,7 +33,7 @@ FALLBACK_TARGET = (135, 85)          # ESH / ACC-AHA home threshold, see referen
 MIN_WEEK_READINGS = 3
 BP_FEATURES = ["mean_sys", "mean_dia", "n", "m_sys", "e_sys", "slope_sys", "sd_sys", "last3_sys",
                "gap_sys", "gap_dia", "above_now"]
-RING_FEATURES = ["ring_nights", "hr_night", "hrv_night", "spo2_night_min", "temp_night"]
+RING_FEATURES = ["ring_nights", "hr_night", "hrv_night", "spo2_night", "temp_night"]
 
 
 def week_examples(readings: pd.DataFrame, nights: pd.DataFrame | None, targets: dict) -> pd.DataFrame:
@@ -68,7 +68,7 @@ def week_examples(readings: pd.DataFrame, nights: pd.DataFrame | None, targets: 
     if nights is not None and len(nights):
         n = nights.assign(week=nights.night - pd.to_timedelta(nights.night.dt.day_of_week, unit="D"))
         agg = n.groupby(["patient", "week"]).agg(ring_nights=("night", "size"), hr_night=("heart_rate", "mean"),
-                                                 hrv_night=("hrv_rmssd", "mean"), spo2_night_min=("spo2", "mean"),
+                                                 hrv_night=("hrv_rmssd", "mean"), spo2_night=("spo2", "mean"),
                                                  temp_night=("skin_temperature", "mean")).reset_index()
         ex = ex.merge(agg, on=["patient", "week"], how="left")
     for c in RING_FEATURES:

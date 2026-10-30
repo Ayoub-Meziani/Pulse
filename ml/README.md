@@ -55,7 +55,7 @@ Built as required by the backend review (`PULSE_ML_phase2_review.pdf`). **Flags 
 | `..\.venv\Scripts\python -m pulse_ml.ring_train` | trains IsolationForest on synthetic personal z-scores, scores all methods on test patients → `artifacts/ring-v1/` |
 | `..\.venv\Scripts\python -m pulse_ml.monitor --nights` | night windows (00:00–06:00 local) of assigned patients: reference, personal baseline or approved band, IsolationForest |
 | `..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5` | live 10-minute windows; polls `wearable_samples` by `created_at` with a 5-minute overlap; never re-flags a window |
-| `..\.venv\Scripts\python -m pulse_data.stream --scenario spo2_dip --minutes 1` (repo root) | **simulated** live ring samples for Karim, Nadia, Fatima; refuses a cloud URL without `--i-confirmed-cloud` |
+| `..\.venv\Scripts\python -m pulse_data.stream --scenario spo2_dip --minutes 1` (repo root) | **simulated** live ring samples for every demo patient (scenario on Nadia by default); refuses a cloud URL without `--i-confirmed-cloud` |
 
 **Inputs:** `wearable_samples` of actively assigned patients, `patient_bands` (active), and doctor-confirmed flags (left out of the baseline).
 **Output:** rows in `wearable_flags`. Nothing else is written.
@@ -66,17 +66,26 @@ Built as required by the backend review (`PULSE_ML_phase2_review.pdf`). **Flags 
 | `personal_anomaly` | live_10min | outside an active `live_10min_median` band in 2 consecutive windows |
 | `multivariate_anomaly` | night | IsolationForest (`ring-v1`) on the 4 personal z-scores |
 
-Night statistic per metric: heart rate, HRV and skin temperature use the night median; SpO2 uses the night minimum (6 samples per night).
+Night statistic: the night **median** for every metric. For SpO2 (6 samples per night) the median avoids flagging the normal dips of healthy sleepers (mean lowest saturation 90.4 %, Gries & Brooks 1996).
 
 **Backend to build:**
 - doctor flag review (`review_status`, `reviewed_by` = the doctor, `reviewed_at`, `review_note`)
 - band approval through `private.approve_band(band_id, doctor_id, low, high)`
 - rule R-RING-1 on raw samples
 
-**Local demo (verified 30 Oct 2026):**
-1. `monitor --nights`: 7 flags, including Karim's seeded heart-rate rise as `personal_anomaly` on the 2 episode nights.
-2. `monitor --follow` + `stream --scenario spo2_dip --patient cohort_1 --minutes 1`: a live `outside_reference` SpO2 flag for Fatima about 10 s after the stream starts, and for no one else.
-3. Known limitation: Fatima also gets night SpO2 `outside_reference` flags from the population reference alone. The doctor-approved personal band handles exactly this.
+**Chronic conditions** (`patient_profiles.condition_codes`) change the rules:
+- **COPD:** the SpO2 limit is 88 % (BTS) and band proposals use the COPD range.
+- **Atrial fibrillation:** HRV is never flagged and the multivariate score is skipped.
+- **Sleep apnea:** it is not a rule change; low night SpO2 is flagged for the doctor.
+
+**Local demo (verified 30 Oct 2026; every demo patient has a simulated ring, 28 days):**
+1. **`monitor --nights`:** 34 flags.
+   - Karim's seeded heart-rate rise is caught as `personal_anomaly` on its 2 nights.
+   - Karim and Samir (sleep apnea) get low night SpO2 flags.
+   - Fatima (COPD, night SpO2 about 92 %) gets **no** SpO2 flag: her limit is 88 %. Before the COPD rule she had 5 false flags.
+   - Houria (atrial fibrillation) gets no HRV flag.
+2. **`monitor --follow` + `stream --scenario spo2_dip --minutes 1`** (default patient Nadia): a live `outside_reference` SpO2 flag for Nadia within about 10 s.
+3. **`weekly`:** 11 reports and 43 band proposals; Fatima's proposed SpO2 band is 89.8–92.8 %, waiting for the doctor.
 
 ## Training commands (all from `ml/`, synthetic data from `python -m pulse_data.simulate csv` at the repo root)
 | Command | Model | Time |

@@ -42,6 +42,19 @@ World context, for the pitch (not used to generate values): WHO estimates about 
 
 Ring values come from a separate random generator per patient, so the BP files are byte-identical to before (`tests/test_simulate_stability.py`). The coupling to blood pressure is **invented**: night heart rate +0.25 bpm and HRV −0.3 ms per mmHg of the latent BP effect. The demo seed holds 28 days of ring data for Karim, Nadia and Fatima; Karim has a simulated night heart-rate rise 3 and 2 days before seeding.
 
+### Demo ring data built from published values (no ring device; every value is SIMULATED)
+| Simulated value | Based on |
+|---|---|
+| Personal resting heart rate ~ 65 ± 7 bpm between people, ~3 bpm night-to-night | [Quer et al., PLOS ONE 2020](https://pubmed.ncbi.nlm.nih.gov/32023264/): 92,457 wearable users, mean 65 bpm, individual values 40–109, typical within-person change ~3 bpm (the ± 7 SD is an assumption consistent with that range) |
+| Healthy night SpO2 ~ 96.5 % with one dip of 3–5 % on about half the nights | [Gries & Brooks, Chest 1996](https://doi.org/10.1378/chest.110.6.1489): mean **lowest** sleep saturation 90.4 ± 3.1 % in healthy subjects. This is why the SpO2 check uses the **night median**, not the minimum |
+| COPD: personal SpO2 4 points lower; reference limit 88 % | BTS 2017: target 88–92 % for patients at risk of hypercapnic failure; COPD prevalence in MENA adults ≥ 40: 3.6 % (5.2 % men, 1.8 % women) ([BREATHE, Tageldin 2012](https://acikerisim.uludag.edu.tr/items/8a2292dc-9dd8-48f2-9331-380deecd41da/full)) |
+| Obstructive sleep apnea: 2–4 desaturations of 4–9 % per night, night HR +3 | OSA in 83.5 % of resistant-hypertension patients, desaturation ≥ 4 % linked to resistant hypertension ([multicenter cohort, 284 patients](https://pmc.ncbi.nlm.nih.gov/articles/PMC6513347)). The 30 % OSA rate in the cohort is an **assumption** |
+| Type 2 diabetes: RMSSD ~0.92 SD lower | [HRV in T2DM meta-analysis, PLoS ONE 2018](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5880391/) |
+| Atrial fibrillation: noisy heart rate, RMSSD not interpretable | Irregular pulse on wrist PPG ([Apple Heart Study](https://acc.org/Latest-in-Cardiology/Articles/2019/03/08/15/32/sat-9am-apple-heart-study-acc-2019): notifications 0.5 % overall, > 3 % over 65); AF rates in the cohort are **assumptions** |
+| HRV ~ 34 ± 9 ms, skin temperature ~ 34 °C | **assumptions** (no verified population figure retrieved) |
+
+**Demo stories:** Karim has sleep apnea, Fatima COPD and Houria atrial fibrillation. The other cohort patients draw conditions from the rates above. Every demo patient wears a simulated ring (28 days).
+
 ### Medical reference values (`ml/pulse_ml/reference.py`, pending clinician review)
 | Value | Source |
 |---|---|

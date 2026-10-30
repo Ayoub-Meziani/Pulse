@@ -24,101 +24,101 @@
     "test_weeks": 385
   },
   "validation_auroc": {
-    "logistic_regression:bp_only": 0.9869,
-    "hist_gradient_boosting:bp_only": 0.9863,
-    "logistic_regression:bp_and_ring": 0.9867,
-    "hist_gradient_boosting:bp_and_ring": 0.9865
+    "logistic_regression:bp_only": 0.9921,
+    "hist_gradient_boosting:bp_only": 0.9898,
+    "logistic_regression:bp_and_ring": 0.9909,
+    "hist_gradient_boosting:bp_and_ring": 0.9873
   },
   "test": {
     "model": {
       "n": 385,
-      "positives": 237,
-      "brier": 0.0602,
-      "balanced_accuracy": 0.903,
+      "positives": 236,
+      "brier": 0.0489,
+      "balanced_accuracy": 0.924,
       "confusion_matrix [[tn, fp], [fn, tp]]": [
         [
-          128,
-          20
+          134,
+          15
         ],
         [
-          14,
-          223
+          12,
+          224
         ]
       ],
-      "auroc": 0.977,
+      "auroc": 0.985,
       "auroc_ci95": [
-        0.949,
-        0.992
+        0.962,
+        0.997
       ],
       "balanced_accuracy_ci95": [
-        0.848,
-        0.949
+        0.867,
+        0.968
       ]
     },
     "baseline_status_persists": {
       "n": 385,
-      "positives": 237,
-      "brier": 0.0883,
-      "balanced_accuracy": 0.907,
+      "positives": 236,
+      "brier": 0.0701,
+      "balanced_accuracy": 0.927,
       "confusion_matrix [[tn, fp], [fn, tp]]": [
         [
-          131,
-          17
+          136,
+          13
         ],
         [
-          17,
-          220
+          14,
+          222
         ]
       ],
-      "auroc": 0.907,
+      "auroc": 0.927,
       "auroc_ci95": [
-        0.85,
-        0.953
+        0.872,
+        0.969
       ],
       "balanced_accuracy_ci95": [
-        0.85,
-        0.953
+        0.872,
+        0.969
       ]
     }
   },
   "test_status_changes_only": {
     "model": {
-      "n": 34,
-      "positives": 17,
-      "brier": 0.4848,
-      "balanced_accuracy": 0.176,
+      "n": 27,
+      "positives": 14,
+      "brier": 0.5424,
+      "balanced_accuracy": 0.071,
       "confusion_matrix [[tn, fp], [fn, tp]]": [
         [
-          3,
-          14
+          0,
+          13
         ],
         [
-          14,
-          3
+          12,
+          2
         ]
       ],
-      "auroc": 0.097,
+      "auroc": 0.022,
       "auroc_ci95": [
-        0.015,
-        0.179
+        0.0,
+        0.062
       ],
       "balanced_accuracy_ci95": [
-        0.053,
-        0.281
+        0.0,
+        0.188
       ]
     },
     "baseline_status_persists": {
-      "n": 34,
-      "positives": 17,
+      "n": 27,
+      "positives": 14,
       "brier": 1.0,
       "balanced_accuracy": 0.0,
       "confusion_matrix [[tn, fp], [fn, tp]]": [
         [
           0,
-          17
+          13
         ],
         [
-          17,
+          14,
           0
         ]
       ],
@@ -134,5 +134,5 @@
     }
   },
   "limitations": "Synthetic data; ring features carry an invented coupling. Shown to the doctor as a probability with its limits; never an alert, never a treatment suggestion.",
-  "trained_at": "2026-10-30T05:24:59+00:00"
+  "trained_at": "2026-10-30T06:02:28+00:00"
 }

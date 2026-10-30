@@ -12,7 +12,8 @@ from pulse_data import simulate
 FINGERPRINTS = {
     "readings.csv": "5f16e5d9a5f57675e4b9767729a6e07cc095370ab0cfb8106941fed89cc4c734",
     "daily_context.csv": "9e330b0f3a62699211da9ad8c4abbc0fd451947b8a33d4f4590f214ed850a835",
-    "seed_without_wearable_samples": "687e5615367a397d2aa1fbce5fb9f5efb14c070eec56115ccb2d18c6a0de8453",
+    # BP readings of the demo seed (the measurements insert). Profiles, devices and ring rows may change.
+    "seed_measurements": "fc9bc7976c9da7c49d1ec3781bebca0596027a3c753293afb1ecb38b2fe1724d",
 }
 
 
@@ -38,15 +39,42 @@ def test_ring_samples_pass_the_table_checks():
     allowed = {"heart_rate": ("bpm", 25, 250), "hrv_rmssd": ("ms", 1, 300), "spo2": ("percent", 50, 100),
                "skin_temperature": ("celsius", 20, 45)}
     rng = random.Random(0)
-    rp = simulate.ring_profile(rng)
-    for episode in (None, *simulate.RING_EPISODES):
-        for metric, value, unit, minute in simulate.ring_day_samples(rng, rp, effect=25.0, episode=episode):
-            u, lo, hi = allowed[metric]
-            assert unit == u and lo <= value <= hi and 0 <= minute < 1440
+    for conditions in ((), ("copd",), ("obstructive_sleep_apnea",), ("atrial_fibrillation", "diabetes")):
+        rp = simulate.ring_profile(rng, conditions)
+        for episode in (None, *simulate.RING_EPISODES):
+            for metric, value, unit, minute in simulate.ring_day_samples(rng, rp, effect=25.0, episode=episode):
+                u, lo, hi = allowed[metric]
+                assert unit == u and lo <= value <= hi and 0 <= minute < 1440
     assert len(simulate.wearable_rows()) == len(simulate.WEARABLE_KEYS) * simulate.SEED_RING_DAYS * 62
 
 
-def test_seed_unchanged_except_ring_samples(monkeypatch):
+def test_cloud_ring_refresh_only_touches_simulated_demo_rings():
+    script = simulate.cloud_ring_demo_sql()
+    deletes = [line for line in script.splitlines() if line.startswith("delete")]
+    assert script.startswith("--") and "do $ring_demo$ begin" in script and script.endswith("end $ring_demo$;\n")
+    assert deletes == [deletes[0]] and "source = 'simulated'" in deletes[0] and "public.wearable_samples" in deletes[0]
+    assert all(simulate.demo_id(k + ":ring") in deletes[0] for k in simulate.WEARABLE_KEYS)
+    assert "insert into public.measurements" not in script and "on conflict (id) do nothing" in script
+
+
+def test_chronic_conditions_shape_the_ring_values():
+    import random
+    import statistics
+    def nights(conditions, n=60):
+        rng = random.Random(1)
+        rp = simulate.ring_profile(random.Random(2), conditions)
+        days = [simulate.ring_day_samples(rng, rp, 0.0) for _ in range(n)]
+        return [[v for m, v, _, _ in d if m == "spo2"] for d in days], rp
+    healthy, rp = nights(())
+    copd, rp_copd = nights(("copd",))
+    osa, _ = nights(("obstructive_sleep_apnea",))
+    assert rp_copd.spo2 == rp.spo2 - 4                          # COPD: lower personal SpO2, same person otherwise
+    dips = lambda ns, base: statistics.mean(sum(v < base - 4 for v in n) for n in ns)  # noqa: E731
+    assert dips(osa, rp.spo2) >= 2 > dips(healthy, rp.spo2)     # sleep apnea: repeated >= 4 % desaturations
+    assert simulate.ring_profile(random.Random(2), ("diabetes",)).hrv < rp.hrv   # lower HRV with diabetes
+
+
+def test_seed_bp_readings_unchanged(monkeypatch):
     monkeypatch.setattr(simulate, "date", FixedDate)
-    sql = re.sub(r"insert into public\.wearable_samples .*?;\n\n", "", simulate.build_seed_sql("test-only"), flags=re.S)
-    assert sha(sql.encode()) == FINGERPRINTS["seed_without_wearable_samples"]
+    block = re.search(r"insert into public\.measurements .*?;\n\n", simulate.build_seed_sql("test-only"), flags=re.S)
+    assert sha(block.group(0).encode()) == FINGERPRINTS["seed_measurements"]

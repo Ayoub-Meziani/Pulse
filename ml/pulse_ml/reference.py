@@ -62,10 +62,37 @@ R_RING_1 = {
 }
 
 
-def outside_reference(metric: str, value: float) -> bool:
-    """Only the clinically meaningful side is flagged: heart rate too high (a low resting rate is often
-    normal in fit people), SpO2 too low."""
+# Chronic conditions (patient_profiles.condition_codes, M8) that change what "normal" means for a ring value.
+CONDITION_ADJUSTMENTS = {
+    "copd": {"spo2": {
+        "low": 88,
+        "source": "BTS 2017 oxygen guideline: target 88-92 % for patients at risk of hypercapnic respiratory failure "
+                  "(e.g. COPD); https://www.brit-thoracic.org.uk/quality-improvement/guidelines/emergency-oxygen",
+        "limits": "Not every COPD patient has this risk: the doctor confirms by approving the patient's SpO2 band."}},
+}
+# Atrial fibrillation: beat-to-beat intervals are irregular, so a ring's HRV (RMSSD) says nothing about stress or
+# recovery, and wrist / finger PPG may report an irregular pulse instead (Apple Heart Study, 2019).
+NOT_INTERPRETABLE = {"atrial_fibrillation": ("hrv_rmssd",)}
+
+
+def reference_for(metric: str, conditions=()) -> dict | None:
     ref = RING_REFERENCE.get(metric)
     if ref is None:
+        return None
+    for c in conditions:
+        if metric in CONDITION_ADJUSTMENTS.get(c, {}):
+            ref = {**ref, **CONDITION_ADJUSTMENTS[c][metric]}
+    return ref
+
+
+def interpretable(metric: str, conditions=()) -> bool:
+    return not any(metric in NOT_INTERPRETABLE.get(c, ()) for c in conditions)
+
+
+def outside_reference(metric: str, value: float, conditions=()) -> bool:
+    """Only the clinically meaningful side is flagged: heart rate too high (a low resting rate is often
+    normal in fit people), SpO2 too low. Chronic conditions can move the limit (COPD) or remove it (AF / HRV)."""
+    ref = reference_for(metric, conditions)
+    if ref is None or not interpretable(metric, conditions):
         return False
     return ("low" in ref["flag_sides"] and value < ref["low"]) or ("high" in ref["flag_sides"] and value > ref["high"])

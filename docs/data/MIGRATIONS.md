@@ -16,6 +16,8 @@ Cloud project: `pulse` (ref `nfmfdhpxipdndggxtqho`).
 
 | M7 | `20261030150000_ml_monitoring.sql` | `wearable_flags`, `patient_bands` (+ `private.approve_band`), `weekly_reports`, `wearable_samples(created_at)` index | applied | applied 30 Oct after approval (review M9 gate). Verified: 24 tables, RLS on all, 52 policies, 0 anon grants, `approve_band` + 3 audit triggers present, logged-out REST refused (42501) | endpoints for weekly reports, band approval, flag review (see ml/README.md) |
 
+| M8 | `20261030160000_chronic_conditions.sql` | `condition_codes` list adds copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease | applied | **NOT applied: needs approval** (review M9 gate) | profile screens may offer the new codes; additive only |
+
 **Note for the backend:** the data/AI owner chose to apply M5 and M6 to the cloud before your review, so the demo data could include them. Every change is additive (new nullable columns, a widened category list, two new tables). No existing column, constraint meaning or policy changed for current API behaviour. If you want something reverted, it will be a new migration (M7), never an edit.
 
 Check any environment with `npx supabase@2.122.0 migration list --linked` (cloud) or `--local`.
@@ -87,6 +89,18 @@ Everything in M7 is **advisory**: no safety rule reads these tables (review H6).
 
 **Visibility decision (review M4):** patients do **not** see bands, flags or reports until the backend owner and a clinician decide what a patient should see. Recorded 30 Oct 2026.
 **Cloud gate (review M9):** M7 and any cloud write (ring re-seed, live stream) need backend review **and** the user's confirmation.
+
+## M8 `chronic_conditions` + ring demo refresh
+- **M8:** widens `patient_profiles.condition_codes` only. The ML jobs read the codes:
+  - **COPD:** the SpO2 reference becomes 88 % (BTS).
+  - **Atrial fibrillation:** HRV is never flagged, and the multivariate score is skipped.
+  - **Band proposals** follow the same rules.
+- **Cloud ring demo refresh:** `python -m pulse_data.simulate ring-demo-sql` writes `data/cloud_ring_demo.sql` (git-ignored). It's one atomic `DO` block that:
+  - deletes **only** `source = 'simulated'` samples of the demo ring devices
+  - sets the demo patients' condition codes
+  - adds a simulated ring for every demo patient (`on conflict do nothing`)
+  - inserts 28 days of samples dated relative to `now()`
+- **Run with:** `npx supabase@2.122.0 db query --linked -f data/cloud_ring_demo.sql`, after M8. It's idempotent; tested on the local stack (a non-simulated sample survives; BP readings untouched).
 
 ## How to add a migration
 1. New file `supabase/migrations/<UTC timestamp>_<name>.sql`. Never edit an applied one.

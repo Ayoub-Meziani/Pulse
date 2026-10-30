@@ -108,7 +108,8 @@ def ring_part(conn, patient: str, tz: str, start: datetime, end: datetime) -> tu
     for m in ring.METRICS:
         if len(week) and week[m].notna().any():
             part[f"{m}_{ring.NIGHT_STAT[m]}"] = round(float(week[m].median()), 2)
-    return part, bands.propose_for_patient(nights), nights
+    codes = conn.execute("select condition_codes from public.patient_profiles where user_id = %s", (patient,)).fetchone()
+    return part, bands.propose_for_patient(nights, tuple(codes[0]) if codes and codes[0] else ()), nights
 
 
 def run(conn, week: date | None = None) -> dict:

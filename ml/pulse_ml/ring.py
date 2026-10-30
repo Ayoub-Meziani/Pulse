@@ -18,8 +18,10 @@ LIVE_MINUTES = 10
 BASELINE_DAYS, MIN_BASELINE_NIGHTS = 28, 14
 Z_LIMIT = 3.5
 MIN_LIVE_SAMPLES = 2
-# The night statistic compared with personal bands, per metric [review M8].
-NIGHT_STAT = {"heart_rate": "night_median", "hrv_rmssd": "night_median", "spo2": "night_min",
+# The night statistic compared with references and personal bands, per metric [review M8]. SpO2 uses the night
+# MEDIAN: healthy sleepers normally dip (mean lowest saturation 90.4 %, Gries & Brooks 1996), so the night minimum
+# would flag healthy people against the 94 % reference.
+NIGHT_STAT = {"heart_rate": "night_median", "hrv_rmssd": "night_median", "spo2": "night_median",
               "skin_temperature": "night_median"}
 MODEL_VERSION = "ring-v1"
 
@@ -47,14 +49,14 @@ def from_db(rows: list[tuple], tz_by_patient: dict[str, str]) -> pd.DataFrame:
     df["patient"] = df.patient.astype(str)
     utc = pd.to_datetime(df.measured_at, utc=True)
     return _frame(df.patient, df.metric, pd.to_numeric(df.value), utc,
-                  df.patient.map(tz_by_patient).fillna("Africa/Algiers"))
+                  df.patient.map(lambda p: tz_by_patient.get(p, "Africa/Algiers")))
 
 
 # ---------------------------------------------------------------- night windows (baselines, weekly, multivariate)
 
 def night_table(samples: pd.DataFrame) -> pd.DataFrame:
-    """One row per patient-night: heart rate / HRV / skin temperature night median, SpO2 night minimum
-    (several samples per night), plus sample counts."""
+    """One row per patient-night: the NIGHT_STAT of each metric (night medians; several SpO2 samples per night),
+    plus sample counts."""
     s = samples[(samples.local.dt.hour >= NIGHT_HOURS[0]) & (samples.local.dt.hour < NIGHT_HOURS[1])]
     s = s.assign(night=s.local.dt.normalize())
     g = s.groupby(["patient", "night", "metric"]).value
@@ -106,26 +108,29 @@ def _flag(patient, metric, kind, window_kind, start: pd.Timestamp, end: pd.Times
 
 
 def night_flags(zdf: pd.DataFrame, bands: dict | None = None, k: float = Z_LIMIT,
-                iforest=None, tz_by_patient: dict | None = None) -> list[dict]:
+                iforest=None, tz_by_patient: dict | None = None, conditions: dict | None = None) -> list[dict]:
     """Advisory flags for night windows. A doctor-approved band (bands[(patient, metric, statistic)] =
-    (id, low, high)) always overrides the learned baseline."""
-    bands, tz_by_patient = bands or {}, tz_by_patient or {}
+    (id, low, high)) always overrides the learned baseline. conditions[patient] = chronic condition codes:
+    they move references (COPD) or make a metric not interpretable (AF: HRV, and so the multivariate score)."""
+    bands, tz_by_patient, conditions = bands or {}, tz_by_patient or {}, conditions or {}
     flags = []
     zcols = [f"z_{m}" for m in METRICS]
     scores = None
     if iforest is not None:
-        complete = zdf[zcols].notna().all(axis=1)
+        all_ok = zdf.patient.map(lambda p: all(reference.interpretable(m, conditions.get(p, ())) for m in METRICS))
+        complete = zdf[zcols].notna().all(axis=1) & all_ok
         scores = pd.Series(np.nan, index=zdf.index)
         if complete.any():
             scores[complete] = -iforest.score_samples(zdf.loc[complete, zcols].to_numpy())
     for i, row in zdf.iterrows():
         start = pd.Timestamp(row.night).tz_localize(tz_by_patient.get(row.patient, "Africa/Algiers"))
         end = start + pd.Timedelta(hours=NIGHT_HOURS[1])
+        conds = conditions.get(row.patient, ())
         for m in METRICS:
             v = row[m]
-            if pd.isna(v):
+            if pd.isna(v) or not reference.interpretable(m, conds):
                 continue
-            if reference.outside_reference(m, v):
+            if reference.outside_reference(m, v, conds):
                 flags.append(_flag(row.patient, m, "outside_reference", "night", start, end, v, None, f"reference:{m}"))
             band = bands.get((row.patient, m, NIGHT_STAT[m]))
             if band is not None:
@@ -148,18 +153,21 @@ def live_buckets(samples: pd.DataFrame) -> pd.DataFrame:
     return s.groupby(["patient", "metric", "bucket"]).value.agg(["median", "count"]).reset_index()
 
 
-def live_flags(buckets: pd.DataFrame, bands: dict | None = None) -> list[dict]:
-    """outside_reference: bucket median outside the reference with >= 2 samples.
+def live_flags(buckets: pd.DataFrame, bands: dict | None = None, conditions: dict | None = None) -> list[dict]:
+    """outside_reference: bucket median outside the (condition-aware) reference with >= 2 samples.
     personal_anomaly: outside an active live band in 2 consecutive buckets (sustained)."""
-    bands = bands or {}
+    bands, conditions = bands or {}, conditions or {}
     flags = []
     ok = buckets[buckets["count"] >= MIN_LIVE_SAMPLES].sort_values("bucket")
     for (patient, metric), g in ok.groupby(["patient", "metric"]):
+        conds = conditions.get(patient, ())
+        if not reference.interpretable(metric, conds):
+            continue
         band = bands.get((patient, metric, "live_10min_median"))
         prev_out = None
         for _, r in g.iterrows():
             end = r.bucket + pd.Timedelta(minutes=LIVE_MINUTES)
-            if reference.outside_reference(metric, r["median"]):
+            if reference.outside_reference(metric, r["median"], conds):
                 flags.append(_flag(patient, metric, "outside_reference", "live_10min", r.bucket, end, r["median"],
                                    None, f"reference:{metric}"))
             out = band is not None and not band[1] <= r["median"] <= band[2]

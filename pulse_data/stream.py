@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 import psycopg
 
 from .ingest import LOCAL_DB
-from .simulate import GENERATOR_VERSION, PATIENTS, WEARABLE_KEYS, demo_id, ring_profile
+from .simulate import GENERATOR_VERSION, PATIENTS, WEARABLE_KEYS, demo_id, ring_profile, risk_factors
 
 SCENARIOS = {"spo2_dip": ("spo2", -7.0), "hr_rise": ("heart_rate", 40.0)}
 INSERT = ("insert into public.wearable_samples (patient_id, device_id, metric, value, unit, measured_at, source,"
@@ -29,12 +29,13 @@ INSERT = ("insert into public.wearable_samples (patient_id, device_id, metric, v
 def tick_rows(rng: random.Random, scenario: str | None, scenario_key: str) -> list[tuple]:
     rows = []
     for key in WEARABLE_KEYS:
-        rp = ring_profile(random.Random(f"{GENERATOR_VERSION}:{key}:ring"))  # same personal values as the seed
-        hr, spo2 = rng.gauss(rp.hr + 12, 4), min(100.0, rng.gauss(rp.spo2, 0.6))
+        user = next(p for p in PATIENTS if p.key == key)
+        rp = ring_profile(random.Random(f"{GENERATOR_VERSION}:{key}:ring"),
+                          risk_factors(user)["codes"])  # same personal values (and chronic conditions) as the seed
+        hr, spo2 = rng.gauss(rp.hr + 12, 10 if rp.af else 4), min(100.0, rng.gauss(rp.spo2, 0.6))
         if scenario and key == scenario_key:
             metric, shift = SCENARIOS[scenario]
             hr, spo2 = (hr + shift, spo2) if metric == "heart_rate" else (hr, spo2 + shift)
-        user = next(p for p in PATIENTS if p.key == key)
         device = demo_id(key + ":ring")
         rows += [(user.id, device, "heart_rate", round(hr), "bpm", f"live-{uuid.uuid4().hex[:16]}"),
                  (user.id, device, "spo2", round(spo2, 1), "percent", f"live-{uuid.uuid4().hex[:16]}")]
@@ -46,7 +47,8 @@ def main() -> None:
     ap.add_argument("--interval", type=float, default=5.0)
     ap.add_argument("--minutes", type=float, default=3.0)
     ap.add_argument("--scenario", choices=sorted(SCENARIOS))
-    ap.add_argument("--patient", default="cohort_1", choices=WEARABLE_KEYS, help="who gets the scenario")
+    ap.add_argument("--patient", default="severe_event", choices=WEARABLE_KEYS,
+                    help="who gets the scenario (default Nadia; Fatima has COPD, so her SpO2 limit is 88 %%)")
     ap.add_argument("--i-confirmed-cloud", action="store_true")
     a = ap.parse_args()
     url = os.environ.get("DATABASE_URL", LOCAL_DB)

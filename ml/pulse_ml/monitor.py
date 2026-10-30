@@ -38,6 +38,12 @@ def assigned(conn) -> dict[str, str]:
     return dict(conn.execute(PATIENTS).fetchall())
 
 
+def patient_conditions(conn, patients) -> dict[str, tuple]:
+    rows = conn.execute("select user_id::text, condition_codes from public.patient_profiles"
+                        " where user_id = any(%s::uuid[])", (list(patients),)).fetchall()
+    return {p: tuple(c or ()) for p, c in rows}
+
+
 def active_bands(conn) -> dict:
     rows = conn.execute("select patient_id::text, metric, statistic, id::text, low, high from public.patient_bands"
                         " where status = 'active'").fetchall()
@@ -71,7 +77,8 @@ def run_nights(conn, forest=None, days: int = 35) -> int:
         return 0
     nights = ring.night_table(ring.from_db(rows, tz))
     zdf = ring.personal_z(nights, ring.baselines(nights, confirmed_nights(conn, tz))).reset_index(drop=True)
-    return insert_flags(conn, ring.night_flags(zdf, active_bands(conn), iforest=forest, tz_by_patient=tz))
+    return insert_flags(conn, ring.night_flags(zdf, active_bands(conn), iforest=forest, tz_by_patient=tz,
+                                               conditions=patient_conditions(conn, tz)))
 
 
 def poll_once(conn, watermark: datetime) -> tuple[datetime, int]:
@@ -87,7 +94,8 @@ def poll_once(conn, watermark: datetime) -> tuple[datetime, int]:
     rows = conn.execute("select patient_id::text, metric, value, measured_at from public.wearable_samples"
                         " where patient_id = any(%s::uuid[]) and measured_at >= %s",
                         (sorted({p for p, _, _ in new}), start)).fetchall()
-    flags = ring.live_flags(ring.live_buckets(ring.from_db(rows, tz)), active_bands(conn))
+    flags = ring.live_flags(ring.live_buckets(ring.from_db(rows, tz)), active_bands(conn),
+                            patient_conditions(conn, {p for p, _, _ in new}))
     return max(watermark, max(c for _, _, c in new)), insert_flags(conn, flags)
 
 

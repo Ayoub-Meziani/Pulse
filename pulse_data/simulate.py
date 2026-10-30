@@ -105,6 +105,19 @@ def simulate_patient(rng: random.Random, p: Profile, days: int, entry_error_prob
 
 RING_EPISODES = ("hr_rise", "spo2_dip", "hrv_drop")  # injected, labelled anomalies (simulated)
 
+# Demo ring values, chosen from published wearable / clinical figures (docs/data/DATA_SOURCES.md). No real
+# ring was used: every value below is SIMULATED.
+#   resting HR: mean ~65 bpm across 92,457 wearable users, typical within-person change ~3 bpm (Quer 2020)
+#   night SpO2: healthy sleepers dip; mean lowest saturation 90.4 % (Gries & Brooks, Chest 1996)
+#   COPD: SpO2 target 88-92 % if at risk of hypercapnic failure (BTS 2017) -> lower personal SpO2
+#   obstructive sleep apnea: repeated desaturations of >= 4 % at night (AASM scoring)
+#   type 2 diabetes: RMSSD ~0.92 SD lower than controls (PLoS ONE 2018 meta-analysis)
+#   atrial fibrillation: irregular pulse on wrist PPG (Apple Heart Study 2019): noisy HR, meaningless RMSSD
+RING_HR = (65.0, 7.0)          # between-person mean / SD (SD is an assumption consistent with Quer's 40-109 range)
+RING_HRV = (34.0, 9.0)         # between-person RMSSD mean / SD, ms (assumption)
+RING_SPO2 = (96.5, 0.8)        # healthy personal night SpO2 (assumption); COPD shifts it down
+CHRONIC_RING_CODES = ("copd", "obstructive_sleep_apnea", "atrial_fibrillation", "diabetes")
+
 
 @dataclass(frozen=True)
 class RingProfile:
@@ -112,25 +125,42 @@ class RingProfile:
     hrv: float    # personal night RMSSD, ms
     spo2: float   # personal night SpO2, %
     temp: float   # personal night skin temperature, °C
+    osa: bool = False
+    af: bool = False
 
 
-def ring_profile(rng: random.Random) -> RingProfile:
-    return RingProfile(rng.gauss(66, 6), max(12.0, rng.gauss(34, 9)), min(98.5, rng.gauss(96.8, 0.8)), rng.gauss(34.0, 0.4))
+def ring_profile(rng: random.Random, conditions=()) -> RingProfile:
+    """Personal ring normal; chronic conditions shift it (no extra random draws, so it stays reproducible)."""
+    hr, hrv = rng.gauss(*RING_HR), rng.gauss(*RING_HRV)
+    spo2, temp = min(98.5, rng.gauss(*RING_SPO2)), rng.gauss(34.0, 0.4)
+    if "diabetes" in conditions:
+        hrv -= 0.92 * RING_HRV[1]
+    if "copd" in conditions:
+        spo2 -= 4.0
+    return RingProfile(hr, max(12.0, hrv), spo2, temp, "obstructive_sleep_apnea" in conditions,
+                       "atrial_fibrillation" in conditions)
 
 
 def ring_day_samples(rng: random.Random, rp: RingProfile, effect: float,
                      episode: str | None = None) -> list[tuple[str, float, str, int]]:
     """One local day: (metric, value, unit, minute after local midnight).
-    Heart rate every 10 min at night (00:00-06:00) and hourly by day; 6 SpO2 samples per night;
-    nightly HRV and skin temperature. INVENTED coupling, for pipeline testing only: night heart rate
-    +0.25 bpm and HRV -0.3 ms per mmHg of the latent BP effect."""
-    night_hr = rp.hr + 0.25 * effect + (15 if episode == "hr_rise" else 0)
+    Heart rate every 10 min at night (00:00-06:00) and hourly by day; 6 SpO2 samples per night (healthy nights
+    may dip once by 3-5 %, sleep apnea nights 2-4 times by 4-9 %); nightly HRV and skin temperature.
+    INVENTED coupling, for pipeline testing only: night heart rate +0.25 bpm and HRV -0.3 ms per mmHg of the
+    latent BP effect."""
+    night_hr = rp.hr + 0.25 * effect + (15 if episode == "hr_rise" else 0) + (3 if rp.osa else 0)
     hrv = (rp.hrv - 0.3 * effect) * (0.6 if episode == "hrv_drop" else 1.0)
     spo2 = rp.spo2 - (5 if episode == "spo2_dip" else 0)
-    out = [("heart_rate", round(rng.gauss(night_hr, 3)), "bpm", m) for m in range(0, 360, 10)]
-    out += [("heart_rate", round(rng.gauss(rp.hr + 12 + 0.25 * effect, 7)), "bpm", m) for m in range(360, 1440, 60)]
-    out += [("spo2", round(min(100.0, rng.gauss(spo2, 0.8)), 1), "percent", m) for m in (60, 120, 180, 240, 300, 330)]
-    out += [("hrv_rmssd", round(min(200.0, max(5.0, rng.gauss(hrv, 4))), 1), "ms", 180),
+    hr_sd = 10 if rp.af else 3
+    out = [("heart_rate", round(rng.gauss(night_hr, hr_sd)), "bpm", m) for m in range(0, 360, 10)]
+    out += [("heart_rate", round(rng.gauss(rp.hr + 12 + 0.25 * effect, 7 + hr_sd)), "bpm", m) for m in range(360, 1440, 60)]
+    sat = [rng.gauss(spo2, 0.6) for _ in range(6)]
+    dips = rng.randint(2, 4) if rp.osa else (1 if rng.random() < 0.5 else 0)
+    for i in rng.sample(range(6), dips):
+        sat[i] -= rng.uniform(4, 9) if rp.osa else rng.uniform(3, 5)
+    out += [("spo2", round(min(100.0, max(70.0, v)), 1), "percent", m) for v, m in zip(sat, (60, 120, 180, 240, 300, 330))]
+    rmssd = rng.gauss(hrv * 2, 25) if rp.af else rng.gauss(hrv, 4)
+    out += [("hrv_rmssd", round(min(200.0, max(5.0, rmssd)), 1), "ms", 180),
             ("skin_temperature", round(rng.gauss(rp.temp, 0.25), 2), "celsius", 180)]
     return out
 
@@ -209,12 +239,20 @@ USERS = (DOCTOR, ADMIN) + PATIENTS
 SEED_DAYS = 30
 MEDS = {"controlled": ("Amlodipine", "5 mg"), "rising": ("Perindopril", "4 mg"), "severe_event": ("Amlodipine", "10 mg")}
 COHORT_MEDS = (("Amlodipine", "5 mg"), ("Perindopril", "4 mg"), ("Losartan", "50 mg"), ("Indapamide", "1.5 mg"))
-WEARABLE_KEYS = ("rising", "severe_event", "cohort_1")  # patients with a simulated ring
+WEARABLE_KEYS = tuple(u.key for u in PATIENTS)  # every demo patient has a simulated ring (no real device)
+# Chronic conditions (M8). Demo stories are hand-picked; other cohort patients are drawn from published rates.
+DEMO_CHRONIC_BY_NAME = {"Fatima": ["copd"], "Houria": ["atrial_fibrillation"]}
+CHRONIC_RATES = {
+    "copd": {"male": 0.052, "female": 0.018},   # BREATHE (MENA, adults >= 40): 5.2 % men, 1.8 % women
+    "obstructive_sleep_apnea": 0.30,            # assumption: OSA is common with hypertension (83.5 % in resistant HT)
+    "atrial_fibrillation": {"65+": 0.03, "<65": 0.005},  # assumption scaled on Apple Heart Study notification rates
+}
 # Scenario patients get hand-picked factors that fit their story; the cohort is drawn from STEPS_DZ.
 SCENARIO_FACTORS = {
     "controlled": dict(sex="female", age=58, smoking="never", codes=["hypertension"], bmi=26.5, waist=86,
                        bread=3, salt="rarely", processed="rarely", lang="ar"),
-    "rising": dict(sex="male", age=65, smoking="current", codes=["hypertension", "diabetes", "dyslipidemia"],
+    "rising": dict(sex="male", age=65, smoking="current",
+                   codes=["hypertension", "diabetes", "dyslipidemia", "obstructive_sleep_apnea"],
                    bmi=31.2, waist=104, bread=6, salt="often", processed="sometimes", lang="fr"),
     "severe_event": dict(sex="female", age=69, smoking="never", codes=["hypertension", "chronic_kidney_disease"],
                          bmi=33.0, waist=99, bread=4, salt="sometimes", processed="often", lang="ar"),
@@ -250,7 +288,20 @@ def risk_factors(u: DemoUser) -> dict:
     mean, sd = HEIGHT_CM[f["sex"]]
     f["height"] = round(min(195.0, max(145.0, rng.gauss(mean, sd))), 1)
     f["weight"] = round(f["bmi"] * (f["height"] / 100) ** 2, 1)
+    if u.key not in SCENARIO_FACTORS:
+        f["codes"] = f["codes"] + chronic_codes(u, f["sex"], f["age"])
     return f
+
+
+def chronic_codes(u: DemoUser, sex: str, age: int) -> list[str]:
+    """Separate generator, so adding chronic conditions changes no other factor."""
+    name = u.name.split(" ")[0]
+    if name in DEMO_CHRONIC_BY_NAME:
+        return list(DEMO_CHRONIC_BY_NAME[name])
+    rng = random.Random(f"{GENERATOR_VERSION}:{u.key}:chronic")
+    rates = {"copd": CHRONIC_RATES["copd"][sex], "obstructive_sleep_apnea": CHRONIC_RATES["obstructive_sleep_apnea"],
+             "atrial_fibrillation": CHRONIC_RATES["atrial_fibrillation"]["65+" if age >= 65 else "<65"]}
+    return [c for c, p in rates.items() if rng.random() < p]
 
 
 def sql(v) -> str:
@@ -292,6 +343,33 @@ def patient_history(u: DemoUser, effect_out: list[float] | None = None) -> tuple
     return context, readings
 
 
+WEARABLE_COLS = ["patient_id", "device_id", "metric", "value", "unit", "measured_at", "source", "external_id"]
+
+
+def ring_device_rows() -> list[list[str]]:
+    by_key = {u.key: u.id for u in PATIENTS}
+    return [[sql(demo_id(k + ":ring")), sql(by_key[k]), "'simulator'", "'simulated'", "'PULSE'",
+             sql(GENERATOR_VERSION), "'Simulated ring (not a real device)'"] for k in WEARABLE_KEYS]
+
+
+def cloud_ring_demo_sql() -> str:
+    """Refresh the ring demo in a database that ALREADY holds the demo seed (the cloud project), in one
+    transaction: chronic conditions of the demo patients (needs M8), a simulated ring for every demo patient,
+    and 28 fresh days of samples. Deletes ONLY simulated samples of the demo rings; nothing else."""
+    rings = ", ".join(sql(demo_id(k + ":ring")) for k in WEARABLE_KEYS)
+    # One DO block = one command (what `supabase db query` accepts) and one atomic transaction.
+    out = ["-- GENERATED by `python -m pulse_data.simulate ring-demo-sql`. FICTIONAL demo ring data (simulated).\n",
+           "do $ring_demo$ begin\n",
+           f"delete from public.wearable_samples where source = 'simulated' and device_id in ({rings});\n"]
+    out += [f"update public.patient_profiles set condition_codes = {sql(risk_factors(u)['codes'])} "
+            f"where user_id = {sql(u.id)};\n" for u in PATIENTS]
+    out.append(insert("devices", ["id", "patient_id", "device_type", "bp_capability", "manufacturer", "model", "label"],
+                      ring_device_rows()).replace(";\n\n", "\non conflict (id) do nothing;\n\n"))
+    out.append(insert("wearable_samples", WEARABLE_COLS, wearable_rows()))
+    out.append("end $ring_demo$;\n")
+    return "".join(out)
+
+
 SEED_RING_DAYS = 28                        # enough nights for a personal baseline (review H1)
 SEED_RING_EPISODES = {"rising": ("hr_rise", (3, 2))}  # Karim: night heart rate up 3 and 2 days ago (simulated)
 
@@ -304,7 +382,7 @@ def wearable_rows(days: int = SEED_RING_DAYS) -> list[list[str]]:
         effects: list[float] = []
         patient_history(u, effects)
         rng = random.Random(f"{GENERATOR_VERSION}:{k}:ring")
-        rp = ring_profile(rng)
+        rp = ring_profile(rng, risk_factors(u)["codes"])
         episode, episode_days = SEED_RING_EPISODES.get(k, (None, ()))
         device, n = demo_id(k + ":ring"), 0
         for ago in range(days, 0, -1):
@@ -369,10 +447,8 @@ def build_seed_sql(password: str) -> str:
     out.append(insert("devices", ["id", "patient_id", "device_type", "bp_capability", "manufacturer", "model", "label"],
                       [[sql(demo_id(u.key + ":device")), sql(u.id), "'simulator'", "'simulated'", "'PULSE'",
                         sql(GENERATOR_VERSION), "'Simulated cuff (not a real device)'"] for u in PATIENTS]
-                      + [[sql(demo_id(k + ":ring")), sql(ids_by_key[k]), "'simulator'", "'simulated'", "'PULSE'",
-                          sql(GENERATOR_VERSION), "'Simulated ring (not a real device)'"] for k in WEARABLE_KEYS]))
-    out.append(insert("wearable_samples", ["patient_id", "device_id", "metric", "value", "unit", "measured_at",
-                                           "source", "external_id"], wearable_rows()))
+                      + ring_device_rows()))
+    out.append(insert("wearable_samples", WEARABLE_COLS, wearable_rows()))
 
     measurements, lifestyle, adherence, meds, plans, contacts = [], [], [], [], [], []
     for u in PATIENTS:
@@ -503,11 +579,14 @@ def write_ring_csv(out_dir: Path, patients: int = 200, days: int = 90, seed: int
         ws.writerow(["patient_key", "device_key", "metric", "value", "unit", "measured_at", "source", "external_id",
                      "is_synthetic", "generator_version"])
         we.writerow(["patient_key", "episode_type", "start_date", "end_date", "is_synthetic"])
-        wp.writerow(["patient_key", "target_systolic", "target_diastolic", "is_synthetic"])
+        wp.writerow(["patient_key", "target_systolic", "target_diastolic", "conditions", "is_synthetic"])
         for key, _, _, _, effects in _ml_cohort(patients, days, seed):
             rr = random.Random(f"{GENERATOR_VERSION}:{key}:ring")
-            rp = ring_profile(rr)
-            wp.writerow([key, *rr.choice(((135, 85), (135, 85), (130, 80))), "true"])
+            # No age / sex in this cohort: overall rates (STEPS diabetes 17.5 %, BREATHE COPD 3.6 %, assumptions).
+            conditions = [c for c, p in (("diabetes", 0.175), ("copd", 0.036), ("obstructive_sleep_apnea", 0.30),
+                                         ("atrial_fibrillation", 0.02)) if rr.random() < p]
+            rp = ring_profile(rr, conditions)
+            wp.writerow([key, *rr.choice(((135, 85), (135, 85), (130, 80))), ";".join(conditions), "true"])
             episode, episode_days = None, range(0)
             if rr.random() < 0.3:
                 episode, first = rr.choice(RING_EPISODES), rr.randint(35, days - 4)
@@ -555,6 +634,7 @@ def main() -> None:
     c.add_argument("--days", type=int, default=90)
     c.add_argument("--seed", type=int, default=7)
     sub.add_parser("sample").add_argument("--out", type=Path, default=ROOT / "samples" / "readings_sample.csv")
+    sub.add_parser("ring-demo-sql").add_argument("--out", type=Path, default=ROOT / "data" / "cloud_ring_demo.sql")
     a = ap.parse_args()
     if a.cmd == "seed":
         password = os.environ.get("PULSE_DEMO_PASSWORD")
@@ -564,6 +644,9 @@ def main() -> None:
     elif a.cmd == "csv":
         write_ml_csv(a.out, a.patients, a.days, a.seed)
         write_ring_csv(a.out, a.patients, a.days, a.seed)
+    elif a.cmd == "ring-demo-sql":
+        a.out.parent.mkdir(parents=True, exist_ok=True)
+        a.out.write_text(cloud_ring_demo_sql(), encoding="utf-8")
     else:
         write_sample_csv(a.out)
     print(f"wrote {a.out}")

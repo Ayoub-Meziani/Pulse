@@ -66,7 +66,16 @@ def evaluate(flags: list[dict], zdf: pd.DataFrame, episodes: pd.DataFrame, patie
     return out
 
 
-def fit_and_evaluate(nights: pd.DataFrame, episodes: pd.DataFrame, contamination: float = 0.01):
+def load_conditions() -> dict[str, tuple]:
+    path = DATA.parent / "patients.csv"
+    if not path.exists():
+        return {}
+    df = pd.read_csv(path, keep_default_na=False)
+    return {r.patient_key: tuple(c for c in str(getattr(r, "conditions", "")).split(";") if c) for r in df.itertuples()}
+
+
+def fit_and_evaluate(nights: pd.DataFrame, episodes: pd.DataFrame, contamination: float = 0.01,
+                     conditions: dict | None = None):
     zdf = ring.personal_z(nights, ring.baselines(nights))
     split = split_patients(nights.patient)
     zcols = [f"z_{m}" for m in ring.METRICS]
@@ -74,7 +83,7 @@ def fit_and_evaluate(nights: pd.DataFrame, episodes: pd.DataFrame, contamination
     forest = IsolationForest(n_estimators=100, max_samples=256, contamination=contamination,
                              random_state=SEED).fit(train[zcols].to_numpy())
     test = zdf[zdf.patient.isin(split["test"])].reset_index(drop=True)
-    flags = ring.night_flags(test, iforest=forest)
+    flags = ring.night_flags(test, iforest=forest, conditions=conditions)
     meta = {
         "model_version": ring.MODEL_VERSION, "trained_on": "synthetic:pulse-sim-v1 ring (invented BP coupling)",
         "features": zcols, "baseline": f"rolling {ring.BASELINE_DAYS} days before the night, >= "
@@ -93,7 +102,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--contamination", type=float, default=0.01)
     a = ap.parse_args()
-    forest, meta = fit_and_evaluate(load_nights(), episode_nights(), a.contamination)
+    forest, meta = fit_and_evaluate(load_nights(), episode_nights(), a.contamination, load_conditions())
     meta["trained_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     out = ARTIFACTS / ring.MODEL_VERSION
     out.mkdir(parents=True, exist_ok=True)

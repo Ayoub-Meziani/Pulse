@@ -304,7 +304,9 @@ def test_patient_sets_own_birth_year(db):
 
 
 def test_algerian_factor_fields(db):
-    fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set condition_codes = '{asthma}' where user_id = %s", (AMINA,))
+    fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set condition_codes = '{tuberculosis}' where user_id = %s", (AMINA,))
+    db.execute("update public.patient_profiles set condition_codes = '{hypertension,copd,obstructive_sleep_apnea,"
+               "atrial_fibrillation,heart_failure,thyroid_disease,asthma}' where user_id = %s", (AMINA,))  # M8
     fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set adds_salt_at_table = 'daily' where user_id = %s", (AMINA,))
     db.execute("insert into public.lifestyle_logs (patient_id, category, started_at, ended_at)"
                " values (%s, 'fasting', now() - interval '13 hours', now() - interval '30 minutes')", (AMINA,))
@@ -330,7 +332,7 @@ def test_wearable_samples(db):
     fails(db, Denied, q, (KARIM, ring, "heart_rate", 70, "bpm"))  # written by the backend only
     db.execute("reset role")
     as_user(db, AMINA)
-    assert visible_patients(db, "wearable_samples") == set()
+    assert visible_patients(db, "wearable_samples") == {AMINA}   # every demo patient has a simulated ring
 
 
 # ---------------------------------------------------------------- M7 ml_monitoring (review M1-M4, M8)

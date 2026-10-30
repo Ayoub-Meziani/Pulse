@@ -31,7 +31,17 @@ def test_csv_and_db_rows_give_identical_nights():  # one shared feature path [H2
     b = ring.night_table(ring.from_db([(p, m, Decimal(str(v)), t.astimezone(ZoneInfo("UTC"))) for p, m, v, t in data],
                                       {"P1": TZ}))
     pd.testing.assert_frame_equal(a, b)
-    assert a.loc[0, "heart_rate"] == 63 and a.loc[0, "spo2"] == 93.0  # night median HR, night minimum SpO2
+    assert a.loc[0, "heart_rate"] == 63 and a.loc[0, "spo2"] == 94.25  # night medians (healthy sleepers dip)
+
+
+def test_chronic_conditions_change_the_references():
+    t = pd.Timestamp("2026-01-05 03:00", tz="UTC")
+    rows = [(p, "spo2", v, t + pd.Timedelta(seconds=i)) for p in ("COPD", "OTHER") for i, v in enumerate((91.5, 92.0))]
+    rows += [("AF", "hrv_rmssd", 150.0, t), ("AF", "hrv_rmssd", 160.0, t + pd.Timedelta(seconds=5))]
+    buckets = ring.live_buckets(ring.from_db(rows, {}))
+    conditions = {"COPD": ("copd",), "AF": ("atrial_fibrillation",)}
+    flagged = {(f["patient_id"], f["metric"]) for f in ring.live_flags(buckets, conditions=conditions)}
+    assert flagged == {("OTHER", "spo2")}   # COPD limit is 88 % (BTS); AF makes ring HRV not interpretable
 
 
 def test_baseline_uses_only_earlier_nights_and_skips_confirmed():  # [L4]

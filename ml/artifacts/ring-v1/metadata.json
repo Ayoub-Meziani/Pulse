@@ -20,38 +20,38 @@
   },
   "test_metrics": {
     "reference_only": {
-      "episodes": 11,
-      "episodes_detected": 3,
-      "episode_recall": 0.273,
-      "flagged_nights": 66,
-      "night_precision": 0.076,
-      "false_flags_per_patient_week": 0.176
+      "episodes": 7,
+      "episodes_detected": 2,
+      "episode_recall": 0.286,
+      "flagged_nights": 140,
+      "night_precision": 0.029,
+      "false_flags_per_patient_week": 0.389
     },
     "personal_baseline": {
-      "episodes": 11,
-      "episodes_detected": 10,
-      "episode_recall": 0.909,
-      "flagged_nights": 93,
-      "night_precision": 0.172,
-      "false_flags_per_patient_week": 0.222
+      "episodes": 7,
+      "episodes_detected": 6,
+      "episode_recall": 0.857,
+      "flagged_nights": 101,
+      "night_precision": 0.109,
+      "false_flags_per_patient_week": 0.257
     },
     "isolation_forest": {
-      "episodes": 11,
-      "episodes_detected": 2,
-      "episode_recall": 0.182,
-      "flagged_nights": 12,
-      "night_precision": 0.25,
-      "false_flags_per_patient_week": 0.026
+      "episodes": 7,
+      "episodes_detected": 3,
+      "episode_recall": 0.429,
+      "flagged_nights": 20,
+      "night_precision": 0.2,
+      "false_flags_per_patient_week": 0.046
     },
     "personal_or_isolation_forest": {
-      "episodes": 11,
-      "episodes_detected": 10,
-      "episode_recall": 0.909,
-      "flagged_nights": 95,
-      "night_precision": 0.168,
-      "false_flags_per_patient_week": 0.227
+      "episodes": 7,
+      "episodes_detected": 6,
+      "episode_recall": 0.857,
+      "flagged_nights": 104,
+      "night_precision": 0.106,
+      "false_flags_per_patient_week": 0.266
     }
   },
   "limitations": "Ring data and episodes are simulated. Flags are advisory for the doctor; they never create alerts and are not the safety path.",
-  "trained_at": "2026-10-30T05:08:24+00:00"
+  "trained_at": "2026-10-30T06:01:50+00:00"
 }
