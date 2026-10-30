@@ -53,8 +53,7 @@ class PatientProfile(Base):
     regular_doctor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     regular_clinic: Mapped[str | None] = mapped_column(Text)
     consent_location: Mapped[bool] = _server(Boolean)
-    # birth_year (migration M5) is deliberately NOT mapped until M5 is verified on the live project:
-    # mapping it would break every patient_profiles query on the live schema (M1-M4).
+    birth_year: Mapped[int | None] = mapped_column(SmallInteger)  # migration M5 (verified live 2026-10-30)
 
 
 class Assignment(Base):
