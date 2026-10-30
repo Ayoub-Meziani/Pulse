@@ -297,3 +297,11 @@ Explicit REVOKE ALL FROM anon, authenticated first (default privileges would oth
 | C4 | Emergency path | Endpoints 5, 7–9, 15, 18–21 working; frontend emergency screen works offline from cache |
 | C5 | ML visible | `ml_predictions` filled by the batch job; endpoint 24 returns `ok` for a demo patient; model card committed |
 | C6 | Demo from reset | Fresh seed → replay alerts → predictions → full demo script on the deployed URL |
+
+## 6. Contract changes after v1 push
+
+| Date | Change | Kind | Why |
+|---|---|---|---|
+| 2026-10-30 | `SymptomReportIn/Out.measurement_id` descriptions: validated, not stored until M7 | description | column does not exist (B24) |
+| 2026-10-30 | `LastReading.source`, `LastReading.provenance` (required) | additive response fields | simulated readings must stay labelled on the emergency card |
+| 2026-10-30 | `TrustedContactPatch` + PATCH summary: phone change refused (422 `consent_required`) | description / behaviour | a new number may be a person who never consented |
