@@ -49,8 +49,10 @@ Shortcut allowed only when step 2 shows no new commit on `origin/AI` **and** ste
 `scripts/test_db_auth_live.sql` (the live project's `auth.uid()`, `auth.role()`, `auth.email()`, `auth.jwt()`,
 because the plain image ships older helpers), then every file of `supabase/migrations/` in order. During each
 sync (step 5), compare these four functions with the live `-s auth` dump and update the file if they differ.
-The test database contains every migration on the branch, including ones not yet applied to `pulse`
-(e.g. M5 until it is pushed); say so when reporting test results.
+Two profiles: `up live` (port 55433) applies migrations up to `LIVE_UNTIL` in `scripts/test_db.py`, i.e. exactly
+what is verified on `pulse`; `up latest` (port 55432) applies every file on the branch. Backend code must pass on
+**both**; CI runs both. After a migration is verified live (§2), move `LIVE_UNTIL` forward in the same PR that
+records it in the changelog, and only then map new columns in `api/app/models.py`.
 
 ## 4. Known practical issues (Ayoub's Windows machine)
 
