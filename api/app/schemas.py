@@ -29,6 +29,8 @@ Symptom = Literal["chest_pain", "shortness_of_breath", "back_pain", "weakness", 
 Position = Literal["sitting", "standing", "lying"]
 Arm = Literal["left", "right"]
 Trend = Literal["rising", "stable", "falling", "insufficient_data"]
+AGE_DESCRIPTION = ("Approximate age in years (current year - birth_year, may be 1 year high). Null when the patient "
+                   "has not entered a birth year, or before migration M5 (patient_profiles.birth_year) is applied.")
 PHONE_PATTERN = r"^\+?[0-9 ()-]{6,20}$"
 
 
@@ -148,7 +150,7 @@ class SymptomReportOut(ORM):
 
 
 class SymptomResult(BaseModel):
-    report: SymptomReportOut | None = Field(description="Null when the answer was 'none of these' and could not be stored yet (pending migration M3).")
+    report: SymptomReportOut = Field(description="Always stored, including an empty 'none of these' answer (migration M3, live).")
     evaluation: EvaluationOut
     alert: AlertBrief | None = None
 
@@ -225,7 +227,7 @@ class DailyPoint(BaseModel):
 class PatientListItem(BaseModel):
     id: UUID
     full_name: str
-    age: int | None = Field(description="Null until birth_year is stored (migration M3).")
+    age: int | None = Field(description=AGE_DESCRIPTION)
     highest_active_alert: AlertLevel | None
     active_alert_count: int
     latest_measurement: MeasurementOut | None
@@ -254,7 +256,8 @@ class ProfileIn(BaseModel):
     partial form can never silently erase allergies, conditions or location consent."""
     full_name: str = Field(min_length=1, max_length=120)
     timezone: str = Field(description="IANA time zone, e.g. Africa/Algiers.")
-    birth_year: int | None = Field(ge=1900, le=2100)
+    birth_year: int | None = Field(ge=1900, le=2100, description="Year only (data minimisation). Stored by migration M5; "
+                                   "the API also rejects years after the current year.")
     relevant_conditions: list[str]
     allergies: str | None
     medication_context: str | None = Field(description="As entered by the patient; PULSE never interprets it.")
@@ -348,7 +351,7 @@ class LastReading(BaseModel):
 
 class EmergencyCardOut(BaseModel):
     full_name: str
-    age: int | None
+    age: int | None = Field(description=AGE_DESCRIPTION)
     relevant_conditions: list[str]
     allergies: str | None
     medication_context: str | None

@@ -226,3 +226,8 @@ def test_s3_values_outside_database_storage_limits_get_invalid_request(client, b
 def test_s3_storable_extreme_readings_reach_the_handler(client, body):
     r = client.post(f"{API}/patients/{PID}/measurements", headers=AUTH, json=body)
     assert r.status_code == 501  # reaches the handler: no clinical value is rejected by the API layer
+
+
+def test_m3_live_symptom_report_is_always_returned(client):
+    s = _schema(client, "SymptomResult")
+    assert "report" in s["required"] and "anyOf" not in s["properties"]["report"]

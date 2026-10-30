@@ -736,6 +736,7 @@
                 "type": "null"
               }
             ],
+            "description": "Approximate age in years (current year - birth_year, may be 1 year high). Null when the patient has not entered a birth year, or before migration M5 (patient_profiles.birth_year) is applied.",
             "title": "Age"
           },
           "allergies": {
@@ -1975,7 +1976,7 @@
                 "type": "null"
               }
             ],
-            "description": "Null until birth_year is stored (migration M3).",
+            "description": "Approximate age in years (current year - birth_year, may be 1 year high). Null when the patient has not entered a birth year, or before migration M5 (patient_profiles.birth_year) is applied.",
             "title": "Age"
           },
           "avg_diastolic_7d": {
@@ -2202,6 +2203,7 @@
                 "type": "null"
               }
             ],
+            "description": "Year only (data minimisation). Stored by migration M5; the API also rejects years after the current year.",
             "title": "Birth Year"
           },
           "consent_location": {
@@ -2753,15 +2755,8 @@
             "$ref": "#/components/schemas/EvaluationOut"
           },
           "report": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SymptomReportOut"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Null when the answer was 'none of these' and could not be stored yet (pending migration M3)."
+            "$ref": "#/components/schemas/SymptomReportOut",
+            "description": "Always stored, including an empty 'none of these' answer (migration M3, live)."
           }
         },
         "required": [
