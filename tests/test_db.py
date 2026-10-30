@@ -245,6 +245,58 @@ def test_doctor_writes_limited_to_assigned(db):
           " values (%s, 'manual', 120, 80, now())", (KARIM,))
 
 
+# ---------------------------------------------------------------- M3 backend alignment, M4 ml_predictions
+
+def test_empty_symptom_answer_is_stored(db):
+    q = "insert into public.symptom_reports (patient_id, symptoms) values (%s, %s)"
+    db.execute(q, (AMINA, []))
+    fails(db, psycopg.errors.CheckViolation, q, (AMINA, ["not_a_symptom"]))
+
+
+def test_alert_episode_attaches_same_patient_readings_only(db):
+    alert = db.execute("insert into public.alerts (patient_id, alert_class, rule_code, reason, persistent)"
+                       " values (%s, 'above_target_trend', 'R-TREND', 'test', true) returning id", (KARIM,)).fetchone()[0]
+    own, other = (db.execute("select id from public.measurements where patient_id = %s limit 1", (p,)).fetchone()[0]
+                  for p in (KARIM, AMINA))
+    q = "insert into public.alert_measurements (alert_id, measurement_id, patient_id) values (%s, %s, %s)"
+    db.execute(q, (alert, own, KARIM))
+    fails(db, psycopg.errors.ForeignKeyViolation, q, (alert, other, KARIM))
+    as_user(db, KARIM)
+    assert db.execute("select count(*) from public.alert_measurements").fetchone()[0] == 1
+    fails(db, Denied, q, (alert, own, KARIM))
+
+
+def test_doctor_notes_hidden_from_patient(db):
+    assert db.execute("select count(*) from public.doctor_notes").fetchone()[0] > 0
+    patient = db.execute("select patient_id::text from public.doctor_notes limit 1").fetchone()[0]
+    as_user(db, patient)
+    assert db.execute("select count(*) from public.doctor_notes").fetchone()[0] == 0
+    db.execute("reset role")
+    as_user(db, sim.DOCTOR.id)
+    assert db.execute("select count(*) from public.doctor_notes").fetchone()[0] > 0
+
+
+def test_ml_predictions_doctor_only(db):
+    q = ("insert into public.ml_predictions (patient_id, target_date, target, status, predicted_systolic,"
+         " predicted_diastolic, model_version, trained_on, features_until, n_readings_used)"
+         " values (%s, current_date, 'morning_mean_bp', %s, %s, %s, 'test', 'synthetic:pulse-sim-v1', now(), 10)")
+    for p in (AMINA, YACINE):
+        db.execute(q, (p, "ok", 131.5, 84.0))
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, "ok", None, None))
+    as_user(db, AMINA)
+    assert visible_patients(db, "ml_predictions") == set()
+    fails(db, Denied, q, (AMINA, "ok", 120, 80))
+    db.execute("reset role")
+    as_user(db, sim.DOCTOR.id)
+    assert visible_patients(db, "ml_predictions") == {AMINA}
+
+
+def test_new_tables_have_no_anon_access(db):
+    as_user(db, None, role="anon")
+    for table in ("alert_measurements", "ml_predictions"):
+        fails(db, Denied, f"select 1 from public.{table}")
+
+
 # ---------------------------------------------------------------- live API (GoTrue + PostgREST)
 
 def _api():

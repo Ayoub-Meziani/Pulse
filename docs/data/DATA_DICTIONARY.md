@@ -53,6 +53,7 @@ One per import/sync. `source` csv_import|device_sync|simulated, `device_id`, `fi
 | measured_at | timestamptz | when the reading was taken |
 | measured_tz | text, nullable | IANA zone where it was taken (falls back to profile tz) |
 | body_position, arm, context | text | sitting/standing/lying, left/right, free note ≤500 |
+| rested_5_min | boolean, nullable | patient confirmed 5 minutes' rest before measuring (M3; null = not asked) |
 | external_id | text, nullable | reading id from the device; unique per device; **never invented** |
 | validation_status | text | valid \| needs_review \| invalid (computed, see below) |
 | quality_flags | text[] | controlled vocabulary, see below |
@@ -88,7 +89,7 @@ Runs on every insert, from every path. Client-supplied status is ignored; device
 `invalid` = not a usable physiological value. `needs_review` = kept, shown with its flags, **still reaches clinical review and alert rules**. Thresholds are engineering defaults awaiting clinician review.
 
 ### symptom_reports
-`symptoms text[]` from: chest_pain, shortness_of_breath, back_pain, weakness, numbness, vision_change, difficulty_speaking, severe_headache, confusion, dizziness, nausea, palpitations, other. `onset_at`, `reported_at`, `source` patient_reported|bystander|clinician|simulated, `notes`. No severity scale (none clinically defined yet). Evaluated independently of BP.
+`symptoms text[]` (empty = "none of these", M3) from: chest_pain, shortness_of_breath, back_pain, weakness, numbness, vision_change, difficulty_speaking, severe_headache, confusion, dizziness, nausea, palpitations, other. `onset_at`, `reported_at`, `source` patient_reported|bystander|clinician|simulated, `notes`. No severity scale (none clinically defined yet). Evaluated independently of BP.
 
 ### lifestyle_logs
 One table, typed columns that only apply to their category (CHECK-enforced, no JSON blob).
@@ -112,10 +113,16 @@ Patient notes for the doctor: category, entry_text, `doctor_review_status` not_r
 Clinician-authored. `status` draft|active|superseded|completed (one active per patient), effective_from/to, review_date, `target_systolic/diastolic` (clinician targets, distinct from emergency thresholds), `monitoring_readings_per_day`, monitoring/lifestyle/follow-up text, `clinician_guidance`, `supersedes_id`. A revision = new row; the old row becomes superseded. Never modified by AI.
 
 ### doctor_notes
-doctor_id, patient_id, note, advice, follow_up_at.
+doctor_id, patient_id, note, advice, follow_up_at. Readable by assigned doctors and admin only (M3); patients get `advice`/`follow_up_at` through the API.
 
 ### alerts
-`alert_class` routine|above_target|severely_high|possible_emergency|follow_up|lifestyle_review|data_quality_review, `trigger_source` rule_engine|clinician|patient, `rule_code`, `rule_version`, `reason`, `actions[]`, `status` open→acknowledged→reviewed→resolved with *_at/*_by, `measurement_id` / `symptom_report_id` (same-patient FKs). The same rule fires at most once per measurement and once per symptom report. Opening an alert never closes it.
+`alert_class` routine|above_target|above_target_trend|severely_high|possible_emergency|follow_up|lifestyle_review|data_quality_review, `persistent` (episode stays open across readings; readings attached in `alert_measurements`), `trigger_source` rule_engine|clinician|patient, `rule_code`, `rule_version`, `reason`, `actions[]`, `status` open→acknowledged→reviewed→resolved with *_at/*_by, `measurement_id` / `symptom_report_id` (same-patient FKs). The same rule fires at most once per measurement and once per symptom report. Opening an alert never closes it.
+
+### alert_measurements (M3)
+`alert_id`, `measurement_id`, `patient_id`, `attached_at`. Readings that belong to one alert episode; same-patient composite FKs. Read like alerts; written by the backend only.
+
+### ml_predictions (M4)
+Model estimates, never measurements. `target_date` (patient-local), `target` = morning_mean_bp, `status` ok|insufficient_history (values present iff ok), predicted systolic/diastolic + interval, `model_version`, `trained_on` (e.g. `synthetic:pulse-sim-v1`), `features_until`, `n_readings_used`. Unique per (patient, date, model). **Assigned doctors and admin only**; written by the ML batch job.
 
 ### trusted_contacts / emergency_events
 Contacts: name, relationship, phone, consented_at, active. Emergency events: trigger_reason, symptoms_snapshot, location only if `location_shared_with_consent`, `actions_attempted` `[{action, at, confirmed}]` (`confirmed` only when actually verified), reported_outcome, started/ended.

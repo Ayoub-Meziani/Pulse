@@ -3,6 +3,7 @@
 --   pg_dump --schema-only --no-owner --schema=public --schema=private
 -- Authoritative source remains supabase/migrations/ (apply those with `supabase db push`, not this file).
 -- auth.* is Supabase-managed and not dumped; PULSE adds only the trigger at the end of this file.
+
 --
 -- PostgreSQL database dump
 --
@@ -236,6 +237,18 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: alert_measurements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.alert_measurements (
+    alert_id uuid NOT NULL,
+    measurement_id uuid NOT NULL,
+    patient_id uuid NOT NULL,
+    attached_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: alerts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -259,7 +272,8 @@ CREATE TABLE public.alerts (
     resolved_at timestamp with time zone,
     resolved_by uuid,
     resolution_note text,
-    CONSTRAINT alerts_alert_class_check CHECK ((alert_class = ANY (ARRAY['routine'::text, 'above_target'::text, 'severely_high'::text, 'possible_emergency'::text, 'follow_up'::text, 'lifestyle_review'::text, 'data_quality_review'::text]))),
+    persistent boolean DEFAULT false NOT NULL,
+    CONSTRAINT alerts_alert_class_check CHECK ((alert_class = ANY (ARRAY['routine'::text, 'above_target'::text, 'above_target_trend'::text, 'severely_high'::text, 'possible_emergency'::text, 'follow_up'::text, 'lifestyle_review'::text, 'data_quality_review'::text]))),
     CONSTRAINT alerts_check CHECK (((status <> 'acknowledged'::text) OR (acknowledged_at IS NOT NULL))),
     CONSTRAINT alerts_check1 CHECK (((status <> 'reviewed'::text) OR (reviewed_at IS NOT NULL))),
     CONSTRAINT alerts_check2 CHECK (((status <> 'resolved'::text) OR (resolved_at IS NOT NULL))),
@@ -528,6 +542,7 @@ CREATE TABLE public.measurements (
     raw_payload jsonb,
     created_by uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    rested_5_min boolean,
     CONSTRAINT measurements_arm_check CHECK ((arm = ANY (ARRAY['left'::text, 'right'::text]))),
     CONSTRAINT measurements_body_position_check CHECK ((body_position = ANY (ARRAY['sitting'::text, 'standing'::text, 'lying'::text]))),
     CONSTRAINT measurements_context_check CHECK ((length(context) <= 500)),
@@ -596,6 +611,35 @@ CREATE TABLE public.medications (
 
 
 --
+-- Name: ml_predictions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ml_predictions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    patient_id uuid NOT NULL,
+    target_date date NOT NULL,
+    target text NOT NULL,
+    status text NOT NULL,
+    predicted_systolic numeric(5,1),
+    predicted_diastolic numeric(5,1),
+    interval_systolic_low numeric(5,1),
+    interval_systolic_high numeric(5,1),
+    interval_diastolic_low numeric(5,1),
+    interval_diastolic_high numeric(5,1),
+    model_version text NOT NULL,
+    trained_on text NOT NULL,
+    features_until timestamp with time zone NOT NULL,
+    n_readings_used integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ml_predictions_interval_order CHECK ((((interval_systolic_low IS NULL) OR (interval_systolic_low <= interval_systolic_high)) AND ((interval_diastolic_low IS NULL) OR (interval_diastolic_low <= interval_diastolic_high)))),
+    CONSTRAINT ml_predictions_n_readings_used_check CHECK ((n_readings_used >= 0)),
+    CONSTRAINT ml_predictions_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'insufficient_history'::text]))),
+    CONSTRAINT ml_predictions_target_check CHECK ((target = 'morning_mean_bp'::text)),
+    CONSTRAINT ml_predictions_values_iff_ok CHECK (((status = 'ok'::text) = ((predicted_systolic IS NOT NULL) AND (predicted_diastolic IS NOT NULL))))
+);
+
+
+--
 -- Name: patient_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -647,7 +691,7 @@ CREATE TABLE public.symptom_reports (
     CONSTRAINT symptom_reports_check CHECK (((onset_at IS NULL) OR (onset_at <= (reported_at + '00:05:00'::interval)))),
     CONSTRAINT symptom_reports_notes_check CHECK ((length(notes) <= 2000)),
     CONSTRAINT symptom_reports_source_check CHECK ((source = ANY (ARRAY['patient_reported'::text, 'bystander'::text, 'clinician'::text, 'simulated'::text]))),
-    CONSTRAINT symptom_reports_symptoms_check CHECK (((cardinality(symptoms) > 0) AND (symptoms <@ ARRAY['chest_pain'::text, 'shortness_of_breath'::text, 'back_pain'::text, 'weakness'::text, 'numbness'::text, 'vision_change'::text, 'difficulty_speaking'::text, 'severe_headache'::text, 'confusion'::text, 'dizziness'::text, 'nausea'::text, 'palpitations'::text, 'other'::text])))
+    CONSTRAINT symptom_reports_symptoms_check CHECK ((symptoms <@ ARRAY['chest_pain'::text, 'shortness_of_breath'::text, 'back_pain'::text, 'weakness'::text, 'numbness'::text, 'vision_change'::text, 'difficulty_speaking'::text, 'severe_headache'::text, 'confusion'::text, 'dizziness'::text, 'nausea'::text, 'palpitations'::text, 'other'::text]))
 );
 
 
@@ -665,6 +709,22 @@ CREATE TABLE public.trusted_contacts (
     active boolean DEFAULT true NOT NULL,
     CONSTRAINT trusted_contacts_phone_check CHECK ((phone ~ '^\+?[0-9 ()-]{6,20}$'::text))
 );
+
+
+--
+-- Name: alert_measurements alert_measurements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alert_measurements
+    ADD CONSTRAINT alert_measurements_pkey PRIMARY KEY (alert_id, measurement_id);
+
+
+--
+-- Name: alerts alerts_id_patient_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alerts
+    ADD CONSTRAINT alerts_id_patient_id_key UNIQUE (id, patient_id);
 
 
 --
@@ -804,6 +864,22 @@ ALTER TABLE ONLY public.medications
 
 
 --
+-- Name: ml_predictions ml_predictions_patient_id_target_date_model_version_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ml_predictions
+    ADD CONSTRAINT ml_predictions_patient_id_target_date_model_version_key UNIQUE (patient_id, target_date, model_version);
+
+
+--
+-- Name: ml_predictions ml_predictions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ml_predictions
+    ADD CONSTRAINT ml_predictions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: patient_profiles patient_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -848,6 +924,13 @@ ALTER TABLE ONLY public.trusted_contacts
 --
 
 CREATE INDEX adherence_patient_time ON public.medication_adherence_events USING btree (patient_id, reported_at DESC);
+
+
+--
+-- Name: alert_measurements_patient; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX alert_measurements_patient ON public.alert_measurements USING btree (patient_id);
 
 
 --
@@ -953,6 +1036,13 @@ CREATE UNIQUE INDEX measurements_device_reading ON public.measurements USING btr
 --
 
 CREATE INDEX measurements_patient_time ON public.measurements USING btree (patient_id, measured_at DESC);
+
+
+--
+-- Name: ml_predictions_patient_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ml_predictions_patient_date ON public.ml_predictions USING btree (patient_id, target_date DESC);
 
 
 --
@@ -1093,6 +1183,22 @@ CREATE TRIGGER profiles_audit AFTER INSERT OR DELETE OR UPDATE ON public.profile
 --
 
 CREATE TRIGGER profiles_touch BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION private.touch_updated_at();
+
+
+--
+-- Name: alert_measurements alert_measurements_alert_id_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alert_measurements
+    ADD CONSTRAINT alert_measurements_alert_id_patient_id_fkey FOREIGN KEY (alert_id, patient_id) REFERENCES public.alerts(id, patient_id) ON DELETE CASCADE;
+
+
+--
+-- Name: alert_measurements alert_measurements_measurement_id_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.alert_measurements
+    ADD CONSTRAINT alert_measurements_measurement_id_patient_id_fkey FOREIGN KEY (measurement_id, patient_id) REFERENCES public.measurements(id, patient_id);
 
 
 --
@@ -1328,6 +1434,14 @@ ALTER TABLE ONLY public.medications
 
 
 --
+-- Name: ml_predictions ml_predictions_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ml_predictions
+    ADD CONSTRAINT ml_predictions_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
 -- Name: patient_profiles patient_profiles_regular_doctor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1372,6 +1486,19 @@ ALTER TABLE ONLY public.trusted_contacts
 --
 
 CREATE POLICY adherence_insert_own ON public.medication_adherence_events FOR INSERT TO authenticated WITH CHECK (((patient_id = ( SELECT auth.uid() AS uid)) AND (source = 'patient_reported'::text)));
+
+
+--
+-- Name: alert_measurements; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.alert_measurements ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: alert_measurements alert_measurements_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY alert_measurements_read ON public.alert_measurements FOR SELECT TO authenticated USING (private.can_read_patient(patient_id));
 
 
 --
@@ -1499,7 +1626,7 @@ CREATE POLICY doctor_notes_insert ON public.doctor_notes FOR INSERT TO authentic
 -- Name: doctor_notes doctor_notes_read; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY doctor_notes_read ON public.doctor_notes FOR SELECT TO authenticated USING (private.can_read_patient(patient_id));
+CREATE POLICY doctor_notes_read ON public.doctor_notes FOR SELECT TO authenticated USING ((private.is_assigned_doctor(patient_id) OR (private.current_app_role() = 'admin'::text)));
 
 
 --
@@ -1677,6 +1804,19 @@ CREATE POLICY medications_update ON public.medications FOR UPDATE TO authenticat
 
 
 --
+-- Name: ml_predictions; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.ml_predictions ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ml_predictions ml_predictions_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY ml_predictions_read ON public.ml_predictions FOR SELECT TO authenticated USING ((private.is_assigned_doctor(patient_id) OR (private.current_app_role() = 'admin'::text)));
+
+
+--
 -- Name: patient_profiles; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -1844,6 +1984,14 @@ GRANT ALL ON FUNCTION private.validate_measurement() TO authenticated;
 
 
 --
+-- Name: TABLE alert_measurements; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.alert_measurements TO service_role;
+GRANT SELECT ON TABLE public.alert_measurements TO authenticated;
+
+
+--
 -- Name: TABLE alerts; Type: ACL; Schema: public; Owner: -
 --
 
@@ -1975,6 +2123,14 @@ GRANT SELECT,INSERT ON TABLE public.medication_adherence_events TO authenticated
 
 GRANT ALL ON TABLE public.medications TO service_role;
 GRANT SELECT,INSERT,UPDATE ON TABLE public.medications TO authenticated;
+
+
+--
+-- Name: TABLE ml_predictions; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.ml_predictions TO service_role;
+GRANT SELECT ON TABLE public.ml_predictions TO authenticated;
 
 
 --
