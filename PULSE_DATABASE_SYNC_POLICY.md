@@ -54,3 +54,4 @@ Shortcut allowed only when step 2 shows no new commit on `origin/AI` **and** ste
 | Date (UTC) | `origin/AI` | Remote migration history | Live vs migrations | By |
 |---|---|---|---|---|
 | 2026-10-30 | `a004329` | `20261029120000`, `20261029120100` | 273/273 statements identical (`public`, `private`); auth trigger present | Claude Code (read-only) |
+| 2026-10-30 (later) | `fcad8a2` | M1–M4: `…120000`, `…120100`, `20261030120000` (M3), `20261030120100` (M4); **M5 `20261030130000` not applied** (awaiting review) | M1–M4 → 292/292 identical; M5 applies cleanly on top in a throwaway container | Claude Code (read-only) |
