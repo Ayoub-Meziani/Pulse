@@ -55,7 +55,7 @@ Ring values come from a separate random generator per patient, so the BP files a
 
 **Demo stories:** Karim has sleep apnea, Fatima COPD and Houria atrial fibrillation. The other cohort patients draw conditions from the rates above. Every demo patient wears a simulated ring (28 days).
 
-### Medical reference values (`ml/pulse_ml/reference.py`, pending clinician review)
+### Medical reference values (`ml/pulse_ml/reference.py`, reviewed by the team's medical mentor on 30 Oct 2026)
 | Value | Source |
 |---|---|
 | Home-BP categories: 120/80, 130/80, 135/85 (= office 140/90), 145/90 (= office 160/100) | 2017 ACC/AHA guideline, Table 11, home (HBPM) column ([ACC summary](https://www.acc.org/~/media/Non-Clinical/Files-PDFs-Excel-MS-Word-etc/Guidelines/2017/Guidelines_Made_Simple_2017_HBP.pdf)). Applied only to home means, never to office grades |

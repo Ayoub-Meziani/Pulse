@@ -54,7 +54,7 @@ def build(df: pd.DataFrame) -> dict:
         "measurement": "seated, 5-minute rest, Omron HEM-907XL oscillometric, mean of >= 2 valid of 3 readings",
         "use": "pulse bands: patient's seated cuff pulse only; BP bands: office-type context only",
         "limits": "Not Algerian data; NHANES BP is exam BP, not home BP; percentiles describe a population, "
-                  "they are not clinical thresholds. Pending clinician review.",
+                  "they are not clinical thresholds. Reviewed as context only (medical mentor, 30 Oct 2026).",
         "percentiles": list(PERCENTILES), "bands": bands,
     }
 

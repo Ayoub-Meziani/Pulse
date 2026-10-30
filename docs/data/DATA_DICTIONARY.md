@@ -2,7 +2,7 @@
 
 Source of truth: `supabase/migrations/`. PostgreSQL 17 on Supabase. All timestamps are `timestamptz` (stored UTC, converted with the patient's `profiles.timezone` / `measurements.measured_tz`). Blood pressure is **mmHg**, pulse **bpm**, sodium **mg**.
 
-Prototype only: fictional data, thresholds pending clinician review.
+Prototype only: fictional data. Alert thresholds, SpO2 limits, the band rule and wording were reviewed by the team's medical mentor on 30 Oct 2026; the validation limits (`pulse-v1`) are engineering defaults.
 
 ## Provenance: keep these separate
 | Kind | Where | Rule |

@@ -41,23 +41,15 @@ It runs, in order:
 
 It prints counts only. **Expected:** about 11 patients, mostly `ok`; 11 reports.
 
-## Step 4: tell Claude "verify cloud"
-Claude runs read-only checks (counts, access rules, a real doctor login) and updates the docs.
+## Step 4: verify the cloud (done 30 Oct 2026)
+Read-only checks: counts, access rules, ML outputs; the docs were updated.
 
 ## Step 5: team
 - **Demo password:** open `.env` and read the `PULSE_DEMO_PASSWORD=` line. Send it to your teammates **privately** (not in the GitHub repo, which is public).
 - **Backend teammate:** send this message:
-  > "On branch AI: M8 (chronic conditions) and the 12-patient simulated ring demo are in the cloud; ML jobs ran. The served BP model is now `mbp-v1.1` (retrained on data calibrated with real home BP). Weekly reports have `summary.pulse_vs_population` (real NHANES bands). To build on your side: weekly report endpoint, band approval via `private.approve_band`, flag review, rule R-RING-1 (spec in `ml/pulse_ml/reference.py`). Details: `ml/MODEL_CARD.md`, `docs/data/MIGRATIONS.md`."
-- **Doctor / medical mentor:** ask them to review:
-  - the alert thresholds (180/120, red-flag symptoms)
-  - the SpO2 94 % / COPD 88 % limits
-  - the band rule
-  - the patient wording
-- **Emergency number for Algeria:** confirm 14 vs 1021 from an official source before the demo.
+  > "On branch AI: M8 (chronic conditions) and the 12-patient simulated ring demo are in the cloud, and the ML jobs ran there (10 BP estimates, 33 ring flags, 11 weekly reports, 43 proposed bands). The served BP model is `mbp-v1.1`. Weekly reports have `summary.pulse_vs_population` (real NHANES bands). Decisions of 30 Oct: the medical mentor reviewed the thresholds (180/120, red flags, SpO2 94 % / COPD 88 %, band rule, wording), and the emergency number is **14** (D3 closed): in `api/app/config.py` set `dz-14` to `"verified": True` (it is already `primary_number_id`), or set `PULSE_EMERGENCY_NUMBERS`. To build on your side: alerts written to Supabase, weekly report endpoint, band approval via `private.approve_band`, flag review, rule R-RING-1 (spec in `ml/pulse_ml/reference.py`). Full report: `docs/data/PULSE_FULL_REPORT.pdf`."
+- **Clinician review:** done 30 Oct 2026 by the team's medical mentor (alert thresholds 180/120, red-flag symptoms, SpO2 94 % / COPD 88 %, band rule, patient wording).
+- **Emergency number for Algeria:** decided 30 Oct 2026: **14** (Protection civile). Never dial it in tests or the demo; demo mode uses a teammate's phone.
 
-## Optional: let Claude do the cloud steps itself
-In Claude Code, run `/permissions` and allow these commands:
-- `npx -y supabase@2.122.0 db push --linked`
-- `npx -y supabase@2.122.0 db query --linked`
-
-Only do this if your team agrees that Claude may change the shared cloud database.
+## Claude may run the cloud steps (team approved, 30 Oct 2026)
+`db push --linked`, `db query --linked` and `scripts\run_cloud_jobs.ps1` (temporary CLI login, no stored password).

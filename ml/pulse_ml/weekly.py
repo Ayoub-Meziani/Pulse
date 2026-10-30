@@ -137,7 +137,7 @@ def run(conn, week: date | None = None) -> dict:
                            " from public.ml_predictions where patient_id = %s and status = 'ok'"
                            " order by target_date desc, created_at desc limit 1", (patient,)).fetchone()
         summary = {"bp_home": bp, "ring": ring_summary, "reference": "home-BP category: ACC/AHA 2017 Table 11 "
-                   "(home column); pending clinician review"}
+                   f"(home column); {reference.CLINICIAN_REVIEW}"}
         pulse = pulse_part(conn, patient, start, end)
         if pulse:
             summary["pulse_vs_population"] = pulse

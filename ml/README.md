@@ -18,7 +18,9 @@ Doctor-only model estimate, trained on **synthetic data**. It is not a measureme
 ..\.venv\Scripts\python -m pulse_ml.train                 # ~70 s; rewrites artifacts/mbp-v1.1/
 ..\.venv\Scripts\python -m pulse_ml.predict --all --dry-run
 ..\.venv\Scripts\python -m pulse_ml.predict --all [--date YYYY-MM-DD]
+..\.venv\Scripts\python -m pulse_ml.jobs                  # predict + monitor --nights + weekly on ONE connection
 ```
+Cloud: `scripts\run_cloud_jobs.ps1` runs `pulse_ml.jobs` with `DATABASE_URL` from `.env`, or with a temporary login from the linked Supabase CLI (no stored password).
 `predict` uses `DATABASE_URL` (default: local stack `127.0.0.1:55322`). It prints only counts per status, never health values. Run it after seeding and before the demo (contract checkpoint C5); a daily schedule can come later.
 
 ## Inference output contract (for the backend)

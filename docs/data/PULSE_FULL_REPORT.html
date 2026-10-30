@@ -271,7 +271,7 @@
 <tr><td>Weekly report</td><td><code>weekly.py</code> + <code>wcls-v1.1</code>, <code>bands.py</code>, NHANES bands</td><td>readings, care plans, ring nights, flags, predictions, profile</td><td>weekly_reports, patient_bands (proposed)</td><td>doctor only</td><td><span class="pill built">BUILT</span></td></tr>
 <tr><td>Band approval</td><td><code>private.approve_band</code> (M7)</td><td>proposed band</td><td>patient_bands (active), audit_log</td><td>doctor acts</td><td><span class="pill live">LIVE</span> (API <span class="pill prop">TO BUILD</span>)</td></tr>
 <tr><td>Feedback gate</td><td><code>feedback.py</code></td><td>reviewed flags</td><td>git-ignored labels file</td><td>data/AI</td><td><span class="pill built">BUILT</span></td></tr>
-<tr><td>Medical references</td><td><code>reference.py</code></td><td>-</td><td>-</td><td>used by monitor, weekly, bands</td><td><span class="pill verify">CLINICIAN REVIEW</span></td></tr>
+<tr><td>Medical references</td><td><code>reference.py</code></td><td>-</td><td>-</td><td>used by monitor, weekly, bands</td><td><span class="pill live">REVIEWED</span> 30 Oct</td></tr>
 <tr><td>Real-data tools</td><td><code>real_data.py</code>, <code>real_bands.py</code>, <code>wrisk.py</code>, <code>real_tests.py</code></td><td>data/external (git-ignored)</td><td>reference_nhanes.json, metadata</td><td>-</td><td><span class="pill built">BUILT</span></td></tr>
 <tr><td>Alert rules</td><td>backend <code>rules.py</code></td><td>readings, symptoms, care plan</td><td>alerts, alert_measurements</td><td>patient + doctor</td><td><span class="pill prop">TO BUILD</span> on Supabase</td></tr>
 </table>
@@ -443,7 +443,7 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <tr><td>Smoking, activity, sleep, stress</td><td><code>smoking_status</code>; <code>lifestyle_logs</code></td><td><span class="pill live">LIVE</span></td></tr>
 <tr><td>Ramadan fasting</td><td><code>lifestyle_logs</code> category <code>fasting</code> (medication timing stays the doctor's decision)</td><td><span class="pill live">LIVE</span></td></tr>
 <tr><td>Language, local time</td><td><code>preferred_language</code> fr / ar; timezone Africa/Algiers</td><td><span class="pill live">LIVE</span></td></tr>
-<tr><td>Emergency number</td><td>backend config: 14 or 1021</td><td><span class="pill verify">TO VERIFY</span></td></tr>
+<tr><td>Emergency number</td><td>backend config: <b>14</b> (Protection civile), decided 30 Oct; never dialled in tests or the demo</td><td><span class="pill live">DECIDED</span></td></tr>
 </table>
 
 <h3>5.6 Real public datasets (official sources only, no Kaggle)</h3>
@@ -695,7 +695,7 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 </figure>
 <p class="small"><b>How PULSE uses it:</b> the weekly report places the patient's 7-day mean <b>seated cuff</b> pulse as a percentile among US adults of the same sex and age (<code>summary.pulse_vs_population</code>). It's context, not a threshold, and it is never applied to ring night HR (a different measurement). BP percentiles are also stored, but home BP categories use the ACC/AHA home column, because NHANES BP is exam BP.</p>
 
-<h3>6.8 Medical reference values (pending clinician review)</h3>
+<h3>6.8 Medical reference values (reviewed by the team's medical mentor, 30 Oct)</h3>
 <table class="small">
 <tr><th style="width:25%">Value</th><th style="width:30%">Used where</th><th>Source</th></tr>
 <tr><td>Home BP categories: normal, elevated 120, stage 1 130/80, stage 2 <b>135/85</b> (= office 140/90)</td><td>weekly report <code>home_bp_category</code> (OR rule on the week's home mean)</td><td>ACC/AHA 2017, Table 11, home (HBPM) column</td></tr>
@@ -704,7 +704,7 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <tr><td>HRV, skin temperature</td><td>personal baseline only; HRV ignored with AF</td><td>no population reference used</td></tr>
 <tr><td>Oximeter accuracy limits</td><td>wording, limits text</td><td>FDA safety communication, 19 Feb 2021</td></tr>
 </table>
-<div class="box small"><b>Proposed safety rule R-RING-1, for the backend:</b> SpO2 median over 10 minutes &lt; 94 % with ≥ 2 samples → prompt a cuff reading, a symptom check and re-seating the ring. Never an emergency by itself; symptoms keep their own emergency path. It runs on raw <code>wearable_samples</code> in the backend, so the safety path never waits for an ML job. Spec: <code>ml/pulse_ml/reference.py</code> (<code>R_RING_1</code>). <span class="pill prop">TO BUILD</span> <span class="pill verify">CLINICIAN REVIEW</span></div>
+<div class="box small"><b>Proposed safety rule R-RING-1, for the backend:</b> SpO2 median over 10 minutes &lt; 94 % with ≥ 2 samples → prompt a cuff reading, a symptom check and re-seating the ring. Never an emergency by itself; symptoms keep their own emergency path. It runs on raw <code>wearable_samples</code> in the backend, so the safety path never waits for an ML job. Spec: <code>ml/pulse_ml/reference.py</code> (<code>R_RING_1</code>). Reviewed by the medical mentor on 30 Oct. <span class="pill prop">TO BUILD</span> (backend)</div>
 
 <h2>7. Live ring monitoring and the weekly doctor loop</h2>
 <figure>
@@ -805,8 +805,8 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <tr><td>2</td><td>Share the demo password privately; send the backend the message in <code>docs/data/CLOUD_STEPS.md</code></td><td>You</td><td><span class="pill none">OPEN</span></td></tr>
 <tr><td>3</td><td>Backend: alert rules writing to Supabase; weekly report, flag review and band approval endpoints; R-RING-1</td><td>Backend</td><td><span class="pill prop">TO BUILD</span></td></tr>
 <tr><td>4</td><td>Frontend: doctor panels for the BP estimate, ring flags, weekly report, band approval; profile fields</td><td>Frontend</td><td><span class="pill prop">TO BUILD</span></td></tr>
-<tr><td>5</td><td>Clinician review: 180/120, red flags, SpO2 94 / 88 %, band rule, wording</td><td>Medical mentor</td><td><span class="pill verify">TO VERIFY</span></td></tr>
-<tr><td>6</td><td>Confirm the Algerian emergency number (14 or 1021) from an official source</td><td>Team</td><td><span class="pill verify">TO VERIFY</span></td></tr>
+<tr><td>5</td><td>Clinician review: 180/120, red flags, SpO2 94 / 88 %, band rule, wording</td><td>Medical mentor</td><td><span class="pill live">DONE</span> 30 Oct</td></tr>
+<tr><td>6</td><td>Algerian emergency number: <b>14</b>. Backend sets <code>dz-14</code> to verified in <code>api/app/config.py</code></td><td>Team, then backend</td><td><span class="pill live">DECIDED</span> 30 Oct</td></tr>
 <tr><td>7</td><td>Choose a real device (validated upper-arm cuff recommended) and build its adapter</td><td>Team, then data/AI</td><td><span class="pill none">MISSING</span></td></tr>
 </table>
 
@@ -828,7 +828,7 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <li>Perez M.V. et al. Apple Heart Study, ACC 2019 / <i>NEJM</i> 2019.</li>
 <li>PULSE repository, branch <code>AI</code>: <code>ml/MODEL_CARD.md</code>, <code>ml/artifacts/*/metadata.json</code>, <code>docs/data/*.md</code>, <code>supabase/migrations/*</code>.</li>
 </ol>
-<p class="small muted">Thresholds and proposals are prototype choices awaiting clinician review. Study figures are quoted from the sources above.</p>
+<p class="small muted">Alert thresholds, SpO2 limits, the band rule and wording were reviewed by the team's medical mentor on 30 Oct 2026 for prototype use; validation limits are engineering defaults. Study figures are quoted from the sources above.</p>
 
 </body>
 </html>

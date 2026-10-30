@@ -1,6 +1,7 @@
 """Medical reference values used for "placement" and outside-reference flags.
 
-Every value carries its source and is PENDING CLINICIAN REVIEW. These are population references;
+Every value carries its source; all were reviewed by the team's medical mentor on 30 Oct 2026 (CLINICIAN_REVIEW).
+These are population references;
 the patient's own normal (personal baseline / doctor-approved band) is handled in ring.py.
 Nothing here decides an emergency: the deterministic backend rules do (review H6).
 """
@@ -12,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-PENDING_CLINICIAN_REVIEW = True
+CLINICIAN_REVIEW = "reviewed by the team's medical mentor, 30 Oct 2026 (prototype use)"
 
 # Home BP categories [review H4]: the HOME (HBPM) column of ACC/AHA 2017 Table 11, which maps office
 # 120/80, 130/80, 140/90, 160/100 to home 120/80, 130/80, 135/85, 145/90. Applied to a mean of home
@@ -64,7 +65,7 @@ R_RING_1 = {
     "metric": "spo2", "window_minutes": 10, "statistic": "median", "below": RING_REFERENCE["spo2"]["low"],
     "min_samples": 2,
     "action": "prompt a cuff reading, a symptom check and re-seating the ring; never an emergency by itself",
-    "status": "proposal, pending clinician review; symptoms keep their own emergency path",
+    "status": f"{CLINICIAN_REVIEW}; for the backend to implement; symptoms keep their own emergency path",
 }
 
 
