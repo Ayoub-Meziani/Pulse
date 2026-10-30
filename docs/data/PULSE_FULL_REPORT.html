@@ -99,7 +99,7 @@
 <tr><th style="width:27%">Part</th><th style="width:13%">Status</th><th>Details</th></tr>
 <tr><td>Cloud database <code>pulse</code></td><td><span class="pill live">LIVE</span></td><td>Migrations M1–M8 applied and in sync (checked 30 Oct). 24 tables, row-level security (RLS) on every table, 52 policies, nothing granted to logged-out users, public sign-up off.</td></tr>
 <tr><td>Demo data in the cloud</td><td><span class="pill live">LIVE</span></td><td>14 accounts; 730 readings (727 valid, 2 needs_review, 1 invalid, on purpose); 316 lifestyle logs; 154 dose events; 11 care plans; 24 body measurements; 24 devices; 20,832 ring samples for all 12 patients. All labelled <code>simulated</code>. Password only in the local, git-ignored <code>.env</code>.</td></tr>
-<tr><td>ML outputs in the cloud</td><td><span class="pill live">LIVE</span></td><td>Jobs ran on the cloud on 30 Oct (<code>scripts\run_cloud_jobs.ps1</code>; approval unconfirmed, pending Ayoub's explicit confirmation):10 next-day BP estimates + 1 <code>insufficient_history</code>; 33 ring flags (22 outside reference, 10 personal, 1 multivariate); 11 weekly reports, all with the classifier probability; 43 proposed bands waiting for the doctor.</td></tr>
+<tr><td>ML outputs in the cloud</td><td><span class="pill live">LIVE</span></td><td>Jobs ran on the cloud on 30 Oct (<code>scripts\run_cloud_jobs.ps1</code>; confirmed by Ayoub, 30 Oct): 10 next-day BP estimates + 1 <code>insufficient_history</code>; 33 ring flags (22 outside reference, 10 personal, 1 multivariate); 11 weekly reports, all with the classifier probability; 43 proposed bands waiting for the doctor.</td></tr>
 <tr><td>Alerts in the cloud</td><td><span class="pill prop">TO BUILD</span></td><td>0 rows. The alert rules live in the backend (FastAPI, teammate), which still runs on SQLite. The tables and the episode logic (M3) are ready.</td></tr>
 <tr><td>6 models (<code>ml/</code>, Python)</td><td><span class="pill built">BUILT</span></td><td><code>mbp-v1.1</code> next-day BP (served), <code>ring-v1.1</code> ring flags, <code>wcls-v1.1</code> weekly classifier, <code>live-v1</code> live early warnings (section 6.10), <code>mbp-v2.1</code> (experiment), <code>wrisk-v1</code> on real NHANES people (evaluated, not shown). Section 6.</td></tr>
 <tr><td>Real public data</td><td><span class="pill built">BUILT</span></td><td>NHANES 2017–2020 (CDC), Mendeley home-BP series, PhysioNet Apnea-ECG. Downloaded to git-ignored <code>data/external/</code> with a manifest, never committed or uploaded. Section 5.6.</td></tr>
@@ -287,8 +287,8 @@
 <tr><td>M5</td><td><code>20261030130000_patient_birth_year</code></td><td><code>patient_profiles.birth_year</code> (year only, data minimisation). Age is the strongest Algerian hypertension factor.</td><td><span class="pill live">LIVE</span></td></tr>
 <tr><td>M6</td><td><code>20261030140000_algerian_factors_wearables</code></td><td>Sex, smoking, condition codes, bread / salt habits, language, fasting logs; tables <code>body_measurements</code> and <code>wearable_samples</code> (unit and plausible range checked per metric).</td><td><span class="pill live">LIVE</span></td></tr>
 <tr><td>M7</td><td><code>20261030150000_ml_monitoring</code></td><td>Tables <code>wearable_flags</code>, <code>patient_bands</code>, <code>weekly_reports</code>; function <code>private.approve_band</code>; audit on all three; index for the live monitor. Built exactly as the backend's ML review asked.</td><td><span class="pill live">LIVE</span></td></tr>
-<tr><td>M8</td><td><code>20261030160000_chronic_conditions</code></td><td>Condition codes add copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease (they change how ring values are judged). Applied 30 Oct (approval unconfirmed, pending Ayoub's explicit confirmation).</td><td><span class="pill live">LIVE</span></td></tr>
-<tr><td>M9</td><td><code>20261030170000_live_early_warning</code></td><td>Ring flags can be <code>early_warning</code> / <code>forecast</code> (and <code>sleep</code>) for the live engine <code>live-v1</code>: warn the doctor before a limit is crossed. Additive only; applied locally with no row changed.</td><td><span class="pill prop">LOCAL</span> cloud waits for OK</td></tr>
+<tr><td>M8</td><td><code>20261030160000_chronic_conditions</code></td><td>Condition codes add copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease (they change how ring values are judged). Applied 30 Oct (confirmed by Ayoub).</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M9</td><td><code>20261030170000_live_early_warning</code></td><td>Ring flags can be <code>early_warning</code> / <code>forecast</code> (and <code>sleep</code>) for the live engine <code>live-v1</code>: warn the doctor before a limit is crossed. Additive only; applied locally with no row changed. Cloud push approved by Ayoub (30 Oct), to be run by hand.</td><td><span class="pill prop">APPROVED</span> push pending</td></tr>
 </table>
 
 <h3>4.2 How the tables relate</h3>
@@ -705,7 +705,7 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <tr><td>HRV, skin temperature</td><td>personal baseline only; HRV ignored with AF</td><td>no population reference used</td></tr>
 <tr><td>Oximeter accuracy limits</td><td>wording, limits text</td><td>FDA safety communication, 19 Feb 2021</td></tr>
 </table>
-<div class="box small"><b>Proposed safety rule R-RING-1, for the backend:</b> SpO2 median over 10 minutes &lt; 94 % with ≥ 2 samples → prompt a cuff reading, a symptom check and re-seating the ring. Never an emergency by itself; symptoms keep their own emergency path. It runs on raw <code>wearable_samples</code> in the backend, so the safety path never waits for an ML job. Spec: <code>ml/pulse_ml/reference.py</code> (<code>R_RING_1</code>). <b>Pending clinician review</b> (list in 6.10). <span class="pill prop">TO BUILD</span> (backend)</div>
+<div class="box small"><b>Proposed safety rule R-RING-1, for the backend:</b> SpO2 median over 10 minutes &lt; 94 % with ≥ 2 samples → prompt a cuff reading, a symptom check and re-seating the ring. Never an emergency by itself; symptoms keep their own emergency path. It runs on raw <code>wearable_samples</code> in the backend, so the safety path never waits for an ML job. Spec: <code>ml/pulse_ml/reference.py</code> (<code>R_RING_1</code>). Reviewed by the medical mentor on 30 Oct. <span class="pill prop">TO BUILD</span> (backend)</div>
 
 <h3>6.9 30-day day-by-day test on patients no model has seen (30 Oct)</h3>
 <div class="box small"><b>How it was run</b> (<code>ml/pulse_ml/backtest.py</code>):
@@ -836,7 +836,7 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 </ul>
 <p class="small"><b>Limits:</b> the situations, slopes and artefacts come from my simulator. These numbers show the mechanism, not real-world accuracy, which needs a real ring and doctor-reviewed flags.</p>
 <table class="small" style="break-inside: avoid">
-<tr><th colspan="2">Pending clinician review: none of these has been reviewed by a clinician</th></tr>
+<tr><th colspan="2">Clinician review: all of these were reviewed and accepted by the medical mentor on 30 Oct (prototype use). The results above stay simulator-only.</th></tr>
 <tr><td style="width:42%">SpO2 limit as a forecast trigger</td><td>94 %; COPD 88 %</td></tr>
 <tr><td>Heart rate limit during sleep</td><td>100 bpm (or the doctor's live band)</td></tr>
 <tr><td>Skin temperature limit</td><td>personal night normal + 1.0 °C</td></tr>
@@ -945,13 +945,13 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <h2>12. Next steps</h2>
 <table class="small">
 <tr><th style="width:4%">#</th><th style="width:56%">Step</th><th style="width:18%">Who</th><th>Status</th></tr>
-<tr><td>1</td><td>Run the 3 ML jobs on the cloud to fill the 4 ML tables, then a read-only check</td><td>Data/AI</td><td><span class="pill live">DONE</span> 30 Oct (approval unconfirmed)</td></tr>
-<tr><td>2</td><td>Share the demo password privately; send the backend the message in <code>docs/data/CLOUD_STEPS.md</code></td><td>You</td><td><span class="pill none">OPEN</span></td></tr>
-<tr><td>2b</td><td>Push M9 to the cloud and run <code>monitor --follow</code> where the backend hosts its jobs, so early warnings reach the doctor live</td><td>You (OK), then data/AI + backend</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>1</td><td>Run the 3 ML jobs on the cloud to fill the 4 ML tables, then a read-only check</td><td>Data/AI</td><td><span class="pill live">DONE</span> 30 Oct (confirmed by Ayoub)</td></tr>
+<tr><td>2</td><td>Share the demo password privately; send the backend the message in <code>docs/data/CLOUD_STEPS.md</code></td><td>You</td><td><span class="pill live">DONE</span> 30 Oct</td></tr>
+<tr><td>2b</td><td>Push M9 to the cloud (approved by Ayoub; run <code>npx -y supabase@2.122.0 db push --linked</code>), then run <code>monitor --follow</code> where the backend hosts its jobs, so early warnings reach the doctor live</td><td>You, then backend</td><td><span class="pill none">OPEN</span></td></tr>
 <tr><td>3</td><td>Backend: alert rules writing to Supabase; weekly report, flag review (now including early warnings) and band approval endpoints; R-RING-1</td><td>Backend</td><td><span class="pill prop">TO BUILD</span></td></tr>
 <tr><td>4</td><td>Frontend: doctor panels for the BP estimate, ring flags, weekly report, band approval; profile fields</td><td>Frontend</td><td><span class="pill prop">TO BUILD</span></td></tr>
 <tr><td>5</td><td>Clinician review: 180/120, red flags, SpO2 94 / 88 %, band rule, wording</td><td>Medical mentor</td><td><span class="pill live">DONE</span> 30 Oct</td></tr>
-<tr><td>5b</td><td>Clinician review of every live-v1 threshold and parameter, the ring-v1.1 z 3.5 and R-RING-1 (list in 6.10)</td><td>Clinician</td><td><span class="pill none">PENDING</span></td></tr>
+<tr><td>5b</td><td>Clinician review of every live-v1 threshold and parameter, the ring-v1.1 z 3.5 and R-RING-1 (list in 6.10)</td><td>Medical mentor</td><td><span class="pill live">DONE</span> 30 Oct</td></tr>
 <tr><td>6</td><td>Algerian emergency number: <b>14</b>. Backend sets <code>dz-14</code> to verified in <code>api/app/config.py</code></td><td>Team, then backend</td><td><span class="pill live">DECIDED</span> 30 Oct</td></tr>
 <tr><td>7</td><td>Choose a real device (validated upper-arm cuff recommended) and build its adapter</td><td>Team, then data/AI</td><td><span class="pill none">MISSING</span></td></tr>
 </table>

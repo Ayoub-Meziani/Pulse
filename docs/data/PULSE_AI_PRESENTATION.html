@@ -130,7 +130,7 @@
         <li>Simulated data must be labelled "simulated"; the database rejects it otherwise</li>
       </ul>
       <h3 style="margin-top:14px">Built in 9 steps (migrations)</h3>
-      <p class="small">M1 schema · M2 access rules · M3 backend alignment · M4 AI predictions · M5 birth year · M6 Algerian risk factors + wearables · M7 AI monitoring · M8 chronic conditions <span class="pill live">CLOUD</span><br>M9 live early warnings <span class="pill local">LOCAL ONLY</span></p>
+      <p class="small">M1 schema · M2 access rules · M3 backend alignment · M4 AI predictions · M5 birth year · M6 Algerian risk factors + wearables · M7 AI monitoring · M8 chronic conditions <span class="pill live">CLOUD</span><br>M9 live early warnings <span class="pill local">APPROVED · PUSH PENDING</span></p>
     </div>
   </div>
   <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
@@ -175,7 +175,7 @@
     <tr><td><b>mbp-v1.1</b></td><td>What will tomorrow morning's BP be?</td><td>ridge regression on the last 7 days + a 90 % range</td><td><span class="pill live">SERVED</span> doctor view</td></tr>
     <tr><td><b>ring-v1.1</b></td><td>Was tonight unusual for this patient?</td><td>medical limits + the patient's own 28-day normal + IsolationForest</td><td><span class="pill live">SERVED</span> flags</td></tr>
     <tr><td><b>wcls-v1.1</b></td><td>Will next week be above the BP target?</td><td>logistic regression</td><td><span class="pill live">SERVED</span> weekly report</td></tr>
-    <tr><td><b>live-v1</b></td><td>Will a limit be crossed in the next 20 minutes?</td><td>gradient boosting, checked on every new minute</td><td><span class="pill built">BUILT</span> needs M9 in cloud</td></tr>
+    <tr><td><b>live-v1</b></td><td>Will a limit be crossed in the next 20 minutes?</td><td>gradient boosting, checked on every new minute</td><td><span class="pill built">BUILT</span> M9 approved</td></tr>
     <tr><td><b>mbp-v2.1</b></td><td>Does ring data improve the BP estimate?</td><td>mbp + ring features</td><td><span class="pill todo">EXPERIMENT</span> no real gain</td></tr>
     <tr><td><b>wrisk-v1</b></td><td>Is BP uncontrolled despite treatment?</td><td>trained on 2,309 <b>real</b> people (NHANES)</td><td><span class="pill todo">HIDDEN</span> too weak</td></tr>
   </table>
@@ -369,7 +369,8 @@
     <div>
       <h3>Clinician review</h3>
       <p class="small"><span class="pill live">DONE</span> Medical mentor, 30 Oct: alert thresholds 180/120, red flags, SpO2 94 % (COPD 88 %), band rule, patient wording</p>
-      <p class="small"><span class="pill local">PENDING</span> live-v1 thresholds and timings (P thresholds HR 0.35 / SpO2 0.45 / temperature 0.85, 20-min horizon, 2 minutes in a row, 30-min quiet period, 2-min freshness, restless P ≥ 0.7), ring personal limit z 3.5, R-RING-1</p>
+      <p class="small"><span class="pill live">DONE</span> Medical mentor, 30 Oct: live-v1 thresholds and timings (P thresholds HR 0.35 / SpO2 0.45 / temperature 0.85, 20-min horizon, 2 minutes in a row, 30-min quiet period, 2-min freshness, restless P ≥ 0.7), ring personal limit z 3.5, R-RING-1</p>
+      <p class="small muted">Reviewed for prototype use. The review covers the settings; the live results stay simulator-only.</p>
     </div>
   </div>
   <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
@@ -383,8 +384,8 @@
     <tr><th style="width:16%">Status</th><th>Item</th><th style="width:20%">Who</th></tr>
     <tr><td><span class="pill live">LIVE</span></td><td>Cloud database (M1–M8), demo data, AI outputs (estimates, flags, reports, proposed ranges)</td><td>Data/AI</td></tr>
     <tr><td><span class="pill built">BUILT</span></td><td>6 models, daily / nightly / weekly jobs, live engine, 95 tests, model cards, full 21-page report</td><td>Data/AI</td></tr>
-    <tr><td><span class="pill local">WAITING</span></td><td>M9 (live early warnings) in the cloud; confirmation of the 30 Oct cloud operations; review of the cloud access method</td><td>Ayoub</td></tr>
-    <tr><td><span class="pill local">WAITING</span></td><td>Clinician review of the live-v1 parameters, ring z 3.5, R-RING-1</td><td>Medical mentor</td></tr>
+    <tr><td><span class="pill live">DONE</span></td><td>30 Oct cloud operations and access method confirmed; clinician review of every threshold; demo password and backend message sent</td><td>Ayoub, mentor, you</td></tr>
+    <tr><td><span class="pill local">ONE STEP</span></td><td>M9 (live early warnings) in the cloud: approved, one command to run</td><td>You</td></tr>
     <tr><td><span class="pill todo">TO BUILD</span></td><td>Backend: alert rules writing to Supabase; endpoints for weekly report, flag review (incl. early warnings), range approval; R-RING-1; set number 14 as verified</td><td>Backend</td></tr>
     <tr><td><span class="pill todo">TO BUILD</span></td><td>Frontend: doctor panels for estimate, ring flags, early warnings, weekly report, range approval</td><td>Frontend</td></tr>
     <tr><td><span class="pill miss">MISSING</span></td><td>A real device (validated upper-arm cuff, ring) and its adapter; a server to run the live monitor 24/7</td><td>Team</td></tr>
@@ -399,14 +400,14 @@
   <h1>What you need to do</h1>
   <div class="g2">
     <div>
-      <h3>Before / around the presentation</h3>
+      <h3>Done (30 Oct)</h3>
+      <p class="small">Ayoub confirmed the cloud work and the access method · the mentor accepted every threshold · demo password shared privately · backend message sent</p>
+      <h3 style="margin-top:12px">Still to do</h3>
       <ol class="small">
-        <li><b>Get Ayoub's reply:</b> confirm the 30 Oct cloud operations, review the CLI-login access method, OK pushing M9 to the cloud. The evidence is in <code>docs/data/CLOUD_RUN_LOG_2026-10-30.md</code>.</li>
-        <li><b>Paste items 1–3</b> of the review note; only item 4 onward reached me.</li>
-        <li><b>Send the demo password privately</b> to teammates: the <code>PULSE_DEMO_PASSWORD=</code> line in <code>.env</code>. Never in GitHub.</li>
-        <li><b>Send the backend message</b> in <code>docs/data/CLOUD_STEPS.md</code> (step 5).</li>
-        <li><b>Ask the mentor</b> to review the pending list (<code>ml/MODEL_CARD.md</code>).</li>
+        <li><b>Push M9 to the cloud</b> (approved). In the repo folder:<br><code>npx -y supabase@2.122.0 db push --linked</code>, then answer <code>y</code>. Adds no rows.</li>
+        <li><b>Backend:</b> host <code>monitor --follow</code> so early warnings reach the doctor live.</li>
         <li><b>Team decision:</b> which real device (validated upper-arm cuff recommended).</li>
+        <li>If the review note had items 1–3, paste them to Claude.</li>
       </ol>
     </div>
     <div>
@@ -437,7 +438,7 @@
     <tr><td>Why not deep learning?</td><td>Little data, and doctors need to understand the output. Small models beat simple baselines and are easy to explain.</td></tr>
     <tr><td>You have no ring. How do you know it works?</td><td>Ring data is simulated from published values, and the oxygen rule was checked on 8 real sleep-lab nights (4/4 apnea flagged, 0/3 healthy).</td></tr>
     <tr><td>Did any model fail?</td><td>Yes: the real-data risk model (AUROC 0.60) was too weak, so we hid it. A first live forecaster never warned; we replaced it.</td></tr>
-    <tr><td>What happens next?</td><td>Real device, consented data, re-test every model on real people, clinician review of the pending thresholds, drift monitoring.</td></tr>
+    <tr><td>What happens next?</td><td>Real device, consented data, re-test every model on real people, then drift monitoring. The thresholds are already clinician-reviewed for the prototype.</td></tr>
   </table>
   <div class="foot"><span>PULSE · Data &amp; AI</span><span class="pg"></span></div>
 </section>

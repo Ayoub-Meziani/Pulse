@@ -158,8 +158,8 @@ The existing "now" rule flagged low oxygen on 98.3 % of sleep-apnea nights.
 
 **Reading:** on these simulated situations the engine warns about 17–20 minutes before the limit, where the existing rule reacts about 7–9 minutes after it, with few false warnings. The situations come from my simulator, so these numbers show the mechanism works. They don't measure real-world accuracy, which needs a real ring and doctor-reviewed flags.
 
-### Pending clinician review
-None of these thresholds or parameters has been reviewed by a clinician. All are engineering choices for the prototype.
+### Clinician review
+All of these were reviewed and accepted by the team's medical mentor on 30 Oct 2026, for prototype use. The review covers the settings, not the results: the results above stay simulator-only.
 
 | parameter | value | where |
 |---|---|---|

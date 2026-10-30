@@ -27,7 +27,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from . import live
+from . import live, reference
 from .train import ARTIFACTS, ROOT
 
 LIVE_DATA = ROOT / "data" / "live"
@@ -282,7 +282,7 @@ def main() -> None:
         "trained_on": "synthetic:live_sim seed 11 (minute-level ring nights)", "tested_on": "synthetic:live_sim seed 2027",
         "validation": "SIMULATOR-ONLY: every figure comes from 700 + 700 simulated nights; not real-world or clinical "
                       "validation",
-        "clinician_review": "pending for every threshold and parameter (ml/MODEL_CARD.md, Pending clinician review)",
+        "clinician_review": f"every threshold and parameter {reference.CLINICIAN_REVIEW} (ml/MODEL_CARD.md)",
         "train_nights": len(train_t), "test_nights": len(test_t),
         "test_situations": test_n.situation.value_counts().to_dict(),
         "forecast": {"metrics": list(live.METRICS), "horizons_min": list(live.HORIZONS), "features": live.FEATURES,

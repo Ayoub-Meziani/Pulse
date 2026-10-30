@@ -1,7 +1,7 @@
 """Medical reference values used for "placement" and outside-reference flags.
 
-Every value carries its source; the reference values were reviewed by the team's medical mentor on 30 Oct 2026
-(CLINICIAN_REVIEW). R-RING-1 is pending clinician review.
+Every value carries its source; all were reviewed by the team's medical mentor on 30 Oct 2026 (CLINICIAN_REVIEW),
+including R-RING-1 and the live-v1 parameters (ml/MODEL_CARD.md).
 These are population references;
 the patient's own normal (personal baseline / doctor-approved band) is handled in ring.py.
 Nothing here decides an emergency: the deterministic backend rules do (review H6).
@@ -66,7 +66,7 @@ R_RING_1 = {
     "metric": "spo2", "window_minutes": 10, "statistic": "median", "below": RING_REFERENCE["spo2"]["low"],
     "min_samples": 2,
     "action": "prompt a cuff reading, a symptom check and re-seating the ring; never an emergency by itself",
-    "status": "pending clinician review; for the backend to implement; symptoms keep their own emergency path",
+    "status": f"{CLINICIAN_REVIEW}; for the backend to implement; symptoms keep their own emergency path",
 }
 
 

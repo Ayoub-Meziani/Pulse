@@ -97,7 +97,7 @@ Every new minute of ring data is checked by `pulse_ml.live`, inside `monitor --f
 
 These warnings are advisory, for the doctor only (the `wearable_flags` rows `early_warning` / `forecast`).
 
-**Simulator-only:** every live-v1 result (700 + 700 simulated nights) shows the mechanism works on invented situations; it is not real-world or clinical validation. Every threshold and parameter is **pending clinician review** (list in `MODEL_CARD.md`).
+**Simulator-only:** every live-v1 result (700 + 700 simulated nights) shows the mechanism works on invented situations; it is not real-world or clinical validation. Every threshold and parameter was reviewed by the team's medical mentor on 30 Oct 2026 (list in `MODEL_CARD.md`).
 
 | Command | What |
 |---|---|

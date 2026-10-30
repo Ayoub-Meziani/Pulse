@@ -1,6 +1,6 @@
 # Cloud operations on 30 Oct 2026: execution evidence
 
-**Approval status:** approval unconfirmed for all of these, pending Ayoub's explicit confirmation.
+**Approval status:** confirmed by Ayoub on 30 Oct 2026 (relayed by the data/AI owner), together with the CLI-login access method.
 
 **Source:** the Claude Code transcript of this session (`~/.claude/projects/C--Users-Lenovo/880cd030-….jsonl`), read after the fact. Nothing was run to produce this file.
 - Times are UTC (transcript clock). "Start" is when the command was issued; "end" is when its output was recorded.
@@ -51,6 +51,8 @@ Read-only checks after each run: 17:05:13, 17:29:41, 17:42:21 (failed: `DbConfig
 | 05:34:12 | `db push --linked` | M7 ml_monitoring |
 
 Two other pushes were blocked by the Claude Code permission classifier and did nothing: 05:30:50 (M7) and 08:58:40 (M8).
+
+**After Ayoub's OK (30 Oct, evening):** `db push --linked --dry-run` showed only M9 (`20261030170000_live_early_warning.sql`) pending. The push itself was blocked by the Claude Code permission classifier, so nothing was written; the data/AI owner runs it by hand.
 
 ## Verbatim excerpts (masked)
 #### call 2026-10-30T13:54:24.245Z  ->  result 2026-10-30T13:54:46.040Z  [PowerShell]
