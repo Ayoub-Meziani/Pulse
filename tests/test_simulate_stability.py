@@ -56,6 +56,10 @@ def test_cloud_ring_refresh_only_touches_simulated_demo_rings():
     assert deletes == [deletes[0]] and "source = 'simulated'" in deletes[0] and "public.wearable_samples" in deletes[0]
     assert all(simulate.demo_id(k + ":ring") in deletes[0] for k in simulate.WEARABLE_KEYS)
     assert "insert into public.measurements" not in script and "on conflict (id) do nothing" in script
+    parts = simulate.cloud_ring_demo_parts()
+    assert sum(p.count("'simulated', 'sim-ring-") for p in parts) == script.count("'simulated', 'sim-ring-")
+    assert "delete from" in parts[0] and not any("delete from" in p for p in parts[1:])   # delete only in part 1
+    assert all("do nothing" in p and p.rstrip().endswith("end $ring_demo$;") for p in parts)
 
 
 def test_chronic_conditions_shape_the_ring_values():

@@ -371,6 +371,26 @@ def ring_device_rows() -> list[list[str]]:
              sql(GENERATOR_VERSION), "'Simulated ring (not a real device)'"] for k in WEARABLE_KEYS]
 
 
+def cloud_ring_demo_parts(rows_per_part: int = 5000) -> list[str]:
+    """The same refresh in several smaller DO blocks (API request size). Part 1 deletes the old simulated demo-ring
+    samples, sets conditions and devices; every part inserts with ON CONFLICT DO NOTHING, so running all parts
+    again, in order, is always safe."""
+    rings = ", ".join(sql(demo_id(k + ":ring")) for k in WEARABLE_KEYS)
+    rows = wearable_rows()
+    head = [f"delete from public.wearable_samples where source = 'simulated' and device_id in ({rings});\n",
+            *(f"update public.patient_profiles set condition_codes = {sql(risk_factors(u)['codes'])} "
+              f"where user_id = {sql(u.id)};\n" for u in PATIENTS),
+            insert("devices", ["id", "patient_id", "device_type", "bp_capability", "manufacturer", "model", "label"],
+                   ring_device_rows()).replace(";\n\n", "\non conflict (id) do nothing;\n\n")]
+    parts = []
+    for i in range(0, len(rows), rows_per_part):
+        body = insert("wearable_samples", WEARABLE_COLS, rows[i:i + rows_per_part]).replace(
+            ";\n\n", "\non conflict (device_id, external_id) where external_id is not null do nothing;\n\n")
+        parts.append(f"-- part {len(parts) + 1}: FICTIONAL demo ring data (simulated)\ndo $ring_demo$ begin\n"
+                     + ("".join(head) if not parts else "") + body + "end $ring_demo$;\n")
+    return parts
+
+
 def cloud_ring_demo_sql() -> str:
     """Refresh the ring demo in a database that ALREADY holds the demo seed (the cloud project), in one
     transaction: chronic conditions of the demo patients (needs M8), a simulated ring for every demo patient,
@@ -666,6 +686,8 @@ def main() -> None:
     elif a.cmd == "ring-demo-sql":
         a.out.parent.mkdir(parents=True, exist_ok=True)
         a.out.write_text(cloud_ring_demo_sql(), encoding="utf-8")
+        for i, part in enumerate(cloud_ring_demo_parts(), 1):   # smaller files for the cloud API
+            (a.out.parent / f"{a.out.stem}_part{i}.sql").write_text(part, encoding="utf-8")
     else:
         write_sample_csv(a.out)
     print(f"wrote {a.out}")
