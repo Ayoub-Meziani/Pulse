@@ -254,6 +254,11 @@ FACT (code read only; nothing executed):
   - **ASSUMPTION:** `pulse`, because it is the only project in `eu-west-3` known to this team.
   - **ASSUMPTION:** it is the input expected by `CLOUD_STEPS.md` step 2.
 - **Decision (Ayoub):** keep the file as it is. Do not delete it, change it or rotate the credential. ML cloud jobs stay frozen and `run_cloud_jobs.ps1` is not to be run.
+- **Update (Ayoub, 2026-10-31):** move the file outside the repository folder. Done by Claude Code on 2026-10-31 at
+  ≈00:00 UTC with a plain move (`mv -n`): the file is now outside every worktree, in a folder of the Windows user
+  profile (not named here), with the same size (119 bytes) and timestamp. Its contents were not read, displayed or
+  changed, and the credential was not rotated. `run_cloud_jobs.ps1` no longer finds a `.env` in the repository
+  folder. `.gitignore` now also ignores `*.env`, `*.pem` and `*.key`.
 - **Note:** the backend API does not load `.env` by itself (`docs/CLAUDE_SESSION_HANDOFF.md` §5, B8). The key name `DATABASE_URL` is the one the `AI` scripts and jobs use. The backend reads `PULSE_DATABASE_URL`.
 
 **Conclusion:** I found no automation in the repository or on this machine that would run the cloud scripts by itself. The open risk is a manual run by someone following `CLOUD_STEPS.md` step 3 (`run_cloud_jobs.ps1`). `CLOUD_STEPS.md` still lists that step as pending, and the repo's `.env` now contains the cloud connection string it needs.
@@ -440,6 +445,18 @@ project (not this session). It is additive and no row uses it yet.
 
 **Not done (waiting for Ayoub):** no revert of PR #4, no migration change, no edit of `LIVE_UNTIL`. Options are
 listed in `docs/PULSE_SCOPE_AUDIT.md` question Q6.
+
+## 10e. Decision on M9 (Ayoub, 2026-10-31)
+
+- **Keep M9. Do not revert it.** M9 was applied to production without Ayoub's confirmed explicit approval.
+  Keeping it is a decision about the current state; it is **not** a retroactive approval of how it was applied.
+- Local alignment (done by Claude Code, local only): `LIVE_UNTIL` → `20261030170000`; the M9 file is the `AI`
+  blob `687c42f`; the rebuilt `live` test database matches the production schema dump of 23:39 UTC (382/382).
+- Unchanged: the `live-v1` engine, the ML jobs, the simulators and `R-RING-1` stay inactive. The cloud scripts
+  (`cloud_update.ps1`, `run_cloud_jobs.ps1`) are not production-ready and stay frozen. The retrained models
+  (`*.1`) need review before serving. The PR #4 classifications stand (`docs/V1_RELEASE_AUDIT.md` §1).
+- Process follow-ups (open, need Ayoub): protect `main`, restrict Owner/Administrator roles in `lwiza`, move the
+  production `.env` out of the repository folder (§8a, done 2026-10-31).
 
 ---
 

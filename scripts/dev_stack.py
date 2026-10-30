@@ -2,7 +2,7 @@
 
 Everything is local, bound to 127.0.0.1, on a private Docker network. It never points at a shared or
 cloud project. The database gets exactly the migrations verified live (up to LIVE_UNTIL in test_db.py,
-so a migration still awaiting review, such as M9, is never applied here).
+so a migration that is not live yet is never applied here).
 
     python scripts/dev_stack.py up        # create the stack (fresh database) and write .dev/api.env
     python scripts/dev_stack.py stop      # stop the containers, keep the data

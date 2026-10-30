@@ -1,11 +1,16 @@
 # PULSE V1 — release audit (phase A), staging proposal (phase B), Q5 proposal (phase C)
 
-Date: 2026-10-31 (23:40 UTC read-only checks). Author: Claude Code for Ayoub. Base: `main` `e9c9c28`.
+Date: 2026-10-30 (23:39 UTC read-only checks; local time 31 Oct 00:39). Author: Claude Code for Ayoub. Base: `main` `e9c9c28`.
 Scope of this document: read-only investigation, local analysis and plans. **Nothing was created, applied,
 reverted, deployed or written to any cloud database.**
 
 Labels: **FACT** (checked, method named) · **CLAIM** (stated by someone, not confirmed) · **INFERRED** ·
 **DECISION NEEDED**.
+
+> **Decisions recorded 2026-10-31 (Ayoub).** Q6: keep M9, no revert, not approved retroactively; `LIVE_UNTIL`
+> moved to M9 (local only, `PULSE_SUPABASE_CHANGELOG.md` rows 15–16). Q7: staging `pulse-staging` in `lwiza`,
+> eu-west-3, M1–M9 mirrored, nothing created until Ayoub authorizes it (`docs/STAGING_SETUP.md`). Q5: plan only
+> (`docs/proposals/M10_ALERT_DISMISSAL.md`). Q1–Q4 deferred. Sections below are the audit as written.
 
 ---
 
@@ -32,7 +37,7 @@ on push / pull request; no GitHub schedule, no Windows scheduled task on this ma
 
 ## 2. M9 incident and database synchronization
 
-| Check (2026-10-31 ≈23:39 UTC) | Result | Method |
+| Check (2026-10-30 ≈23:39 UTC) | Result | Method |
 |---|---|---|
 | Live migration ledger | 9 versions: M1–M9 | `supabase migration list --linked` (read-only) |
 | Live schema vs `main` migrations M1–M9 | **382 / 382 statements identical** | schema-only dump vs throwaway DB built from `main` (`scripts/compare_schemas.py`) |
@@ -177,12 +182,12 @@ detail (doctor). Estimated effort: about one day including tests, after approval
 | Functional | Q1–Q4 | Deferred (your decisions) |
 | Functional | Q5 dismissal + timeline | Proposal (§5), not implemented |
 | Database | Repository = production M1–M9 | Verified (382/382) |
-| Database | M9 approval / `LIVE_UNTIL` | **Open (Q6)** |
+| Database | M9 / `LIVE_UNTIL` | Kept by decision (not approved retroactively); `LIVE_UNTIL` = M9 |
 | Database | Migration process (who can push, changelog first) | **Open** |
 | Security | Assigned-doctor access, patient isolation, private notes | Tested (pytest + acceptance + browser) |
 | Security | Login rate limiting, logout endpoint, token storage review | Open (step 10) |
 | Security | `main` branch protection | Open |
-| Security | Production `DATABASE_URL` in a repo-folder `.env` | Open (§2.4) |
+| Security | Production `DATABASE_URL` in a repo-folder `.env` | Moved outside the repository folder 2026-10-31 (not read, not rotated); `.gitignore` also covers `*.env`, `*.pem`, `*.key` |
 | Clinical | Thresholds, symptom list, wording, French alert texts reviewed by a clinician | Open (claims of a mentor review unconfirmed) |
 | Clinical | Emergency number 14 verified | Open |
 | Clinical | ML / live warnings inactive | Verified (0 early warnings; API serves no estimate) |
