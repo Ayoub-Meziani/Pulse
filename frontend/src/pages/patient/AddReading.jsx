@@ -1,19 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { ApiError } from "../../api/client";
 import { addMeasurement, addSymptomReport, getEmergencyConfig } from "../../api/patient";
 import AlertCard from "../../components/alerts/AlertCard";
-import ProvenanceBadge from "../../components/ProvenanceBadge";
-import { EVALUATION_LEVEL, formatDateTime, SOURCE, SYMPTOMS } from "../../lib/format";
-import { afterMeasurement, afterSymptoms, whenUnreachable } from "../../lib/readingFlow";
+import { OriginBadge, ValidationBadge } from "../../components/ui/Badge";
+import Button, { ButtonLink } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import Icon from "../../components/ui/Icon";
+import { EVALUATION_LEVEL, formatDateTime, SYMPTOMS } from "../../lib/format";
+import { afterMeasurement, afterSymptoms, readingRequest, whenUnreachable } from "../../lib/readingFlow";
 import EmergencyScreen from "./EmergencyScreen";
 
 // Reading -> server evaluation -> next screen. Every level, flag, delay and message is the
-// server's (EvaluationOut); readingFlow.js only picks the screen.
+// server's (EvaluationOut); readingFlow.js only picks the screen. Nothing is shown as saved before
+// the server has answered.
 
 function unreachable(error) {
   return error instanceof ApiError && (error.status === 0 || error.status >= 500);
+}
+
+function errorText(error) {
+  if (!(error instanceof ApiError)) return "Erreur inattendue. Réessayez.";
+  if (error.code === "conflict") return "Cette mesure a déjà été envoyée avec d'autres valeurs. Rechargez la page puis recommencez.";
+  if (error.status === 422) {
+    const fields = Array.isArray(error.details) ? error.details.map((d) => d.message).filter(Boolean) : [];
+    return `Valeurs refusées : ${fields.join(" ; ") || error.message}`;
+  }
+  if (error.status === 403) return "Vous ne pouvez pas enregistrer de mesure pour ce compte.";
+  return error.message || "Erreur inattendue. Réessayez.";
 }
 
 function nowLocalInput() {
@@ -27,7 +42,8 @@ function toInt(value) {
   return value.trim() !== "" && Number.isInteger(n) ? n : null;
 }
 
-const input = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900";
+const field = "mt-1.5 block w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
+const label = "text-sm font-medium text-ink";
 
 function SymptomBoxes({ selected, onChange }) {
   function toggle(code) {
@@ -35,10 +51,12 @@ function SymptomBoxes({ selected, onChange }) {
   }
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-      {SYMPTOMS.map(([code, label]) => (
-        <label key={code} className="flex items-center gap-2 text-sm text-slate-800">
-          <input type="checkbox" checked={selected.includes(code)} onChange={() => toggle(code)} />
-          {label}
+      {SYMPTOMS.map(([code, text]) => (
+        <label key={code} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition-colors ${
+          selected.includes(code) ? "border-brand bg-brand-soft text-ink" : "border-line bg-surface text-ink hover:bg-surface-muted"
+        }`}>
+          <input type="checkbox" className="h-4 w-4 accent-[#0b5cad]" checked={selected.includes(code)} onChange={() => toggle(code)} />
+          {text}
         </label>
       ))}
     </div>
@@ -53,88 +71,94 @@ function ReadingForm({ recheck, onSubmit }) {
   const [position, setPosition] = useState("sitting");
   const [rested, setRested] = useState(false);
   const [symptoms, setSymptoms] = useState([]);
+  const [showSymptoms, setShowSymptoms] = useState(false);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
+    if (busy) return;
     const sys = toInt(systolic);
     const dia = toInt(diastolic);
     if (sys === null || dia === null || (pulse.trim() !== "" && toInt(pulse) === null)) {
-      setError("Entrez des nombres entiers.");
+      setError("Saisissez des nombres entiers (par exemple 128 et 82).");
       return;
     }
     setBusy(true);
     setError(null);
-    // Plausibility and levels are the server's job; its message is shown as it is.
-    const body = {
-      systolic: sys,
-      diastolic: dia,
-      pulse: toInt(pulse),
-      measured_at: new Date(measuredAt).toISOString(),
-      body_position: position || null,
-      rested_5_min: rested,
-    };
-    const err = await onSubmit(body, symptoms);
+    // Plausibility and levels are decided by the server; its message is shown as it is.
+    const err = await onSubmit({
+      systolic: sys, diastolic: dia, pulse: toInt(pulse),
+      measured_at: new Date(measuredAt).toISOString(), body_position: position || null, rested_5_min: rested,
+    }, symptoms);
     setBusy(false);
     if (err) setError(err);
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">{recheck ? "Mesure de contrôle" : "Nouvelle mesure"}</h1>
-        {recheck && <p className="mt-1 text-slate-600">Restez assis au calme et reprenez votre tension maintenant.</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <label className="text-sm font-medium text-slate-700">
-          Systolique (mmHg)
-          <input className={input} inputMode="numeric" required value={systolic} onChange={(e) => setSystolic(e.target.value)} />
+    <Card as="form" onSubmit={submit} className="p-5 sm:p-7" noValidate>
+      <h1 className="text-xl font-bold text-ink sm:text-2xl">{recheck ? "Mesure de contrôle" : "Nouvelle mesure"}</h1>
+      <p className="mt-1 text-sm text-ink-muted">
+        {recheck ? "Restez assis au calme et reprenez votre tension maintenant." : "Recopiez les valeurs affichées par votre tensiomètre."}
+      </p>
+
+      <div className="mt-6 grid grid-cols-2 gap-4">
+        <label className={label}>Systolique
+          <span className="block text-xs font-normal text-ink-muted">chiffre du haut</span>
+          <input className={`${field} tnum text-xl font-semibold`} inputMode="numeric" autoComplete="off" required
+            value={systolic} onChange={(e) => setSystolic(e.target.value)} placeholder="128" aria-describedby="unit-mmhg" />
         </label>
-        <label className="text-sm font-medium text-slate-700">
-          Diastolique (mmHg)
-          <input className={input} inputMode="numeric" required value={diastolic} onChange={(e) => setDiastolic(e.target.value)} />
+        <label className={label}>Diastolique
+          <span className="block text-xs font-normal text-ink-muted">chiffre du bas</span>
+          <input className={`${field} tnum text-xl font-semibold`} inputMode="numeric" autoComplete="off" required
+            value={diastolic} onChange={(e) => setDiastolic(e.target.value)} placeholder="82" aria-describedby="unit-mmhg" />
         </label>
-        <label className="text-sm font-medium text-slate-700">
-          Pouls (facultatif)
-          <input className={input} inputMode="numeric" value={pulse} onChange={(e) => setPulse(e.target.value)} />
+        <p id="unit-mmhg" className="col-span-2 -mt-2 text-xs text-ink-subtle">Valeurs en mmHg.</p>
+        <label className={label}>Pouls <span className="font-normal text-ink-muted">(facultatif, bpm)</span>
+          <input className={`${field} tnum`} inputMode="numeric" autoComplete="off" value={pulse} onChange={(e) => setPulse(e.target.value)} placeholder="72" />
         </label>
-        <label className="text-sm font-medium text-slate-700">
-          Date et heure
-          <input className={input} type="datetime-local" required value={measuredAt} onChange={(e) => setMeasuredAt(e.target.value)} />
+        <label className={label}>Date et heure
+          <input className={field} type="datetime-local" required value={measuredAt} onChange={(e) => setMeasuredAt(e.target.value)} />
         </label>
-        <label className="text-sm font-medium text-slate-700">
-          Position
-          <select className={input} value={position} onChange={(e) => setPosition(e.target.value)}>
+        <label className={label}>Position
+          <select className={field} value={position} onChange={(e) => setPosition(e.target.value)}>
             <option value="sitting">Assis</option>
             <option value="standing">Debout</option>
             <option value="lying">Allongé</option>
             <option value="">Non précisé</option>
           </select>
         </label>
-        <label className="mt-6 flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={rested} onChange={(e) => setRested(e.target.checked)} />
+        <label className="mt-7 flex min-h-11 items-center gap-3 text-sm text-ink">
+          <input type="checkbox" className="h-4 w-4 accent-[#0b5cad]" checked={rested} onChange={(e) => setRested(e.target.checked)} />
           Repos de 5 minutes avant la mesure
         </label>
       </div>
-      <fieldset>
-        <legend className="text-sm font-medium text-slate-700">Symptômes en ce moment (facultatif)</legend>
-        <div className="mt-2"><SymptomBoxes selected={symptoms} onChange={setSymptoms} /></div>
-      </fieldset>
-      {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{error}</p>}
-      <button type="submit" disabled={busy} className="rounded-lg bg-blue-700 px-5 py-2.5 font-semibold text-white disabled:opacity-60">
-        {busy ? "Envoi…" : "Enregistrer la mesure"}
-      </button>
-    </form>
+
+      <div className="mt-6 rounded-xl border border-line">
+        <button type="button" onClick={() => setShowSymptoms((v) => !v)} aria-expanded={showSymptoms}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-ink">
+          <span>Symptômes en ce moment <span className="font-normal text-ink-muted">(facultatif){symptoms.length ? ` · ${symptoms.length} sélectionné(s)` : ""}</span></span>
+          <Icon name="chevron" size={18} className={showSymptoms ? "rotate-90" : ""} />
+        </button>
+        {showSymptoms && <div className="border-t border-line p-4"><SymptomBoxes selected={symptoms} onChange={setSymptoms} /></div>}
+      </div>
+
+      {error && <p className="mt-5 flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert"><Icon name="alert" size={18} />{error}</p>}
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Button type="submit" disabled={busy} className="flex-1 sm:flex-none">{busy ? "Envoi en cours…" : "Enregistrer la mesure"}</Button>
+        <ButtonLink to="/patient" variant="secondary">Annuler</ButtonLink>
+      </div>
+    </Card>
   );
 }
 
-function SymptomCheck({ onSubmit }) {
+function SymptomCheck({ onSubmit, intro }) {
   const [symptoms, setSymptoms] = useState([]);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
   async function send(list) {
+    if (busy) return;
     setBusy(true);
     setError(null);
     const err = await onSubmit(list);
@@ -143,21 +167,16 @@ function SymptomCheck({ onSubmit }) {
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-      <h2 className="text-xl font-bold text-slate-900">Avez-vous un de ces symptômes en ce moment ?</h2>
-      <SymptomBoxes selected={symptoms} onChange={setSymptoms} />
-      {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{error}</p>}
-      <div className="flex flex-wrap gap-3">
-        <button type="button" disabled={busy || symptoms.length === 0} onClick={() => send(symptoms)}
-          className="rounded-lg bg-blue-700 px-5 py-2.5 font-semibold text-white disabled:opacity-60">
-          Envoyer ces symptômes
-        </button>
-        <button type="button" disabled={busy} onClick={() => send([])}
-          className="rounded-lg border border-slate-300 px-5 py-2.5 font-semibold text-slate-800 disabled:opacity-60">
-          Aucun de ces symptômes
-        </button>
+    <Card className="p-5 sm:p-7">
+      <h2 className="text-xl font-bold text-ink">Avez-vous un de ces symptômes en ce moment ?</h2>
+      {intro && <p className="mt-1 text-sm text-ink-muted">{intro}</p>}
+      <div className="mt-5"><SymptomBoxes selected={symptoms} onChange={setSymptoms} /></div>
+      {error && <p className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</p>}
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Button disabled={busy || symptoms.length === 0} onClick={() => send(symptoms)}>Envoyer ces symptômes</Button>
+        <Button variant="secondary" disabled={busy} onClick={() => send([])}>Aucun de ces symptômes</Button>
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -169,16 +188,14 @@ function RecheckTimer({ seconds, onReady }) {
     return () => clearTimeout(id);
   }, [left]);
   return (
-    <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 sm:p-8">
-      <h2 className="text-xl font-bold text-amber-900">Reposez-vous, puis reprenez votre tension</h2>
-      <p className="mt-2 text-amber-900">
-        {left > 0 ? `Nouvelle mesure dans ${left} s.` : "Vous pouvez reprendre votre tension."}
+    <Card className="border-level-notice/30 bg-level-notice-soft p-5 sm:p-7">
+      <h2 className="text-xl font-bold text-level-notice">Reposez-vous, puis reprenez votre tension</h2>
+      <p className="tnum mt-2 text-level-notice" aria-live="polite">
+        {left > 0 ? `Nouvelle mesure possible dans ${left} s.` : "Vous pouvez reprendre votre tension."}
       </p>
-      <button type="button" disabled={left > 0} onClick={onReady}
-        className="mt-4 rounded-lg bg-amber-700 px-5 py-2.5 font-semibold text-white disabled:opacity-50">
-        Reprendre ma tension
-      </button>
-    </section>
+      <p className="mt-1 text-sm text-level-notice">Si vous vous sentez mal, utilisez le bouton Urgence.</p>
+      <Button disabled={left > 0} onClick={onReady} className="mt-4">Reprendre ma tension</Button>
+    </Card>
   );
 }
 
@@ -189,26 +206,41 @@ function ResultCard({ result, report, tz }) {
   return (
     <div className="space-y-3">
       {m && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-3xl font-bold text-slate-900">{m.systolic} / {m.diastolic} <span className="text-base font-medium text-slate-500">mmHg</span></p>
-          <p className="mt-2 text-sm text-slate-600">
-            {formatDateTime(m.measured_at, tz)} · <ProvenanceBadge provenance={m.provenance} /> {SOURCE[m.source] ?? m.source}
-            {m.pulse ? ` · pouls ${m.pulse}` : ""}
-            {m.validation_status === "needs_review" && " · à vérifier"}
-            {m.validation_status === "invalid" && " · mesure jugée non valide"}
-          </p>
-        </div>
+        <Card className="p-5">
+          <p className="flex items-center gap-2 text-sm font-medium text-success"><Icon name="check" size={18} />Mesure enregistrée par le serveur</p>
+          <p className="tnum mt-2 text-3xl font-bold text-ink">{m.systolic}/{m.diastolic} <span className="text-base font-medium text-ink-muted">mmHg</span></p>
+          <p className="mt-1 text-sm text-ink-muted">{formatDateTime(m.measured_at, tz)}{m.pulse ? ` · pouls ${m.pulse} bpm` : ""}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <OriginBadge reading={m} />
+            <ValidationBadge status={m.validation_status} />
+          </div>
+        </Card>
       )}
-      {ev && (
-        <AlertCard title={level.title} message={`${ev.reason} ${ev.next_step}`.trim()} variant={level.variant} />
-      )}
+      {ev && <AlertCard title={level.title} message={`${ev.reason} ${ev.next_step}`.trim()} variant={level.variant} />}
       {report && result && (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-ink-muted">
           Symptômes enregistrés{report.report.symptoms.length === 0 ? " : aucun." : "."} {report.evaluation.next_step}
         </p>
       )}
-      <p className="text-xs text-slate-500">Consignes du serveur (texte en anglais en attendant la traduction validée).</p>
+      {report && !result && <p className="text-sm text-ink-muted">Vos symptômes ont été enregistrés. Votre médecin les verra lors du suivi.</p>}
+      <p className="text-xs text-ink-subtle">Les consignes affichées viennent du serveur (texte en anglais en attendant la traduction validée).</p>
     </div>
+  );
+}
+
+function ResendButton({ onResend }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  async function resend() {
+    setBusy(true);
+    setError(await onResend());
+    setBusy(false);
+  }
+  return (
+    <>
+      <Button onClick={resend} disabled={busy}>{busy ? "Envoi…" : "Renvoyer la même mesure"}</Button>
+      {error && <p className="w-full text-sm" role="alert">{error}</p>}
+    </>
   );
 }
 
@@ -218,6 +250,7 @@ export default function AddReading() {
   const symptomOnly = params.get("mode") === "symptomes";
   const [step, setStep] = useState(symptomOnly ? { kind: "symptoms", result: null } : { kind: "form", recheck: false });
   const [config, setConfig] = useState(null);
+  const pending = useRef(null);  // last request: same values -> same id (repeat-safe)
 
   // Loaded up front so the server's fallback values are at hand if the API drops mid-flow.
   useEffect(() => {
@@ -232,21 +265,24 @@ export default function AddReading() {
       setStep(afterSymptoms(result, report));
       return null;
     } catch (error) {
-      if (!unreachable(error)) return error.message;
-      setStep({ ...whenUnreachable(null, symptoms, config?.client_fallback) });
+      if (!unreachable(error)) return errorText(error);
+      setStep(whenUnreachable(null, symptoms, config?.client_fallback));
       return null;
     }
   }
 
   async function sendReading(body, symptoms) {
+    pending.current = readingRequest(pending.current, body);
     let result;
     try {
-      result = await addMeasurement(user.id, body);
+      result = await addMeasurement(user.id, { ...body, id: pending.current.id });
     } catch (error) {
-      if (!unreachable(error)) return error.message;
-      setStep(whenUnreachable(body, symptoms, config?.client_fallback));
+      if (!unreachable(error)) return errorText(error);
+      // Keep the exact request: "Renvoyer" resends it with the same id, so it can never be stored twice.
+      setStep({ ...whenUnreachable(body, symptoms, config?.client_fallback), body, symptoms });
       return null;
     }
+    pending.current = null;  // stored: the next reading gets a new id
     const next = afterMeasurement(result, symptoms);
     if (next.kind === "send_symptoms") return sendSymptoms(result, symptoms);
     if (next.kind === "emergency" && symptoms.length > 0) {
@@ -260,10 +296,9 @@ export default function AddReading() {
   const restart = () => setStep({ kind: "form", recheck: false });
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-5">
       <div className="flex items-center justify-between">
-        <Link to="/patient" className="text-sm font-medium text-blue-700">← Tableau de bord</Link>
-        <Link to="/patient/urgence" className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">Urgence</Link>
+        <Link to="/patient" className="inline-flex items-center gap-1 text-sm font-semibold text-brand"><Icon name="back" size={18} />Tableau de bord</Link>
       </div>
 
       {step.kind === "form" && <ReadingForm key={step.recheck ? "recheck" : "first"} recheck={step.recheck} onSubmit={sendReading} />}
@@ -271,7 +306,8 @@ export default function AddReading() {
       {step.kind === "symptoms" && (
         <>
           {step.result && <ResultCard result={step.result} tz={user.timezone} />}
-          <SymptomCheck onSubmit={(s) => sendSymptoms(step.result, s)} />
+          <SymptomCheck onSubmit={(s) => sendSymptoms(step.result, s)}
+            intro={step.result ? "Le serveur demande de vérifier vos symptômes avant la suite." : "Signalez ce que vous ressentez maintenant."} />
         </>
       )}
 
@@ -287,19 +323,22 @@ export default function AddReading() {
       {step.kind === "unreachable" && step.emergency && <EmergencyScreen notSaved initialConfig={config} />}
 
       {step.kind === "unreachable" && !step.emergency && (
-        <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-900" role="alert">
+        <Card className="border-danger/30 bg-danger-soft p-5 text-danger sm:p-7" role="alert">
           <h2 className="text-xl font-bold">Serveur injoignable</h2>
-          <p className="mt-2">Votre saisie n'a pas été enregistrée. Réessayez dans un instant. Si vous vous sentez mal, utilisez le bouton Urgence.</p>
-          <button type="button" onClick={restart} className="mt-4 rounded-lg bg-red-700 px-5 py-2.5 font-semibold text-white">Réessayer</button>
-        </section>
+          <p className="mt-2">La confirmation du serveur n'est pas arrivée : considérez la saisie comme non enregistrée. Renvoyez-la dans un instant ; si elle était déjà arrivée, elle ne sera pas enregistrée deux fois. Si vous vous sentez mal, utilisez le bouton Urgence.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {step.body && <ResendButton onResend={() => sendReading(step.body, step.symptoms)} />}
+            <Button variant="secondary" onClick={restart}>Nouvelle saisie</Button>
+          </div>
+        </Card>
       )}
 
       {step.kind === "done" && (
         <>
           <ResultCard result={step.result} report={step.report} tz={user.timezone} />
           <div className="flex flex-wrap gap-3">
-            <Link to="/patient" className="rounded-lg bg-blue-700 px-5 py-2.5 font-semibold text-white">Retour au tableau de bord</Link>
-            <button type="button" onClick={restart} className="rounded-lg border border-slate-300 px-5 py-2.5 font-semibold text-slate-800">Nouvelle mesure</button>
+            <ButtonLink to="/patient">Retour au tableau de bord</ButtonLink>
+            <Button variant="secondary" onClick={restart}>Nouvelle mesure</Button>
           </div>
         </>
       )}

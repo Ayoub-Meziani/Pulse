@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { homeFor } from "../../auth/roles";
+import Logo from "../../components/ui/Logo";
 
 function loginMessage(error) {
   if (!(error instanceof ApiError)) return "Erreur inattendue. Réessayez.";
@@ -48,50 +49,43 @@ export default function LoginPage() {
     }
   }
 
+  const input = "mt-1.5 block w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-5">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm"
-        aria-labelledby="login-title"
-      >
-        <p className="text-xl font-bold tracking-tight text-blue-700">PulseCare</p>
-        <h1 id="login-title" className="mt-4 text-2xl font-bold text-slate-900">Connexion</h1>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      <aside className="hidden flex-col justify-between bg-navy p-10 text-white lg:flex">
+        <Logo inverse size={36} />
+        <div className="max-w-md">
+          <h2 className="text-3xl font-bold leading-tight">Suivi de la tension artérielle, entre deux consultations.</h2>
+          <p className="mt-4 text-white/75">
+            Le patient saisit ses mesures et ses symptômes ; des règles de sécurité fixes lui indiquent la conduite à
+            tenir, et son médecin suit l'évolution. Un bracelet est facultatif.
+          </p>
+        </div>
+        <p className="text-xs text-white/60">Prototype — ne pose pas de diagnostic et ne remplace pas un professionnel de santé.</p>
+      </aside>
+      <main className="flex items-center justify-center px-5 py-10">
+        <form onSubmit={submit} className="w-full max-w-sm" aria-labelledby="login-title">
+          <div className="lg:hidden"><Logo size={36} /></div>
+          <h1 id="login-title" className="mt-8 text-2xl font-bold text-ink lg:mt-0">Connexion</h1>
+          <p className="mt-1 text-sm text-ink-muted">Accès réservé aux patients et médecins inscrits.</p>
 
-        <label className="mt-6 block text-sm font-medium text-slate-700" htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          autoComplete="username"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
-        />
+          <label className="mt-6 block text-sm font-medium text-ink" htmlFor="email">Email</label>
+          <input id="email" type="email" autoComplete="username" required value={email}
+            onChange={(e) => setEmail(e.target.value)} className={input} />
 
-        <label className="mt-4 block text-sm font-medium text-slate-700" htmlFor="password">Mot de passe</label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
-        />
+          <label className="mt-4 block text-sm font-medium text-ink" htmlFor="password">Mot de passe</label>
+          <input id="password" type="password" autoComplete="current-password" required value={password}
+            onChange={(e) => setPassword(e.target.value)} className={input} />
 
-        {error && (
-          <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
-        )}
+          {error && <p role="alert" className="mt-4 rounded-xl bg-danger-soft px-3.5 py-2.5 text-sm text-danger">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-6 w-full rounded-lg bg-blue-700 px-4 py-2.5 font-medium text-white transition hover:bg-blue-800 disabled:opacity-60"
-        >
-          {busy ? "Connexion…" : "Se connecter"}
-        </button>
-      </form>
+          <button type="submit" disabled={busy}
+            className="mt-6 min-h-11 w-full rounded-xl bg-brand px-4 py-2.5 font-semibold text-white transition-colors hover:bg-brand-hover disabled:opacity-60">
+            {busy ? "Connexion…" : "Se connecter"}
+          </button>
+          <p className="mt-6 text-xs text-ink-subtle">En cas d'urgence, n'attendez pas : appelez directement les secours.</p>
+        </form>
+      </main>
     </div>
   );
 }

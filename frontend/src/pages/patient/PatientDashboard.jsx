@@ -1,199 +1,185 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
-import { getSummary, listActiveAlerts, listMeasurements } from "../../api/patient";
-import AlertCard from "../../components/alerts/AlertCard";
-import StatCard from "../../components/cards/StatCard";
+import { getProfile, getSummary, listAlerts, listMeasurements, listNotes } from "../../api/patient";
+import AlertList from "../../components/alerts/AlertList";
 import BloodPressureChart from "../../components/charts/BloodPressureChart";
-import ProvenanceBadge from "../../components/ProvenanceBadge";
-import { ALERT_LEVEL, ALERT_STATUS, formatDateTime, round, SOURCE, TREND } from "../../lib/format";
+import ReadingList from "../../components/readings/ReadingList";
+import { OriginBadge, ValidationBadge } from "../../components/ui/Badge";
+import { ButtonLink } from "../../components/ui/Button";
+import { Card, CardBody, CardHeader, PageHeader } from "../../components/ui/Card";
+import Icon from "../../components/ui/Icon";
+import { EmptyState, ErrorState, Loading, Section } from "../../components/ui/States";
+import WearablePanel from "../../components/wearables/WearablePanel";
+import { formatAgo, formatDate, formatDateTime, round, TREND } from "../../lib/format";
+import { useResource } from "../../lib/useResource";
 
-const IDLE = { status: "loading", data: null };
-
-// One section's request: loading -> ok | error. A failed section does not hide the others.
-function useSection(load, patientId) {
-  const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState({ key: null, status: "loading", data: null });
-  const key = `${patientId}:${attempt}`;
-  useEffect(() => {
-    const controller = new AbortController();
-    load(patientId, { signal: controller.signal })
-      .then((data) => setResult({ key, status: "ok", data }))
-      .catch((error) => {
-        if (error?.name !== "AbortError") setResult({ key, status: "error", data: null });
-      });
-    return () => controller.abort();
-  }, [load, patientId, key]);
-  // An answer for an older request (or none yet) counts as loading.
-  return [result.key === key ? result : IDLE, () => setAttempt((n) => n + 1)];
-}
-
-function SectionError({ what, onRetry }) {
+function LatestReading({ readings, timeZone }) {
+  if (readings.status !== "ok") {
+    return readings.status === "loading" ? <Loading /> : <ErrorState what="vos mesures" error={readings.error} onRetry={readings.retry} />;
+  }
+  const latest = readings.data[0];
+  if (!latest) {
+    return (
+      <EmptyState icon="pulse" title="Aucune mesure pour le moment"
+        action={<ButtonLink to="/patient/mesure"><Icon name="plus" size={18} />Ajouter ma première mesure</ButtonLink>}>
+        Saisissez la tension affichée par votre tensiomètre pour commencer votre suivi.
+      </EmptyState>
+    );
+  }
   return (
-    <div role="alert" className="rounded-xl bg-red-50 px-5 py-4 text-sm text-red-800">
-      Impossible de charger {what} pour le moment.{" "}
-      <button type="button" onClick={onRetry} className="font-medium underline">Réessayer</button>
+    <div>
+      <p className="tnum text-5xl font-bold tracking-tight text-ink">
+        {latest.systolic}<span className="text-ink-subtle">/</span>{latest.diastolic}
+        <span className="ml-2 text-base font-medium text-ink-muted">mmHg</span>
+      </p>
+      <p className="mt-2 text-sm text-ink-muted">
+        {formatDateTime(latest.measured_at, timeZone)} · {formatAgo(latest.measured_at)}
+        {latest.pulse ? ` · pouls ${latest.pulse} bpm` : ""}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <OriginBadge reading={latest} />
+        <ValidationBadge status={latest.validation_status} />
+      </div>
     </div>
   );
 }
 
-function averages(s, days) {
-  const sys = round(s[`avg_systolic_${days}d`]);
-  const dia = round(s[`avg_diastolic_${days}d`]);
-  return sys === null || dia === null ? "-- / --" : `${sys} / ${dia}`;
+function Summary({ summary }) {
+  return (
+    <Section state={summary} what="le résumé">
+      {(s) => (
+        <dl className="grid grid-cols-2 gap-4">
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-subtle">Moyenne 7 jours</dt>
+            <dd className="tnum mt-1 text-2xl font-semibold text-ink">
+              {s.avg_systolic_7d === null ? "—" : `${round(s.avg_systolic_7d)}/${round(s.avg_diastolic_7d)}`}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-subtle">Tendance</dt>
+            <dd className="mt-1 text-lg font-semibold text-ink first-letter:uppercase">{TREND[s.trend] ?? s.trend}</dd>
+          </div>
+          <div className="col-span-2 text-sm text-ink-muted">
+            {s.count_7d} mesure(s) valides sur 7 jours
+            {s.count_7d_simulated > 0 && <> dont <strong className="text-sim">{s.count_7d_simulated} simulée(s)</strong></>}
+            {s.count_needs_review_7d > 0 && <> · {s.count_needs_review_7d} à vérifier</>}
+            <br />Votre cible : {s.target.systolic}/{s.target.diastolic} mmHg{s.target.is_default ? " (cible générale)" : " (fixée par votre médecin)"}
+          </div>
+        </dl>
+      )}
+    </Section>
+  );
 }
 
-function lastReadingText(readings, latest, tz) {
-  if (readings.status === "loading") return "Chargement…";
-  if (readings.status === "error") return "Indisponible.";
-  if (!latest) return "Aucune mesure enregistrée.";
-  const origin = latest.provenance === "simulated" ? "SIMULÉE" : SOURCE[latest.source] ?? latest.source;
-  const review = latest.validation_status === "needs_review" ? " · à vérifier" : "";
-  return `${formatDateTime(latest.measured_at, tz)} · ${origin}${review}`;
-}
-
-function sevenDayText(summary) {
-  if (summary.status === "loading") return "Chargement…";
-  if (summary.status === "error") return "Indisponible.";
-  return `${summary.data.count_7d} mesure(s) · tendance : ${TREND[summary.data.trend] ?? summary.data.trend}`;
-}
-
-function targetText(summary) {
-  if (summary.status === "loading") return "Chargement…";
-  if (summary.status === "error") return "Indisponible.";
-  const t = summary.data.target;
-  return `Objectif : ${t.systolic} / ${t.diastolic} mmHg${t.is_default ? " (par défaut)" : ""}`;
+function DoctorCard({ profile, notes, timeZone }) {
+  const advice = notes.status === "ok" ? notes.data.filter((n) => n.advice || n.follow_up_at) : [];
+  return (
+    <Card>
+      <CardHeader title="Votre suivi médical" />
+      <CardBody className="space-y-4">
+        <Section state={profile} what="votre profil">
+          {(p) => p.regular_doctor_name ? (
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft text-brand"><Icon name="user" /></span>
+              <div>
+                <p className="font-medium text-ink">{p.regular_doctor_name}</p>
+                <p className="text-sm text-ink-muted">Médecin traitant{p.regular_clinic ? ` · ${p.regular_clinic}` : ""}</p>
+              </div>
+            </div>
+          ) : <p className="text-sm text-ink-muted">Aucun médecin traitant renseigné.</p>}
+        </Section>
+        {notes.status === "error" && <ErrorState what="les conseils" error={notes.error} onRetry={notes.retry} />}
+        {advice.length > 0 && (
+          <ul className="space-y-3">
+            {advice.slice(0, 2).map((n) => (
+              <li key={n.id} className="rounded-xl bg-brand-soft/60 p-3 text-sm">
+                {n.advice && <p className="text-ink">{n.advice}</p>}
+                <p className="mt-1 text-xs text-ink-muted">
+                  {n.doctor_name} · {formatDate(n.created_at, timeZone)}
+                  {n.follow_up_at && ` · prochain suivi le ${formatDate(n.follow_up_at, timeZone)}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardBody>
+    </Card>
+  );
 }
 
 export default function PatientDashboard() {
   const { user } = useAuth();
-  const [readings, retryReadings] = useSection(listMeasurements, user.id);
-  const [summary, retrySummary] = useSection(getSummary, user.id);
-  const [alerts, retryAlerts] = useSection(listActiveAlerts, user.id);
+  const id = user.id;
   const tz = user.timezone;
-
-  const list = readings.data ?? [];
-  const latest = list[0];
+  const readings = useResource((signal) => listMeasurements(id, { limit: 60, signal }), `m:${id}`);
+  const summary = useResource((signal) => getSummary(id, { signal }), `s:${id}`);
+  const alerts = useResource((signal) => listAlerts(id, { status: "active", signal }), `a:${id}`);
+  const profile = useResource((signal) => getProfile(id, { signal }), `p:${id}`);
+  const notes = useResource((signal) => listNotes(id, { signal }), `n:${id}`);
+  const firstName = (user.full_name ?? "").split(" ")[0];
 
   return (
-    <div className="space-y-8">
-      <section>
-        <p className="text-sm font-medium text-blue-700">ESPACE PATIENT</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Bonjour, {user.full_name}</h1>
-        <p className="mt-2 text-slate-600">
-          Votre suivi repose sur les mesures et les symptômes que vous saisissez. Un bracelet connecté est facultatif.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Link to="/patient/mesure" className="rounded-lg bg-blue-700 px-5 py-2.5 font-semibold text-white">
-            Nouvelle mesure
-          </Link>
-          <Link to="/patient/mesure?mode=symptomes" className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 font-semibold text-slate-800">
-            Signaler des symptômes
-          </Link>
-          <Link to="/patient/urgence" className="rounded-lg bg-red-600 px-5 py-2.5 font-semibold text-white">
-            Urgence
-          </Link>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3" aria-label="Résumé">
-        <StatCard
-          title="Dernière mesure"
-          value={latest ? `${latest.systolic} / ${latest.diastolic}` : "-- / --"}
-          unit="mmHg"
-          description={lastReadingText(readings, latest, tz)}
-        />
-        <StatCard
-          title="Moyenne sur 7 jours"
-          value={summary.data ? averages(summary.data, 7) : "-- / --"}
-          unit="mmHg"
-          description={sevenDayText(summary)}
-        />
-        <StatCard
-          title="Moyenne sur 30 jours"
-          value={summary.data ? averages(summary.data, 30) : "-- / --"}
-          unit="mmHg"
-          description={targetText(summary)}
-        />
-      </section>
-      {summary.status === "error" && <SectionError what="le résumé" onRetry={retrySummary} />}
-
-      <section>
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-slate-900">Alertes</h2>
-          <p className="mt-1 text-sm text-slate-500">Alertes en cours sur votre suivi.</p>
-        </div>
-        {alerts.status === "loading" && <p className="text-sm text-slate-500" role="status">Chargement…</p>}
-        {alerts.status === "error" && <SectionError what="les alertes" onRetry={retryAlerts} />}
-        {alerts.status === "ok" && alerts.data.length === 0 && (
-          <div className="rounded-xl bg-slate-50 px-5 py-6 text-center text-sm text-slate-500">
-            Aucune alerte active.
+    <div className="space-y-6">
+      <PageHeader eyebrow="Espace patient" title={`Bonjour ${firstName}`}
+        subtitle="Votre suivi repose sur les mesures et les symptômes que vous saisissez. Un bracelet est facultatif."
+        action={
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink to="/patient/mesure"><Icon name="plus" size={18} />Nouvelle mesure</ButtonLink>
+            <ButtonLink to="/patient/mesure?mode=symptomes" variant="secondary">Signaler des symptômes</ButtonLink>
           </div>
-        )}
-        {alerts.status === "ok" && alerts.data.length > 0 && (
-          <div className="space-y-3">
-            {alerts.data.map((a) => {
-              const level = ALERT_LEVEL[a.level] ?? { title: a.level, variant: "info" };
-              return (
-                <AlertCard
-                  key={a.id}
-                  title={`${level.title} · ${ALERT_STATUS[a.status] ?? a.status}`}
-                  message={`${a.reason} ${a.next_step}`.trim()}
-                  variant={level.variant}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
+        } />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        {readings.status === "loading" && <p className="text-sm text-slate-500" role="status">Chargement du graphique…</p>}
-        {readings.status === "error" && <SectionError what="le graphique" onRetry={retryReadings} />}
-        {readings.status === "ok" && <BloodPressureChart readings={list} timeZone={tz} />}
-      </section>
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader title="Dernière mesure" />
+          <CardBody><LatestReading readings={readings} timeZone={tz} /></CardBody>
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader title="Sur 7 jours" />
+          <CardBody><Summary summary={summary} /></CardBody>
+        </Card>
+      </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-slate-900">Historique des mesures</h2>
-        <p className="mt-1 text-sm text-slate-500">Vos mesures les plus récentes, avec leur origine.</p>
+      <Card aria-labelledby="alerts-title">
+        <CardHeader id="alerts-title" title="Alertes en cours"
+          action={<Link to="/patient/alertes" className="text-sm font-semibold text-brand">Toutes les alertes</Link>} />
+        <CardBody>
+          <Section state={alerts} what="les alertes">
+            {(list) => list.length === 0
+              ? <p className="text-sm text-ink-muted">Aucune alerte en cours.</p>
+              : <AlertList alerts={list.slice(0, 3)} timeZone={tz} />}
+          </Section>
+        </CardBody>
+      </Card>
 
-        {readings.status === "loading" && <p className="mt-6 text-sm text-slate-500" role="status">Chargement…</p>}
-        {readings.status === "error" && <div className="mt-6"><SectionError what="l'historique" onRetry={retryReadings} /></div>}
-        {readings.status === "ok" && list.length === 0 && (
-          <div className="mt-6 rounded-xl bg-slate-50 px-5 py-10 text-center">
-            <p className="text-sm text-slate-500">Aucune donnée disponible.</p>
-          </div>
-        )}
-        {readings.status === "ok" && list.length > 0 && (
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[34rem] text-left text-sm">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="pb-2 pr-4 font-medium">Date</th>
-                  <th className="pb-2 pr-4 font-medium">Tension</th>
-                  <th className="pb-2 pr-4 font-medium">Pouls</th>
-                  <th className="pb-2 pr-4 font-medium">Origine</th>
-                  <th className="pb-2 font-medium">Contrôle</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-900">
-                {list.slice(0, 20).map((r) => (
-                  <tr key={r.id}>
-                    <td className="py-2 pr-4">{formatDateTime(r.measured_at, tz)}</td>
-                    <td className="py-2 pr-4 font-medium">{r.systolic} / {r.diastolic} mmHg</td>
-                    <td className="py-2 pr-4">{r.pulse ?? "—"}</td>
-                    <td className="py-2 pr-4">
-                      <ProvenanceBadge provenance={r.provenance} />{" "}
-                      <span className="text-slate-500">{SOURCE[r.source] ?? r.source}</span>
-                    </td>
-                    <td className="py-2">{r.validation_status === "needs_review" ? "À vérifier" : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader title="Évolution de la tension" subtitle="Vos dernières mesures" />
+          <CardBody>
+            <Section state={readings} what="le graphique">
+              {(list) => <BloodPressureChart readings={list} timeZone={tz} target={summary.data?.target} />}
+            </Section>
+          </CardBody>
+        </Card>
+        <DoctorCard profile={profile} notes={notes} timeZone={tz} />
+      </div>
+
+      <Card>
+        <CardHeader title="Mesures récentes"
+          action={<Link to="/patient/historique" className="text-sm font-semibold text-brand">Tout l'historique</Link>} />
+        <CardBody>
+          <Section state={readings} what="vos mesures">
+            {(list) => list.length === 0
+              ? <p className="text-sm text-ink-muted">Aucune mesure enregistrée.</p>
+              : <ReadingList readings={list} timeZone={tz} limit={6} />}
+          </Section>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader title="Bracelet (facultatif)" subtitle="Données complémentaires, sans effet sur les alertes" />
+        <CardBody><WearablePanel patientId={id} timeZone={tz} /></CardBody>
+      </Card>
     </div>
   );
 }
