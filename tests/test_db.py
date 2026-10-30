@@ -21,7 +21,7 @@ from pulse_data.ingest import LOCAL_DB, DuplicateFileError, Reading, import_read
 DB = os.environ.get("PULSE_TEST_DATABASE_URL", LOCAL_DB)
 IDS = {u.key: u.id for u in sim.PATIENTS}
 AMINA, KARIM, NADIA, YACINE = (IDS[k] for k in ("controlled", "rising", "severe_event", "sparse_unassigned"))
-ASSIGNED = {AMINA, KARIM, NADIA}
+ASSIGNED = {u.id for u in sim.PATIENTS if u.assigned}  # Amina, Karim, Nadia + 8 cohort patients
 Denied = psycopg.errors.InsufficientPrivilege
 
 
@@ -78,7 +78,12 @@ def test_seed_loaded(db):
     flags = db.execute("select array_agg(distinct f) from public.measurements, unnest(quality_flags) f"
                        " where patient_id = %s", (YACINE,)).fetchone()[0]
     assert {"possible_duplicate", "systolic_not_above_diastolic"} <= set(flags)
-    assert db.execute("select count(*) from public.doctor_patient_assignments where status = 'active'").fetchone()[0] == 3
+    assert db.execute("select count(*) from public.doctor_patient_assignments where status = 'active'").fetchone()[0] == len(ASSIGNED)
+    complete = db.execute("select count(*) from public.patient_profiles where sex is not null and birth_year is not null"
+                          " and smoking_status is not null and 'hypertension' = any(condition_codes)").fetchone()[0]
+    assert complete == len(IDS)
+    for table in ("body_measurements", "wearable_samples"):
+        assert db.execute(f"select count(*) from public.{table} where source = 'simulated'").fetchone()[0] > 0, table
 
 
 # ---------------------------------------------------------------- validation policy (trigger)
@@ -298,9 +303,39 @@ def test_patient_sets_own_birth_year(db):
     assert db.execute("update public.patient_profiles set birth_year = 1970 where user_id = %s", (KARIM,)).rowcount == 0
 
 
+def test_algerian_factor_fields(db):
+    fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set condition_codes = '{asthma}' where user_id = %s", (AMINA,))
+    fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set adds_salt_at_table = 'daily' where user_id = %s", (AMINA,))
+    db.execute("insert into public.lifestyle_logs (patient_id, category, started_at, ended_at)"
+               " values (%s, 'fasting', now() - interval '13 hours', now() - interval '30 minutes')", (AMINA,))
+    as_user(db, AMINA)
+    assert db.execute("update public.profiles set preferred_language = 'ar' where id = %s", (AMINA,)).rowcount == 1
+    db.execute("insert into public.body_measurements (patient_id, measured_at, weight_kg, source)"
+               " values (%s, now(), 71.5, 'patient_reported')", (AMINA,))
+    fails(db, Denied, "insert into public.body_measurements (patient_id, measured_at, weight_kg, source)"
+          " values (%s, now(), 71.5, 'clinician')", (AMINA,))
+    fails(db, Denied, "insert into public.body_measurements (patient_id, measured_at, weight_kg, source)"
+          " values (%s, now(), 80, 'patient_reported')", (KARIM,))
+
+
+def test_wearable_samples(db):
+    ring = db.execute("select device_id from public.wearable_samples where patient_id = %s limit 1", (KARIM,)).fetchone()[0]
+    q = ("insert into public.wearable_samples (patient_id, device_id, metric, value, unit, measured_at, source)"
+         " values (%s, %s, %s, %s, %s, now(), 'device_sync')")
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, ring, "spo2", 97, "bpm"))           # wrong unit
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, ring, "heart_rate", 400, "bpm"))    # implausible
+    fails(db, psycopg.errors.ForeignKeyViolation, q, (AMINA, ring, "heart_rate", 70, "bpm"))  # another patient's ring
+    as_user(db, KARIM)
+    assert visible_patients(db, "wearable_samples") == {KARIM}
+    fails(db, Denied, q, (KARIM, ring, "heart_rate", 70, "bpm"))  # written by the backend only
+    db.execute("reset role")
+    as_user(db, AMINA)
+    assert visible_patients(db, "wearable_samples") == set()
+
+
 def test_new_tables_have_no_anon_access(db):
     as_user(db, None, role="anon")
-    for table in ("alert_measurements", "ml_predictions"):
+    for table in ("alert_measurements", "ml_predictions", "body_measurements", "wearable_samples"):
         fails(db, Denied, f"select 1 from public.{table}")
 
 

@@ -11,7 +11,10 @@ Cloud project: `pulse` (ref `nfmfdhpxipdndggxtqho`).
 | M2 | `20261029120100_access_policies.sql` | RLS on every table, `anon` gets nothing, per-role write policies, column grants | applied | applied 30 Oct | baseline |
 | M3 | `20261030120000_backend_alignment.sql` | contract §3.1 items 1, 2, 4–7 (below) | applied | **applied 30 Oct** (approved by the data/AI owner before the backend review rule was agreed) | yes: alert episodes, rested_5_min, empty symptoms, doctor_notes read path |
 | M4 | `20261030120100_ml_predictions.sql` | `ml_predictions` table, doctor/admin read only | applied | **applied 30 Oct** (same as M3) | endpoint 24 reads it |
-| M5 | `20261030130000_patient_birth_year.sql` | `patient_profiles.birth_year` | applied | **NOT applied: waiting for backend review** | profile schemas may expose `birth_year` |
+| M5 | `20261030130000_patient_birth_year.sql` | `patient_profiles.birth_year` | applied | applied 30 Oct (with M6, on the data/AI owner's decision; see below) | profile schemas may expose `birth_year` |
+| M6 | `20261030140000_algerian_factors_wearables.sql` | Algerian risk-factor fields, fasting logs, `body_measurements`, `wearable_samples` | applied | applied 30 Oct (same) | new optional fields and two read-only tables; nothing existing changes |
+
+**Note for the backend:** the data/AI owner chose to apply M5 and M6 to the cloud before your review, so the demo data could include them. Every change is additive (new nullable columns, a widened category list, two new tables). No existing column, constraint meaning or policy changed for current API behaviour. If you want something reverted, it will be a new migration (M7), never an edit.
 
 Check any environment with `npx supabase@2.122.0 migration list --linked` (cloud) or `--local`.
 
@@ -46,7 +49,27 @@ Contract §3.1 shape. Extra CHECKs: predicted values present **iff** `status = '
 
 ## M5 `patient_birth_year`
 `patient_profiles.birth_year smallint check (birth_year between 1900 and 2100)`, nullable. Year only (data minimisation). Patient fills it through the existing patient_profiles grant and policies; no new grant. Reason: age is the strongest hypertension factor in the Algerian STEPS 2016–2017 analysis (`PULSE_DATA_LOGIC.pdf` §6). Not used by the ML MVP.
-**To apply after review:** `npx supabase@2.122.0 db push --linked --dry-run`, then without `--dry-run`.
+Applied to the cloud on 30 Oct together with M6.
+
+## M6 `algerian_factors_wearables`
+Every factor in `PULSE_DATA_LOGIC.pdf` §6 and the wearable data in §5 now has a place in the database.
+
+| Factor / data | Where | Filled by |
+|---|---|---|
+| Sex | `patient_profiles.sex` female / male | patient |
+| Age | `patient_profiles.birth_year` (M5) | patient |
+| Smoking | `patient_profiles.smoking_status` never / former / current | patient |
+| Diabetes, cholesterol, kidney / heart disease, stroke, pregnancy | `patient_profiles.condition_codes` (controlled list; `relevant_conditions` stays free text for the emergency card) | patient (doctor confirms in the API) |
+| Salt / bread | `patient_profiles.bread_portions_per_day` (0–20), `adds_salt_at_table`, `salty_processed_food` (never / rarely / sometimes / often / always, STEPS-style) | patient |
+| Weight, height, waist (BMI, abdominal obesity) | new table `body_measurements` (`weight_kg`, `height_cm`, `waist_cm`, `source`) | patient (`patient_reported`) or assigned doctor (`clinician`) |
+| Ramadan / fasting days | `lifestyle_logs.category = 'fasting'` (started_at = start of the fast, ended_at = iftar) | patient |
+| Language | `profiles.preferred_language` fr / ar (column grant: the user may update it) | patient |
+| Ring / bracelet / watch | new table `wearable_samples`: `metric` heart_rate (bpm) / hrv_rmssd (ms) / spo2 (percent) / skin_temperature (celsius), `value`, `measured_at`, `source`, `external_id`; same-patient device FK; unit and plausible range enforced per metric; dedup per (device_id, external_id) | device sync / import (backend only) |
+
+Still outside the database (by design): the emergency number (backend config), physical activity / sleep / stress (already in `lifestyle_logs`), medication + adherence (already present), and a ring blood-pressure estimate (goes to `measurements` with provenance `estimated`, auto `needs_review`).
+
+**Access:** `body_measurements`: read by self, assigned doctor or admin; insert by the patient (`patient_reported`) or an assigned doctor (`clinician`); no update or delete. `wearable_samples`: read the same way; no client writes. Both revoke `anon`.
+BMI is computed when read (`weight_kg / (height_cm/100)^2`, using the latest height). Abdominal obesity uses the STEPS cut-offs: waist > 94 cm for men, > 80 cm for women.
 
 ## How to add a migration
 1. New file `supabase/migrations/<UTC timestamp>_<name>.sql`. Never edit an applied one.

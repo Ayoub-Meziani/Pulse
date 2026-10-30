@@ -123,9 +123,94 @@ PATIENTS = (
     DemoUser("sparse_unassigned", "yacine.demo@pulse.test", "Yacine T. (demo)", "patient",
              Profile(132, 84, 0.0, 0.75, False, 0.0), assigned=False),
 )
+# Published figures used to draw the cohort's risk factors. Patients stay fictional; only the shares are real.
+# Algerian STEPS 2016-2017, Moussouni et al., BMC Public Health 2022 (PMC9386961), adults 18-69:
+STEPS_DZ = {
+    "female_share_of_hypertensives": 34.2 / (34.2 + 28.3),     # hypertension 34.2 % women vs 28.3 % men
+    "age_bands": {(30, 44): 39.3, (45, 59): 27.7, (60, 69): 11.6},  # sample shares (18-29 left out: low risk)
+    "smoking": {"current": 11.1, "former": 11.9, "never": 76.9},
+    "diabetes": 0.175, "high_cholesterol": 0.296,  # overall shares; the paper gives no split by sex
+    "bmi_bands": {(17.0, 18.4): 3.3, (18.5, 24.9): 36.6, (25.0, 29.9): 35.0, (30.0, 38.0): 24.9},
+    "abdominal_obesity": 0.678, "waist_cutoff_cm": {"male": 94, "female": 80},
+}
+# Not published for Algeria (labelled assumptions in docs): height, salt-habit answers, language, and how
+# abdominal obesity depends on BMI. P(abdominal obesity | BMI band) below keeps the overall share at ~67.8 %.
+HEIGHT_CM = {"male": (172, 7), "female": (160, 6)}
+ABDOMINAL_BY_BMI_BAND = {(17.0, 18.4): 0.0, (18.5, 24.9): 0.36, (25.0, 29.9): 0.85, (30.0, 38.0): 1.0}  # 0.678 overall
+NAMES = {"female": ("Fatima", "Khadija", "Houria", "Souad", "Amel", "Nora", "Samira", "Lamia"),
+         "male": ("Samir", "Rachid", "Mourad", "Djamel", "Hocine", "Omar", "Farid", "Nabil")}
+
+
+def _cohort() -> list[tuple[str, str]]:
+    """8 (name, sex) pairs; sex drawn from the published share, the name then matches it."""
+    rng, used = random.Random(f"{GENERATOR_VERSION}:cohort"), {"female": 0, "male": 0}
+    out = []
+    for _ in range(8):
+        sex = "female" if rng.random() < STEPS_DZ["female_share_of_hypertensives"] else "male"
+        out.append((NAMES[sex][used[sex]], sex))
+        used[sex] += 1
+    return out
+
+
+COHORT = _cohort()
+COHORT_SEX = {f"cohort_{i}": sex for i, (_, sex) in enumerate(COHORT, 1)}
+
+
+def _cohort_profile(name: str) -> Profile:
+    """Monitored, treated hypertensive; BP levels are invented (no published per-patient series)."""
+    r = random.Random(f"{GENERATOR_VERSION}:{name}")
+    sys_ = r.uniform(128, 162)
+    return Profile(sys_, 0.62 * sys_ + r.gauss(0, 4), r.gauss(0, 0.15), r.uniform(0.1, 0.35), True, r.uniform(0, 0.25))
+
+
+PATIENTS += tuple(DemoUser(f"cohort_{i}", f"{name.lower()}.demo@pulse.test", f"{name} (demo)", "patient",
+                           _cohort_profile(name), assigned=True) for i, (name, _) in enumerate(COHORT, 1))
 USERS = (DOCTOR, ADMIN) + PATIENTS
 SEED_DAYS = 30
 MEDS = {"controlled": ("Amlodipine", "5 mg"), "rising": ("Perindopril", "4 mg"), "severe_event": ("Amlodipine", "10 mg")}
+COHORT_MEDS = (("Amlodipine", "5 mg"), ("Perindopril", "4 mg"), ("Losartan", "50 mg"), ("Indapamide", "1.5 mg"))
+WEARABLE_KEYS = ("rising", "severe_event", "cohort_1")  # patients with a simulated ring
+# Scenario patients get hand-picked factors that fit their story; the cohort is drawn from STEPS_DZ.
+SCENARIO_FACTORS = {
+    "controlled": dict(sex="female", age=58, smoking="never", codes=["hypertension"], bmi=26.5, waist=86,
+                       bread=3, salt="rarely", processed="rarely", lang="ar"),
+    "rising": dict(sex="male", age=65, smoking="current", codes=["hypertension", "diabetes", "dyslipidemia"],
+                   bmi=31.2, waist=104, bread=6, salt="often", processed="sometimes", lang="fr"),
+    "severe_event": dict(sex="female", age=69, smoking="never", codes=["hypertension", "chronic_kidney_disease"],
+                         bmi=33.0, waist=99, bread=4, salt="sometimes", processed="often", lang="ar"),
+    "sparse_unassigned": dict(sex="male", age=47, smoking="former", codes=["hypertension"], bmi=24.0, waist=90,
+                              bread=5, salt="sometimes", processed="sometimes", lang="fr"),
+}
+
+
+def _pick(rng: random.Random, weights: dict):
+    return rng.choices(list(weights), weights=list(weights.values()))[0]
+
+
+def risk_factors(u: DemoUser) -> dict:
+    """Patient factors + body measurements. Deterministic per demo user."""
+    rng = random.Random(f"{GENERATOR_VERSION}:{u.key}:factors")
+    if u.key in SCENARIO_FACTORS:
+        f = dict(SCENARIO_FACTORS[u.key])
+    else:
+        sex = COHORT_SEX[u.key]
+        lo, hi = _pick(rng, STEPS_DZ["age_bands"])
+        band = _pick(rng, STEPS_DZ["bmi_bands"])
+        bmi_lo, bmi_hi = band
+        bmi = round(rng.uniform(bmi_lo, bmi_hi), 1)
+        cut = STEPS_DZ["waist_cutoff_cm"][sex]
+        above = cut + rng.randint(1, max(2, round(bmi - 18) + 2))  # waist excess grows with BMI
+        f = dict(sex=sex, age=rng.randint(lo, hi), smoking=_pick(rng, STEPS_DZ["smoking"]),
+                 codes=["hypertension"] + [c for c, p in (("diabetes", STEPS_DZ["diabetes"]),
+                                                          ("dyslipidemia", STEPS_DZ["high_cholesterol"]))
+                                           if rng.random() < p],
+                 bmi=bmi, waist=above if rng.random() < ABDOMINAL_BY_BMI_BAND[band] else cut - rng.randint(0, 12),
+                 bread=rng.randint(2, 7), salt=rng.choice(["never", "rarely", "sometimes", "often", "always"]),
+                 processed=rng.choice(["never", "rarely", "sometimes", "often"]), lang=rng.choice(["fr", "ar"]))
+    mean, sd = HEIGHT_CM[f["sex"]]
+    f["height"] = round(min(195.0, max(145.0, rng.gauss(mean, sd))), 1)
+    f["weight"] = round(f["bmi"] * (f["height"] / 100) ** 2, 1)
+    return f
 
 
 def sql(v) -> str:
@@ -167,7 +252,27 @@ def patient_history(u: DemoUser) -> tuple[list[Day], list[SimReading]]:
     return context, readings
 
 
+def wearable_rows(days: int = 7) -> list[list[str]]:
+    """Simulated ring samples: heart rate every 2 h, nightly HRV / SpO2 / skin temperature at 03:00."""
+    rows = []
+    for k in WEARABLE_KEYS:
+        u = next(p for p in PATIENTS if p.key == k)
+        rng = random.Random(f"{GENERATOR_VERSION}:{k}:ring")
+        device, n = demo_id(k + ":ring"), 0
+        for ago in range(days, 0, -1):
+            samples = [("heart_rate", round(rng.gauss(64 if h < 6 else 74, 5)), "bpm", h * 60) for h in range(0, 24, 2)]
+            samples += [("hrv_rmssd", round(min(90, max(10, rng.gauss(32, 8))), 1), "ms", 180),
+                        ("spo2", round(min(100, max(93, rng.gauss(97, 1))), 1), "percent", 180),
+                        ("skin_temperature", round(rng.gauss(34.0, 0.4), 2), "celsius", 180)]
+            for metric, value, unit, minute in samples:
+                n += 1
+                rows.append([sql(u.id), sql(device), sql(metric), sql(value), sql(unit), local_ts(ago, minute),
+                             "'simulated'", sql(f"sim-ring-{k}-{n:04d}")])
+    return rows
+
+
 def build_seed_sql(password: str) -> str:
+    ids_by_key = {u.key: u.id for u in PATIENTS}
     out = [
         "-- GENERATED by `python -m pulse_data.simulate seed`; do not edit by hand, do not commit.\n"
         "-- FICTIONAL DEMO DATA. Every row is labelled simulated.\n"
@@ -193,19 +298,36 @@ def build_seed_sql(password: str) -> str:
     out.append(f"update public.profiles set role = 'doctor' where id = {sql(DOCTOR.id)};\n")
     out.append(f"update public.profiles set role = 'admin' where id = {sql(ADMIN.id)};\n\n")
 
-    conditions = {"controlled": ["hypertension"], "rising": ["hypertension", "type_2_diabetes"],
-                  "severe_event": ["hypertension", "chronic_kidney_disease"], "sparse_unassigned": []}
+    factors = {u.key: risk_factors(u) for u in PATIENTS}
+    year = date.today().year
     out.append(insert("patient_profiles",
-                      ["user_id", "relevant_conditions", "allergies", "regular_doctor_id", "regular_clinic",
-                       "consent_location", "data_consent_at"],
-                      [[sql(u.id), sql(conditions[u.key]), sql("none reported" if u.assigned else None),
-                        sql(DOCTOR.id if u.assigned else None), sql("Clinique Demo (fictional)" if u.assigned else None),
-                        sql(u.key == "severe_event"), f"now() - interval '{SEED_DAYS} days'"] for u in PATIENTS]))
+                      ["user_id", "relevant_conditions", "condition_codes", "sex", "birth_year", "smoking_status",
+                       "bread_portions_per_day", "adds_salt_at_table", "salty_processed_food", "allergies",
+                       "regular_doctor_id", "regular_clinic", "consent_location", "data_consent_at"],
+                      [[sql(u.id), sql(f["codes"]), sql(f["codes"]), sql(f["sex"]), sql(year - f["age"]),
+                        sql(f["smoking"]), sql(f["bread"]), sql(f["salt"]), sql(f["processed"]),
+                        sql("none reported" if u.assigned else None), sql(DOCTOR.id if u.assigned else None),
+                        sql("Clinique Demo (fictional)" if u.assigned else None), sql(u.key == "severe_event"),
+                        f"now() - interval '{SEED_DAYS} days'"]
+                       for u in PATIENTS for f in [factors[u.key]]]))
+    out.extend(f"update public.profiles set preferred_language = {sql(factors[u.key]['lang'])} where id = {sql(u.id)};\n"
+               for u in PATIENTS)
+    out.append("\n")
+    out.append(insert("body_measurements", ["patient_id", "measured_at", "weight_kg", "height_cm", "waist_cm", "source"],
+                      [row for u in PATIENTS for f in [factors[u.key]] for row in (
+                          [sql(u.id), local_ts(SEED_DAYS - 2, 9 * 60), sql(f["weight"]), sql(f["height"]),
+                           sql(float(f["waist"])), "'simulated'"],
+                          [sql(u.id), local_ts(3, 7 * 60 + 30), sql(round(f["weight"] - 0.4, 1)), "null", "null",
+                           "'simulated'"])]))
     out.append(insert("doctor_patient_assignments", ["doctor_id", "patient_id"],
                       [[sql(DOCTOR.id), sql(u.id)] for u in PATIENTS if u.assigned]))
     out.append(insert("devices", ["id", "patient_id", "device_type", "bp_capability", "manufacturer", "model", "label"],
                       [[sql(demo_id(u.key + ":device")), sql(u.id), "'simulator'", "'simulated'", "'PULSE'",
-                        sql(GENERATOR_VERSION), "'Simulated cuff (not a real device)'"] for u in PATIENTS]))
+                        sql(GENERATOR_VERSION), "'Simulated cuff (not a real device)'"] for u in PATIENTS]
+                      + [[sql(demo_id(k + ":ring")), sql(ids_by_key[k]), "'simulator'", "'simulated'", "'PULSE'",
+                          sql(GENERATOR_VERSION), "'Simulated ring (not a real device)'"] for k in WEARABLE_KEYS]))
+    out.append(insert("wearable_samples", ["patient_id", "device_id", "metric", "value", "unit", "measured_at",
+                                           "source", "external_id"], wearable_rows()))
 
     measurements, lifestyle, adherence, meds, plans, contacts = [], [], [], [], [], []
     for u in PATIENTS:
@@ -219,7 +341,7 @@ def build_seed_sql(password: str) -> str:
         if not u.assigned:
             continue
         med_id = demo_id(u.key + ":med")
-        name, dose = MEDS[u.key]
+        name, dose = MEDS.get(u.key) or COHORT_MEDS[len(meds) % len(COHORT_MEDS)]
         meds.append([sql(med_id), sql(u.id), sql(name), sql(dose), "'once daily, morning'", "'clinician'",
                      sql(DOCTOR.id), f"current_date - {SEED_DAYS + 60}"])
         plans.append([sql(u.id), sql(DOCTOR.id), f"current_date - {SEED_DAYS}", f"current_date + 30", "135", "85", "2",
@@ -243,6 +365,9 @@ def build_seed_sql(password: str) -> str:
                 adherence.append([sql(u.id), sql(med_id), sql("missed" if c.missed_dose else "taken"),
                                   local_ts(ago, 8 * 60), "null" if c.missed_dose else local_ts(ago, 8 * 60 + 10),
                                   "'simulated'", local_ts(ago, 21 * 60)])
+    # Two make-up fasting days for Amina: fast from dawn to sunset (iftar), local time.
+    lifestyle += [[sql(ids_by_key["controlled"]), "'fasting'", local_ts(ago, 5 * 60 + 40), local_ts(ago, 18 * 60 + 10),
+                   "'simulated'", "null", "null", "null", "null", "null", "null"] for ago in (9, 16)]
 
     out.append(insert("measurements",
                       ["patient_id", "device_id", "source", "provenance", "method", "systolic", "diastolic", "pulse",
@@ -259,7 +384,7 @@ def build_seed_sql(password: str) -> str:
                                      "lifestyle_recommendations", "follow_up_instructions", "clinician_guidance"], plans))
     out.append(insert("trusted_contacts", ["patient_id", "name", "relationship", "phone"], contacts))
 
-    ids = {u.key: u.id for u in PATIENTS}
+    ids = ids_by_key
     severe, rising, controlled = ids["severe_event"], ids["rising"], ids["controlled"]
     out.append(insert("symptom_reports", ["patient_id", "symptoms", "onset_at", "reported_at", "source", "notes"], [
         [sql(severe), sql(["chest_pain", "severe_headache"]), local_ts(2, 450), local_ts(2, 460), "'simulated'",

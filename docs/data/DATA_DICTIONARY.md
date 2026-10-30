@@ -23,11 +23,27 @@ One row per `auth.users` account, created by trigger.
 | id | uuid PK → auth.users | |
 | role | text | `patient` (default, always on signup) \| `doctor` \| `admin`; only the service role changes it |
 | display_name | text | 1–120 chars |
+| preferred_language | text, nullable | fr \| ar (M6); the user may update it |
 | timezone | text | IANA zone, validated; default `Africa/Algiers`; used for local-day analytics |
 | created_at / updated_at | timestamptz | |
 
 ### patient_profiles
 Patient-only (trigger-enforced). `relevant_conditions text[]`, `allergies`, `medication_context` (free text for the emergency card), `regular_doctor_id` → doctor profile, `regular_clinic`, `emergency_preferences jsonb`, `consent_location bool`, `data_consent_at`, `birth_year` (M5, year only, 1900–2100, patient-entered). No full date of birth (data minimisation).
+M6 adds:
+- `sex` (female / male) and `smoking_status` (never / former / current).
+- `condition_codes` (controlled list: hypertension, diabetes, dyslipidemia, chronic_kidney_disease, heart_disease, stroke_history, pregnancy).
+- Salt habits: `bread_portions_per_day` 0–20, plus `adds_salt_at_table` and `salty_processed_food` (never / rarely / sometimes / often / always).
+
+### body_measurements (M6)
+`measured_at`, `weight_kg` 20–300, `height_cm` 100–230, `waist_cm` 40–200 (at least one value), `source` patient_reported | clinician | device | simulated, `created_by`.
+- **BMI:** computed when read, from the latest weight and height.
+- **Abdominal obesity:** waist > 94 cm (men) / > 80 cm (women), the STEPS cut-offs.
+- **Who writes:** the patient (`patient_reported`) or an assigned doctor (`clinician`). No update or delete.
+
+### wearable_samples (M6)
+Ring / bracelet / watch data, never a blood-pressure measurement.
+- **Columns:** `device_id` (same patient), `metric` + `unit` as fixed pairs (heart_rate / bpm, hrv_rmssd / ms, spo2 / percent, skin_temperature / celsius), `value` (plausible range per metric), `measured_at`, `source` device_sync | csv_import | simulated, `external_id` (unique per device).
+- **Access:** read like other patient data; written by the backend only.
 
 ### doctor_patient_assignments
 Who may see whom. `doctor_id` (must be a doctor), `patient_id` (must be a patient), `status` active|ended, `ended_at` (required iff ended). One active row per pair. **This table drives all doctor access.**
@@ -95,6 +111,7 @@ Runs on every insert, from every path. Client-supplied status is ignored; device
 One table, typed columns that only apply to their category (CHECK-enforced, no JSON blob).
 | category | columns |
 |---|---|
+| fasting (M6) | started_at = start of the fast, ended_at = iftar; description optional |
 | all | started_at, ended_at (≥ start, ≤ 24 h), source patient_reported\|device\|simulated, description |
 | meal | meal_type breakfast/lunch/dinner/snack; sodium_mg + **required** sodium_basis label\|estimated |
 | activity | activity_type, intensity light/moderate/vigorous, steps |

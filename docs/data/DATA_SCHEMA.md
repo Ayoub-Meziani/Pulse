@@ -1,9 +1,9 @@
 # PULSE database schema (actual)
 
 **Scope:**
-- Source of truth: the 5 files in `supabase/migrations/` (M1–M5). History, cloud status and per-migration notes: [MIGRATIONS.md](MIGRATIONS.md).
-- Everything below was read from the local catalog (Postgres 17.11, port 55322) on 30 Oct 2026, with M1–M5 applied.
-- **Cloud project `pulse`:** M1–M4 applied. M5 (`birth_year`) waits for backend review.
+- Source of truth: the 6 files in `supabase/migrations/` (M1–M6). History, cloud status and per-migration notes: [MIGRATIONS.md](MIGRATIONS.md).
+- Everything below was read from the local catalog (Postgres 17.11, port 55322) on 30 Oct 2026, with M1–M6 applied.
+- **Cloud project `pulse`:** M1–M6 applied. Demo data loaded (30 Oct).
 - Field meanings, units and the validation policy are in [DATA_DICTIONARY.md](DATA_DICTIONARY.md). The per-role permissions matrix is in [API_CONTRACT.md](API_CONTRACT.md). Note: the team decided that the frontend calls FastAPI only; the matrix describes what the database itself allows.
 
 ## 1. ER diagram
@@ -35,6 +35,9 @@ erDiagram
     ALERTS ||--o{ ALERT_MEASUREMENTS : "alert_id+patient_id"
     MEASUREMENTS ||--o{ ALERT_MEASUREMENTS : "measurement_id+patient_id"
     PROFILES ||--o{ ML_PREDICTIONS : patient_id
+    PROFILES ||--o{ BODY_MEASUREMENTS : patient_id
+    PROFILES ||--o{ WEARABLE_SAMPLES : patient_id
+    DEVICES ||--o{ WEARABLE_SAMPLES : "device_id+patient_id"
 ```
 
 `audit_log` has no foreign keys. It stores `table_name` + `row_id` + `actor`.
@@ -60,22 +63,27 @@ erDiagram
 | alerts | id | patient_id (cascade); (measurement_id, patient_id) → measurements; (symptom_report_id, patient_id) → symptom_reports; acknowledged_by/reviewed_by/resolved_by (set null) | (id, patient_id) (M3); `alerts_once_per_measurement` (measurement_id, rule_code); `alerts_once_per_symptom_report` (symptom_report_id, rule_code) | (patient_id, status, created_at desc) |
 | alert_measurements (M3) | (alert_id, measurement_id) | (alert_id, patient_id) → alerts (cascade); (measurement_id, patient_id) → measurements | – | (patient_id) |
 | ml_predictions (M4) | id | patient_id → profiles (cascade) | (patient_id, target_date, model_version) | (patient_id, target_date desc) |
+| body_measurements (M6) | id | patient_id → profiles (cascade); created_by (set null) | – | (patient_id, measured_at desc) |
+| wearable_samples (M6) | id | patient_id → profiles (cascade); (device_id, patient_id) → devices | `wearable_samples_device_sample` (device_id, external_id) where not null | (patient_id, metric, measured_at desc) |
 | trusted_contacts | id | patient_id (cascade) | – | – |
 | emergency_events | id | patient_id (cascade); alert_id → alerts (set null) | – | (patient_id, started_at desc) |
 | audit_log | id | – | – | (table_name, row_id) |
 
-**Totals (M1–M5):** 19 tables, 37 foreign keys and 45 indexes, including primary keys.
+**Totals (M1–M6):** 21 tables, 41 foreign keys and 50 indexes, including primary keys.
 
 **Columns added after M1** (full list per table in the export):
 | table.column | type | migration | filled by |
 |---|---|---|---|
 | alerts.persistent | boolean not null default false | M3 | rule engine (backend) |
 | measurements.rested_5_min | boolean, null = not asked | M3 | patient |
-| patient_profiles.birth_year | smallint 1900–2100, nullable | M5 (local only) | patient |
+| patient_profiles.birth_year | smallint 1900–2100, nullable | M5 | patient |
+| patient_profiles.sex, smoking_status, condition_codes, bread_portions_per_day, adds_salt_at_table, salty_processed_food | see DATA_DICTIONARY | M6 | patient |
+| profiles.preferred_language | fr / ar | M6 | patient |
+| lifestyle_logs.category adds `fasting` | – | M6 | patient |
 | alerts.resolution_note | text (since M1) | M1 | doctor, when resolving (set with resolved_at / resolved_by) |
 
 ## 3. Check constraints (summary)
-There are 93 `CHECK` constraints in total. The largest groups are measurements (18), lifestyle_logs (18), care_plans (7), and ingestion_batches and alerts (6 each). They enforce:
+There are 108 `CHECK` constraints in total. The largest groups are measurements (18), lifestyle_logs (18), care_plans (7), and ingestion_batches and alerts (6 each). They enforce:
 - **Controlled vocabularies:** role, source, provenance, method, status, alert class, symptom codes, lifestyle category, and so on.
 - **Units:** `unit = 'mmHg'`.
 - **Storage bounds:** systolic 1–400, diastolic 1–300.
@@ -102,18 +110,18 @@ All helper functions live in the `private` schema, which the API does not expose
 **RLS helpers:** `current_app_role()`, `is_assigned_doctor(patient)`, `is_my_doctor(doctor)`, `can_read_patient(patient)`. Timezone validation: `is_valid_tz()`.
 
 ## 5. Access control (RLS + grants)
-- RLS is enabled on all 19 tables, with 43 policies. Every policy targets the `authenticated` role.
-- `anon` has **0** table grants (M3/M4 tables revoke explicitly, because the live project's default privileges would grant ALL).
+- RLS is enabled on all 21 tables, with 46 policies. Every policy targets the `authenticated` role.
+- `anon` has **0** table grants (M3, M4 and M6 tables revoke explicitly, because the live project's default privileges would grant ALL).
 - The service role and the privileged DB connection bypass RLS. They are used by FastAPI, the seed, the import CLI and the ML job.
 
 | grant to `authenticated` | tables |
 |---|---|
-| SELECT only | profiles\*, doctor_patient_assignments, ingestion_batches, alerts, alert_measurements, ml_predictions (doctor/admin policy), audit_log (admin policy) |
-| SELECT, INSERT | measurements (policy: own row, `source='manual'`, not simulated, no batch), symptom_reports, journal_entries\*\*, medication_adherence_events |
+| SELECT only | profiles\*, doctor_patient_assignments, ingestion_batches, alerts, alert_measurements, wearable_samples, ml_predictions (doctor/admin policy), audit_log (admin policy) |
+| SELECT, INSERT | measurements (policy: own row, `source='manual'`, not simulated, no batch), symptom_reports, journal_entries\*\*, medication_adherence_events, body_measurements (patient `patient_reported` / assigned doctor `clinician`) |
 | SELECT, INSERT, UPDATE | patient_profiles, devices, medications, care_plans, doctor_notes, emergency_events |
 | SELECT, INSERT, UPDATE, DELETE | lifestyle_logs, trusted_contacts |
 
-\* On `profiles`, users can UPDATE only `display_name` and `timezone` (a column grant), so nobody can change their own role.
+\* On `profiles`, users can UPDATE only `display_name`, `timezone` and `preferred_language` (a column grant), so nobody can change their own role.
 \*\* On `journal_entries`, UPDATE is limited to the review columns, and only an assigned doctor may use it.
 
 There is no UPDATE or DELETE grant on measurements, symptom reports, adherence events, alerts or assignments. These tables are append-only for app users.
@@ -132,7 +140,7 @@ The full matrix of who can do what is in [API_CONTRACT.md](API_CONTRACT.md).
 
 ## Schema-only export
 [export/pulse_schema.sql](export/pulse_schema.sql) contains:
-- 19 tables, all keys and indexes, check constraints, the 10 `private` functions, triggers, the 43 RLS policies and the grants (M1–M5)
+- 21 tables, all keys and indexes, check constraints, the 10 `private` functions, triggers, the 46 RLS policies and the grants (M1–M6)
 - the auth trigger
 
 It has **no data and no credentials**. Generated with `pg_dump --schema-only --no-owner --schema=public --schema=private`.

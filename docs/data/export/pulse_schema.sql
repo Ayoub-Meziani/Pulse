@@ -313,6 +313,28 @@ ALTER TABLE public.audit_log ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 
 --
+-- Name: body_measurements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.body_measurements (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    patient_id uuid NOT NULL,
+    measured_at timestamp with time zone NOT NULL,
+    weight_kg numeric(5,1),
+    height_cm numeric(4,1),
+    waist_cm numeric(4,1),
+    source text NOT NULL,
+    created_by uuid DEFAULT auth.uid(),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT body_measurements_check CHECK ((COALESCE(weight_kg, height_cm, waist_cm) IS NOT NULL)),
+    CONSTRAINT body_measurements_height_cm_check CHECK (((height_cm >= (100)::numeric) AND (height_cm <= (230)::numeric))),
+    CONSTRAINT body_measurements_source_check CHECK ((source = ANY (ARRAY['patient_reported'::text, 'clinician'::text, 'device'::text, 'simulated'::text]))),
+    CONSTRAINT body_measurements_waist_cm_check CHECK (((waist_cm >= (40)::numeric) AND (waist_cm <= (200)::numeric))),
+    CONSTRAINT body_measurements_weight_kg_check CHECK (((weight_kg >= (20)::numeric) AND (weight_kg <= (300)::numeric)))
+);
+
+
+--
 -- Name: care_plans; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -495,7 +517,7 @@ CREATE TABLE public.lifestyle_logs (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT lifestyle_activity_fields CHECK (((category = 'activity'::text) OR ((activity_type IS NULL) AND (intensity IS NULL) AND (steps IS NULL)))),
     CONSTRAINT lifestyle_logs_activity_type_check CHECK ((length(activity_type) <= 100)),
-    CONSTRAINT lifestyle_logs_category_check CHECK ((category = ANY (ARRAY['meal'::text, 'activity'::text, 'sleep'::text, 'stress'::text, 'other'::text]))),
+    CONSTRAINT lifestyle_logs_category_check CHECK ((category = ANY (ARRAY['meal'::text, 'activity'::text, 'sleep'::text, 'stress'::text, 'fasting'::text, 'other'::text]))),
     CONSTRAINT lifestyle_logs_description_check CHECK ((length(description) <= 1000)),
     CONSTRAINT lifestyle_logs_intensity_check CHECK ((intensity = ANY (ARRAY['light'::text, 'moderate'::text, 'vigorous'::text]))),
     CONSTRAINT lifestyle_logs_meal_type_check CHECK ((meal_type = ANY (ARRAY['breakfast'::text, 'lunch'::text, 'dinner'::text, 'snack'::text]))),
@@ -656,7 +678,19 @@ CREATE TABLE public.patient_profiles (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     birth_year smallint,
-    CONSTRAINT patient_profiles_birth_year_check CHECK (((birth_year >= 1900) AND (birth_year <= 2100)))
+    sex text,
+    smoking_status text,
+    condition_codes text[] DEFAULT '{}'::text[] NOT NULL,
+    bread_portions_per_day smallint,
+    adds_salt_at_table text,
+    salty_processed_food text,
+    CONSTRAINT patient_profiles_adds_salt_at_table_check CHECK ((adds_salt_at_table = ANY (ARRAY['never'::text, 'rarely'::text, 'sometimes'::text, 'often'::text, 'always'::text]))),
+    CONSTRAINT patient_profiles_birth_year_check CHECK (((birth_year >= 1900) AND (birth_year <= 2100))),
+    CONSTRAINT patient_profiles_bread_portions_per_day_check CHECK (((bread_portions_per_day >= 0) AND (bread_portions_per_day <= 20))),
+    CONSTRAINT patient_profiles_condition_codes_check CHECK ((condition_codes <@ ARRAY['hypertension'::text, 'diabetes'::text, 'dyslipidemia'::text, 'chronic_kidney_disease'::text, 'heart_disease'::text, 'stroke_history'::text, 'pregnancy'::text])),
+    CONSTRAINT patient_profiles_salty_processed_food_check CHECK ((salty_processed_food = ANY (ARRAY['never'::text, 'rarely'::text, 'sometimes'::text, 'often'::text, 'always'::text]))),
+    CONSTRAINT patient_profiles_sex_check CHECK ((sex = ANY (ARRAY['female'::text, 'male'::text]))),
+    CONSTRAINT patient_profiles_smoking_status_check CHECK ((smoking_status = ANY (ARRAY['never'::text, 'former'::text, 'current'::text])))
 );
 
 
@@ -671,7 +705,9 @@ CREATE TABLE public.profiles (
     timezone text DEFAULT 'Africa/Algiers'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    preferred_language text,
     CONSTRAINT profiles_display_name_check CHECK (((length(TRIM(BOTH FROM display_name)) >= 1) AND (length(TRIM(BOTH FROM display_name)) <= 120))),
+    CONSTRAINT profiles_preferred_language_check CHECK ((preferred_language = ANY (ARRAY['fr'::text, 'ar'::text]))),
     CONSTRAINT profiles_role_check CHECK ((role = ANY (ARRAY['patient'::text, 'doctor'::text, 'admin'::text]))),
     CONSTRAINT profiles_timezone_check CHECK (private.is_valid_tz(timezone))
 );
@@ -714,6 +750,34 @@ CREATE TABLE public.trusted_contacts (
 
 
 --
+-- Name: wearable_samples; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.wearable_samples (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    patient_id uuid NOT NULL,
+    device_id uuid NOT NULL,
+    metric text NOT NULL,
+    value numeric(6,2) NOT NULL,
+    unit text NOT NULL,
+    measured_at timestamp with time zone NOT NULL,
+    source text NOT NULL,
+    external_id text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT wearable_metric_unit CHECK ((((((metric = 'heart_rate'::text) AND (unit = 'bpm'::text)) OR ((metric = 'hrv_rmssd'::text) AND (unit = 'ms'::text))) OR ((metric = 'spo2'::text) AND (unit = 'percent'::text))) OR ((metric = 'skin_temperature'::text) AND (unit = 'celsius'::text)))),
+    CONSTRAINT wearable_samples_source_check CHECK ((source = ANY (ARRAY['device_sync'::text, 'csv_import'::text, 'simulated'::text]))),
+    CONSTRAINT wearable_value_range CHECK (
+CASE metric
+    WHEN 'heart_rate'::text THEN ((value >= (25)::numeric) AND (value <= (250)::numeric))
+    WHEN 'hrv_rmssd'::text THEN ((value >= (1)::numeric) AND (value <= (300)::numeric))
+    WHEN 'spo2'::text THEN ((value >= (50)::numeric) AND (value <= (100)::numeric))
+    WHEN 'skin_temperature'::text THEN ((value >= (20)::numeric) AND (value <= (45)::numeric))
+    ELSE NULL::boolean
+END)
+);
+
+
+--
 -- Name: alert_measurements alert_measurements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -743,6 +807,14 @@ ALTER TABLE ONLY public.alerts
 
 ALTER TABLE ONLY public.audit_log
     ADD CONSTRAINT audit_log_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: body_measurements body_measurements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.body_measurements
+    ADD CONSTRAINT body_measurements_pkey PRIMARY KEY (id);
 
 
 --
@@ -922,6 +994,14 @@ ALTER TABLE ONLY public.trusted_contacts
 
 
 --
+-- Name: wearable_samples wearable_samples_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wearable_samples
+    ADD CONSTRAINT wearable_samples_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: adherence_patient_time; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -982,6 +1062,13 @@ CREATE INDEX audit_row ON public.audit_log USING btree (table_name, row_id);
 --
 
 CREATE UNIQUE INDEX batches_file_once ON public.ingestion_batches USING btree (patient_id, file_sha256) WHERE (file_sha256 IS NOT NULL);
+
+
+--
+-- Name: body_measurements_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX body_measurements_patient_time ON public.body_measurements USING btree (patient_id, measured_at DESC);
 
 
 --
@@ -1052,6 +1139,20 @@ CREATE INDEX ml_predictions_patient_date ON public.ml_predictions USING btree (p
 --
 
 CREATE INDEX symptoms_patient_time ON public.symptom_reports USING btree (patient_id, reported_at DESC);
+
+
+--
+-- Name: wearable_samples_device_sample; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX wearable_samples_device_sample ON public.wearable_samples USING btree (device_id, external_id) WHERE (external_id IS NOT NULL);
+
+
+--
+-- Name: wearable_samples_patient_metric_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX wearable_samples_patient_metric_time ON public.wearable_samples USING btree (patient_id, metric, measured_at DESC);
 
 
 --
@@ -1249,6 +1350,22 @@ ALTER TABLE ONLY public.alerts
 
 ALTER TABLE ONLY public.alerts
     ADD CONSTRAINT alerts_symptom_report_id_patient_id_fkey FOREIGN KEY (symptom_report_id, patient_id) REFERENCES public.symptom_reports(id, patient_id);
+
+
+--
+-- Name: body_measurements body_measurements_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.body_measurements
+    ADD CONSTRAINT body_measurements_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: body_measurements body_measurements_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.body_measurements
+    ADD CONSTRAINT body_measurements_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
 
 
 --
@@ -1484,6 +1601,22 @@ ALTER TABLE ONLY public.trusted_contacts
 
 
 --
+-- Name: wearable_samples wearable_samples_device_id_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wearable_samples
+    ADD CONSTRAINT wearable_samples_device_id_patient_id_fkey FOREIGN KEY (device_id, patient_id) REFERENCES public.devices(id, patient_id);
+
+
+--
+-- Name: wearable_samples wearable_samples_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wearable_samples
+    ADD CONSTRAINT wearable_samples_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
 -- Name: medication_adherence_events adherence_insert_own; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1534,6 +1667,26 @@ ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY audit_read ON public.audit_log FOR SELECT TO authenticated USING ((private.current_app_role() = 'admin'::text));
+
+
+--
+-- Name: body_measurements; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.body_measurements ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: body_measurements body_measurements_insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY body_measurements_insert ON public.body_measurements FOR INSERT TO authenticated WITH CHECK ((((patient_id = ( SELECT auth.uid() AS uid)) AND (source = 'patient_reported'::text)) OR (private.is_assigned_doctor(patient_id) AND (source = 'clinician'::text))));
+
+
+--
+-- Name: body_measurements body_measurements_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY body_measurements_read ON public.body_measurements FOR SELECT TO authenticated USING (private.can_read_patient(patient_id));
 
 
 --
@@ -1899,6 +2052,19 @@ CREATE POLICY trusted_contacts_read ON public.trusted_contacts FOR SELECT TO aut
 
 
 --
+-- Name: wearable_samples; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.wearable_samples ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: wearable_samples wearable_samples_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wearable_samples_read ON public.wearable_samples FOR SELECT TO authenticated USING (private.can_read_patient(patient_id));
+
+
+--
 -- Name: SCHEMA private; Type: ACL; Schema: -; Owner: -
 --
 
@@ -2016,6 +2182,14 @@ GRANT SELECT ON TABLE public.audit_log TO authenticated;
 GRANT ALL ON SEQUENCE public.audit_log_id_seq TO anon;
 GRANT ALL ON SEQUENCE public.audit_log_id_seq TO authenticated;
 GRANT ALL ON SEQUENCE public.audit_log_id_seq TO service_role;
+
+
+--
+-- Name: TABLE body_measurements; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.body_measurements TO service_role;
+GRANT SELECT,INSERT ON TABLE public.body_measurements TO authenticated;
 
 
 --
@@ -2166,6 +2340,13 @@ GRANT UPDATE(timezone) ON TABLE public.profiles TO authenticated;
 
 
 --
+-- Name: COLUMN profiles.preferred_language; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(preferred_language) ON TABLE public.profiles TO authenticated;
+
+
+--
 -- Name: TABLE symptom_reports; Type: ACL; Schema: public; Owner: -
 --
 
@@ -2179,6 +2360,14 @@ GRANT SELECT,INSERT ON TABLE public.symptom_reports TO authenticated;
 
 GRANT ALL ON TABLE public.trusted_contacts TO service_role;
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.trusted_contacts TO authenticated;
+
+
+--
+-- Name: TABLE wearable_samples; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.wearable_samples TO service_role;
+GRANT SELECT ON TABLE public.wearable_samples TO authenticated;
 
 
 --
