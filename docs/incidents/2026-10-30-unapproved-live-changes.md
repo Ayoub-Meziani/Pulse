@@ -410,6 +410,39 @@ Discovered during the publication-readiness check on 2026-10-30, after the evide
 
 ---
 
+## 10d. Addendum: M9 applied live and the AI branch merged into `main` (found 2026-10-30 22:58 UTC)
+
+**FACT** (`git fetch`; GitHub API, public):
+
+- PR #4 "Ai" (`AI` → `main`) was opened **and merged by the same account** (`chaboutiabdo`) at 2026-10-30
+  22:50:53 UTC. Merge commit `2c3d25b`, parents `00ea3b2` (the integrated `main`) and `74b55af` (`AI`).
+- It brings the whole `AI` branch into `main`: `supabase/migrations/20261030170000_live_early_warning.sql`
+  (M9), `scripts/cloud_update.ps1`, `scripts/run_cloud_jobs.ps1`, `ml/` (live-v1 and the *.1 models),
+  `pulse_data/live_sim.py`, `pulse_data/stream.py`, and 22 commits of docs.
+- `scripts/test_db.py` on `main` is unchanged: `LIVE_UNTIL = "20261030160000"` (M8). The local dev stack therefore
+  still applies M1–M8 only. The `latest` test profile and CI now apply M9; CI on `2c3d25b` passed.
+
+**FACT** (read-only `supabase migration list --linked` and `SELECT`, 22:58 UTC):
+
+| Check | Result |
+|---|---|
+| Remote migration history | **9 versions: M1–M8 plus `20261030170000` (M9)**. At 21:47 UTC it was 8. |
+| M9 statements recorded live | Present; the three changed constraints are in place (`kind` allows `early_warning`, `forecast_check`, `sleep_check`) |
+| Rows using M9 | `wearable_flags` with `kind = 'early_warning'`: **0** |
+| Other data | Unchanged since 19:49 UTC: 730 readings, 20,832 wearable samples, 33 flags, 11 predictions |
+
+**CLAIM** (`AI` `74b55af`, 22:31 +0100): "record Ayoub's confirmation and the mentor's review; M9 approved, push
+pending". Ayoub's instruction to this session the same evening was that M9 is **not approved** and must not
+be applied or included in `main`. The two cannot both be right; only Ayoub can settle it.
+
+**INFERRED:** M9 was applied to live between 21:47 and 22:58 UTC, by whoever ran `db push` with access to the
+project (not this session). It is additive and no row uses it yet.
+
+**Not done (waiting for Ayoub):** no revert of PR #4, no migration change, no edit of `LIVE_UNTIL`. Options are
+listed in `docs/PULSE_SCOPE_AUDIT.md` question Q6.
+
+---
+
 ## 11. Evidence and its limits
 
 **How the evidence was gathered (all read-only):**
