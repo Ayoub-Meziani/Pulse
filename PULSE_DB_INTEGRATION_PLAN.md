@@ -77,7 +77,7 @@ Both as new files after `20261029120100`, never edits of applied files. Tests in
 2. **Done** (`93a4e0a`, `31fc5e7`): `db.py`, 14 mapped models checked column-by-column against the migrated DB, `vocab.py` checked against the DB CHECKs. Finding: `measurements.created_by` must be read back from the trigger (fixed).
 3. **Done** (`31fc5e7`): JWKS ES256/RS256 verification, GoTrue proxy for login/refresh, `/me`, `permissions.py`; 178 tests pass with the test DB (M1–M5 applied there; M5 not yet on `pulse`).
 4. **Done** (`feat/api-supabase` `28e8948`): measurements POST/GET, pulse-v1 validation read back, `DATA-INVALID`, SQLSTATE error mapping, permissions; 209 tests pass on the live (M1–M4) and latest (M1–M5) test DBs. Alerts are not persisted until step 5 (`alert`/`trend_alert` null; repeat severe readings re-evaluated as R-SEV-1).
-5. Rules wiring and alert persistence (create / attach / raise); symptom reports; alerts list/detail; transitions.
+5. **Done** (`feat/api-supabase` `52b4d02`): alert episodes (create / attach / raise), symptom reports with R-EMG-1, alerts list/detail, transitions; retries (`possible_duplicate`) never change alerts; 235 tests on M1–M6. `symptom_reports.measurement_id` does not exist: validated, not stored (M7 requested).
 6. Doctor list, summary, profile, trusted contacts, care-plan GET, emergency card.
 7. Emergency events (idempotent create, actions, patch, report), notes.
 8. Predictions endpoint (M4 live; fixture rows in tests, `pulse_ml.predict` rows in the demo).
