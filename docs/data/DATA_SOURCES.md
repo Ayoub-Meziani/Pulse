@@ -32,6 +32,58 @@ With 8 cohort patients, the drawn shares will not match the published percentage
 
 World context, for the pitch (not used to generate values): WHO estimates about 33 % of adults aged 30–79 have hypertension, about half are unaware, and about 21 % are controlled (WHO *Global report on hypertension*, Sept 2023, as reported by [Down To Earth](https://www.downtoearth.org.in/health/every-1-in-3-adults-has-hypertension-but-only-half-know-it-91822); check the WHO report itself before quoting exact figures). The global mean salt intake is 10.8 g/day against a target of < 5 g ([WHO global report on sodium intake reduction, 2023](https://www.who.int/publications-detail-redirect/9789240069985)).
 
+### Synthetic ring data (ML phase 2, 30 Oct 2026)
+`python -m pulse_data.simulate csv` also writes (git-ignored):
+- `wearable_samples.csv`: same columns as `public.wearable_samples` + `is_synthetic`.
+  - Heart rate every 10 min at night, hourly by day; 6 SpO2 samples per night; nightly HRV and skin temperature.
+  - About 10 % of days have no ring data (ring not worn).
+- `ring_episodes.csv`: 65 injected, labelled anomaly episodes (`hr_rise`, `spo2_dip`, `hrv_drop`), used to score the ring monitor.
+- `patients.csv`: per-patient synthetic home-BP target (135/85 or 130/80) for the weekly classifier.
+
+Ring values come from a separate random generator per patient, so the BP files are byte-identical to before (`tests/test_simulate_stability.py`). The coupling to blood pressure is **invented**: night heart rate +0.25 bpm and HRV −0.3 ms per mmHg of the latent BP effect. The demo seed holds 28 days of ring data for Karim, Nadia and Fatima; Karim has a simulated night heart-rate rise 3 and 2 days before seeding.
+
+### Demo ring data built from published values (no ring device; every value is SIMULATED)
+| Simulated value | Based on |
+|---|---|
+| Personal resting heart rate ~ 65 ± 7 bpm between people, ~3 bpm night-to-night | [Quer et al., PLOS ONE 2020](https://pubmed.ncbi.nlm.nih.gov/32023264/): 92,457 wearable users, mean 65 bpm, individual values 40–109, typical within-person change ~3 bpm (the ± 7 SD is an assumption consistent with that range) |
+| Healthy night SpO2 ~ 96.5 % with one dip of 3–5 % on about half the nights | [Gries & Brooks, Chest 1996](https://doi.org/10.1378/chest.110.6.1489): mean **lowest** sleep saturation 90.4 ± 3.1 % in healthy subjects. This is why the SpO2 check uses the **night median**, not the minimum |
+| COPD: personal SpO2 4 points lower; reference limit 88 % | BTS 2017: target 88–92 % for patients at risk of hypercapnic failure; COPD prevalence in MENA adults ≥ 40: 3.6 % (5.2 % men, 1.8 % women) ([BREATHE, Tageldin 2012](https://acikerisim.uludag.edu.tr/items/8a2292dc-9dd8-48f2-9331-380deecd41da/full)) |
+| Obstructive sleep apnea: 2–4 desaturations of 4–9 % per night, night HR +3 | OSA in 83.5 % of resistant-hypertension patients, desaturation ≥ 4 % linked to resistant hypertension ([multicenter cohort, 284 patients](https://pmc.ncbi.nlm.nih.gov/articles/PMC6513347)). The 30 % OSA rate in the cohort is an **assumption** |
+| Type 2 diabetes: RMSSD ~0.92 SD lower | [HRV in T2DM meta-analysis, PLoS ONE 2018](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5880391/) |
+| Atrial fibrillation: noisy heart rate, RMSSD not interpretable | Irregular pulse on wrist PPG ([Apple Heart Study](https://acc.org/Latest-in-Cardiology/Articles/2019/03/08/15/32/sat-9am-apple-heart-study-acc-2019): notifications 0.5 % overall, > 3 % over 65); AF rates in the cohort are **assumptions** |
+| HRV ~ 34 ± 9 ms, skin temperature ~ 34 °C | **assumptions** (no verified population figure retrieved) |
+
+**Demo stories:** Karim has sleep apnea, Fatima COPD and Houria atrial fibrillation. The other cohort patients draw conditions from the rates above. Every demo patient wears a simulated ring (28 days).
+
+### Medical reference values (`ml/pulse_ml/reference.py`, reviewed by the team's medical mentor on 30 Oct 2026)
+| Value | Source |
+|---|---|
+| Home-BP categories: 120/80, 130/80, 135/85 (= office 140/90), 145/90 (= office 160/100) | 2017 ACC/AHA guideline, Table 11, home (HBPM) column ([ACC summary](https://www.acc.org/~/media/Non-Clinical/Files-PDFs-Excel-MS-Word-etc/Guidelines/2017/Guidelines_Made_Simple_2017_HBP.pdf)). Applied only to home means, never to office grades |
+| Resting heart rate 60–100 bpm (adults) | [Mayo Clinic](https://www.mayoclinic.org/healthy-lifestyle/fitness/expert-answers/heart-rate/faq-20057979). The AHA page could not be retrieved; fit people can be normal below 60 |
+| SpO2 target 94–98 % (88–92 % if at risk of hypercapnic failure) | [BTS oxygen guideline 2017](https://www.brit-thoracic.org.uk/quality-improvement/guidelines/emergency-oxygen) (O'Driscoll et al., Thorax 2017;72 Suppl 1) |
+| SpO2 accuracy limits (darker skin pigmentation, circulation, nail polish) | FDA safety communication, 19 Feb 2021 ([summary](https://www.hpnonline.com/surgical-critical-care/med-surg-equipment/article/21211195/fda-safety-communication-pulse-oximeter-accuracy-and-limitations)) |
+| HRV, skin temperature | no population reference used; personal baseline only |
+
+### REAL datasets used (30 Oct 2026, `ml/pulse_ml/real_data.py`)
+All raw files stay in git-ignored `data/external/<source>/`, with a `MANIFEST.json` (URL, sha256, date). They are never committed or uploaded. Only aggregated statistics and trained models are committed, labelled `real:<source>`. Kaggle was **not** used: it needs an account token, and the popular BP / cardio sets have unclear licences or origins.
+
+| Source | What it is | Terms | Used for | Limits |
+|---|---|---|---|---|
+| [NHANES 2017–March 2020 pre-pandemic](https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/overviewbrief.aspx?Cycle=2017-2020) (CDC / NCHS) | Real exam data: 3 oscillometric BP and pulse readings (Omron HEM-907XL, 5-min seated rest), BMI, waist, smoking, diabetes, cholesterol, kidney, COPD, heart failure, stroke; survey weights | [NCHS data user agreement](https://www.cdc.gov/nchs/data_access/restrictions.htm): statistics only, no re-identification, no linkage | (1) **Real population bands** (`ml/pulse_ml/reference_nhanes.json`): weighted pulse and BP percentiles by sex × age. (2) **`wrisk-v1`** classifier (2,309 treated adults) | US population, not Algerian; exam (office-type) BP, not home BP; self-reported diagnoses; one visit |
+| [NHANES August 2021–August 2023](https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?Cycle=2021-2023) (CDC / NCHS) | Same exam and questions, a later survey (files `*_L`); exam weight `WTMEC2YR`, BP medicine `BPQ150` | NCHS data user agreement (as above) | **External test** of `wrisk-v1` on 1,851 people it never saw (`pulse_ml.backtest`) | Same limits as above |
+| [Mendeley pjcv33hpp7](https://data.mendeley.com/datasets/pjcv33hpp7/1) (Dvornik, Chuiko, Baganov, Shyian 2017) | 128 real home measurements (mean of 3 trials, Microlife BP 3AG1) of 1 treated 67-year-old man, every 3 days over 384 days | CC BY-NC 3.0 (non-commercial, credit) | Realism check of our simulator (BP variation between measurements) | 1 patient; no dates; mbp-v1 cannot run on a 3-day cadence |
+| [PhysioNet Apnea-ECG 1.0.0](https://physionet.org/content/apnea-ecg/1.0.0/) (Penzel et al. 2000) | 8 real overnight recordings with SpO2 (4 apnea, 1 borderline, 3 control) | Open Data Commons Attribution 1.0 | Real test of the ring SpO2 rules (night median vs 94 %, dips), ODI-4 | 8 nights; clinical sleep-lab oximeter, not a ring |
+
+**What the real data showed:**
+- **Safety band (pulse):** among US adults, the middle 95 % of seated pulse is about 50–97 bpm (e.g. men 45–59: 49.7–96.8). A pulse under 60 is common, which supports flagging only a **high** resting heart rate.
+- **Ring SpO2 rule:** the night median below 94 % at ring cadence (6 samples) flagged **4 / 4** apnea nights and **0 / 4** borderline / control nights. The night minimum would be useless, because even controls reach 57–69 % from sensor artefacts.
+- **The simulator was too smooth, now fixed:** this real patient's systolic BP moves 10.0 mmHg between measurements 3 days apart (SD 11.7), against 6.5 (SD 6.7) for the first generator. **`pulse-sim-v2`** (ML cohort only) was calibrated on it and now gives 10.0 (SD 11.8, lag-1 r 0.41 vs 0.40). The models were retrained (`mbp-v1.1`: systolic MAE 7.75 mmHg, up from the over-optimistic 5.23). The demo seed stays on v1, so the demo accounts and cloud data are unchanged.
+- **The simulator's sleep apnea is milder than the real severe cases:** real night medians are 86–92 %, about 60 desaturations per hour.
+- **Risk factors alone barely predict BP control** under treatment: `wrisk-v1` AUROC 0.60 (0.54–0.66), no better than age and sex (0.62). It is **not** shown in doctor reports.
+
+### Real wearable dataset considered (not downloaded)
+[PPG-DaLiA](https://archive.ics.uci.edu/dataset/495/ppg+dalia) (UCI, CC BY 4.0): 15 people, wrist PPG with ECG heart-rate ground truth, during daily activities (not rest or night). It is optional: only usable as a real heart-rate series to sanity-check false flags. Credit is required if it is used.
+
 The generator's effects (missed dose +6 mmHg next day, sodium, activity, sleep) are **invented**. A model trained on them demonstrates the pipeline only; metrics on synthetic data say nothing about real patients.
 
 ## Public datasets checked for the ML phase (next-day BP forecasting)

@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PULSE Data &amp; Logic Guide</title>
+<style>
+  @page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+  :root { --ink:#1b2430; --muted:#5b6675; --line:#d9dee5; --soft:#f3f5f8; --accent:#b4232a; --blue:#1f5fa8;
+          --live:#1d7a46; --built:#1f5fa8; --prop:#9a5b00; --none:#8a1c1c; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.42; margin: 0; background:#fff; }
+  h1 { font-size: 24pt; margin: 0 0 4px; letter-spacing: -0.5px; }
+  h2 { font-size: 15pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 14px 0 6px; break-after: avoid; }
+  p { margin: 4px 0 8px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 8.6pt; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 8.9pt; }
+  th, td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: left; }
+  th { background: var(--soft); font-weight: 600; }
+  tr { break-inside: avoid; }
+  code { font-family: Consolas, monospace; font-size: 8.5pt; background: var(--soft); padding: 0 3px; border-radius: 3px; }
+  .pill { display:inline-block; font-size: 7.6pt; font-weight: 700; padding: 1px 6px; border-radius: 8px; color:#fff; white-space: nowrap; }
+  .live { background: var(--live); } .built { background: var(--built); } .prop { background: var(--prop); } .none { background: var(--none); } .verify { background:#6b4fa0; }
+  .cover { border-left: 6px solid var(--accent); padding: 6px 0 6px 14px; margin-bottom: 14px; }
+  .box { border: 1px solid var(--line); background: var(--soft); border-radius: 6px; padding: 8px 10px; margin: 8px 0; break-inside: avoid; }
+  .warn { border-color: #e2b4b4; background: #fbf1f1; }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 8px 0; }
+  .step { flex: 1 1 0; min-width: 80px; border: 1px solid var(--line); border-top: 3px solid var(--blue); border-radius: 5px; padding: 6px; font-size: 8.4pt; background:#fff; }
+  .step b { display:block; font-size: 8.8pt; margin-bottom: 2px; }
+  .page-break { break-before: page; }
+  ul { margin: 4px 0 8px 18px; padding: 0; } li { margin: 2px 0; }
+  .who-p { color: #1d5d9b; font-weight: 600; } .who-d { color: #7a2e86; font-weight: 600; } .who-s { color: #3d6b2f; font-weight: 600; }
+  .t-name { font-weight: 700; white-space: nowrap; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>PULSE: Data, Database &amp; Logic Guide</h1>
+  <div class="muted">What exists, how it connects, who fills each field, what rings and bracelets send, how the fields match Algerian blood-pressure factors, and what we still need.</div>
+  <div class="small muted" style="margin-top:6px">30 October 2026 · Data/AI workstream · Prototype, not a medical device. All data so far is fictional and labelled <code>simulated</code>.</div>
+</div>
+
+<p class="small"><b>Status labels:</b>
+<span class="pill live">LIVE</span> running in the cloud database ·
+<span class="pill built">BUILT</span> code exists ·
+<span class="pill prop">PROPOSAL</span> not built, needs a team decision ·
+<span class="pill none">MISSING</span> nobody has it yet ·
+<span class="pill verify">TO VERIFY</span> must be checked before use</p>
+
+<h2>1. Where we are (at a glance)</h2>
+<table>
+<tr><th style="width:28%">Part</th><th style="width:13%">Status</th><th>Details</th></tr>
+<tr><td>Cloud database <code>pulse</code> (Supabase, Paris)</td><td><span class="pill live">LIVE</span></td><td>21 tables, access rules (RLS) on every table, 46 policies, 6 migrations applied. Logged-out requests and public sign-up are refused.</td></tr>
+<tr><td>Data code on GitHub, branch <code>AI</code></td><td><span class="pill built">BUILT</span></td><td><code>supabase/</code> migrations, <code>pulse_data/</code> CSV import and demo data generator, <code>ml/</code> model, <code>tests/</code> (55 passed on the local database), <code>docs/data/</code>.</td></tr>
+<tr><td>Backend (FastAPI, teammate)</td><td><span class="pill built">BUILT</span></td><td>First version on its own branches: readings, validation, alert rules, doctor list. Still runs on SQLite; moving to the Supabase schema.</td></tr>
+<tr><td>Alert rules and summaries</td><td><span class="pill built">BUILT</span></td><td>In the backend (<code>api/app/analysis/</code>). Not yet writing alerts into Supabase.</td></tr>
+<tr><td>ML model (next-day blood pressure)</td><td><span class="pill built">BUILT</span></td><td>Model <code>mbp-v1</code>, trained on synthetic data. Test systolic error 5.2 mmHg vs 5.7 (7-day average) and 6.3 (yesterday). The prediction job is ready; running it on the cloud needs the database connection string.</td></tr>
+<tr><td>ML phase 2: ring monitor, weekly doctor loop, weekly classifier</td><td><span class="pill built">BUILT</span></td><td>Built as required by the backend review, on branch <code>AI</code>, 74 tests. Migration M7 is <b>live in the cloud</b> (approved 30 Oct); its tables fill once the jobs run there. See section 7.7.</td></tr>
+<tr><td>Device: cuff, ring or bracelet</td><td><span class="pill none">MISSING</span></td><td>No physical device chosen. Database tables for cuff readings and ring data are <b>live</b>; no device adapter built.</td></tr>
+<tr><td>Real patient data</td><td><span class="pill none">MISSING</span></td><td>None (on purpose). The demo patients are fictional, but their risk factors are drawn from real published Algerian statistics (STEPS 2016–2017).</td></tr>
+<tr><td>Demo data in the cloud</td><td><span class="pill live">LIVE</span></td><td>14 accounts (1 doctor, 1 admin, 12 patients, 11 assigned), 730 readings, body measurements for everyone, ring data for 3 patients, 2 fasting days. All labelled <code>simulated</code>. Password in the local <code>.env</code> only.</td></tr>
+</table>
+
+<h2>2. How everything connects</h2>
+<svg viewBox="0 0 760 300" width="100%" role="img" aria-label="PULSE architecture diagram">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6675"/></marker></defs>
+  <g font-size="11">
+    <rect x="10" y="20" width="150" height="58" rx="6" fill="#eaf1fa" stroke="#1f5fa8"/>
+    <text x="85" y="44" text-anchor="middle" font-weight="700">Patient app</text>
+    <text x="85" y="62" text-anchor="middle" font-size="9.5">readings, symptoms, SOS</text>
+    <rect x="10" y="100" width="150" height="58" rx="6" fill="#f3eaf6" stroke="#7a2e86"/>
+    <text x="85" y="124" text-anchor="middle" font-weight="700">Doctor app</text>
+    <text x="85" y="142" text-anchor="middle" font-size="9.5">patients, alerts, plans</text>
+    <rect x="10" y="190" width="150" height="58" rx="6" fill="#fff6e6" stroke="#9a5b00" stroke-dasharray="4 3"/>
+    <text x="85" y="214" text-anchor="middle" font-weight="700">Device (future)</text>
+    <text x="85" y="232" text-anchor="middle" font-size="9.5">cuff (Bluetooth) / ring</text>
+
+    <rect x="230" y="60" width="170" height="110" rx="6" fill="#ffffff" stroke="#1b2430" stroke-width="1.5"/>
+    <text x="315" y="84" text-anchor="middle" font-weight="700">FastAPI backend</text>
+    <text x="315" y="102" text-anchor="middle" font-size="9.5">/api/v1 (OpenAPI contract)</text>
+    <text x="315" y="118" text-anchor="middle" font-size="9.5">login proxy · alert rules</text>
+    <text x="315" y="134" text-anchor="middle" font-size="9.5">summary · emergency config</text>
+    <text x="315" y="150" text-anchor="middle" font-size="9.5">owner: backend</text>
+
+    <rect x="480" y="40" width="270" height="150" rx="6" fill="#edf6f0" stroke="#1d7a46" stroke-width="1.5"/>
+    <text x="615" y="64" text-anchor="middle" font-weight="700">Supabase project "pulse"</text>
+    <text x="615" y="84" text-anchor="middle" font-size="9.5">Postgres: 21 tables + RLS</text>
+    <text x="615" y="100" text-anchor="middle" font-size="9.5">validation trigger pulse-v1</text>
+    <text x="615" y="116" text-anchor="middle" font-size="9.5">audit log triggers</text>
+    <text x="615" y="132" text-anchor="middle" font-size="9.5">Supabase Auth (email + password)</text>
+    <text x="615" y="150" text-anchor="middle" font-size="9.5">owner of schema: data/AI</text>
+
+    <rect x="480" y="225" width="128" height="58" rx="6" fill="#fff" stroke="#3d6b2f"/>
+    <text x="544" y="249" text-anchor="middle" font-weight="700">ML batch job</text>
+    <text x="544" y="267" text-anchor="middle" font-size="9.5">writes ml_predictions</text>
+    <rect x="622" y="225" width="128" height="58" rx="6" fill="#fff" stroke="#3d6b2f"/>
+    <text x="686" y="249" text-anchor="middle" font-weight="700">Import + seed</text>
+    <text x="686" y="267" text-anchor="middle" font-size="9.5">CSV, demo data</text>
+  </g>
+  <g stroke="#5b6675" stroke-width="1.4" fill="none" marker-end="url(#a)">
+    <path d="M160,49 L228,90"/><path d="M160,129 L228,125"/><path d="M160,219 L228,160" stroke-dasharray="4 3"/>
+    <path d="M400,115 L478,115"/>
+    <path d="M544,223 L544,192"/><path d="M686,223 L686,192"/>
+  </g>
+  <text x="440" y="108" text-anchor="middle" font-size="9" fill="#5b6675">SQL + Auth</text>
+  <text x="194" y="182" text-anchor="middle" font-size="9" fill="#5b6675">HTTPS</text>
+</svg>
+
+<table>
+<tr><th style="width:22%">Component</th><th style="width:30%">Talks to</th><th style="width:26%">Secret it uses</th><th>Where the secret lives</th></tr>
+<tr><td>Frontend (patient and doctor)</td><td>FastAPI only (team decision A2)</td><td>none (the user's own login token)</td><td>nothing to store</td></tr>
+<tr><td>FastAPI backend</td><td>Postgres; Supabase Auth for login; JWT check with JWKS (ES256)</td><td><code>PULSE_DATABASE_URL</code>, <code>SUPABASE_URL</code>, anon key</td><td>server <code>.env</code> / hosting secrets</td></tr>
+<tr><td>ML job, CSV import, seed</td><td>Postgres directly</td><td><code>DATABASE_URL</code> or service-role key</td><td>data/AI machine or server <code>.env</code> (git-ignored)</td></tr>
+<tr><td>Migrations</td><td>Supabase CLI <code>db push</code></td><td>CLI login of the project owner</td><td>never shared</td></tr>
+</table>
+<div class="box warn small"><b>Never:</b> the service-role key or the database password in the frontend, in git, in chat or in screenshots. The GitHub repo is <b>public</b>, so anything committed is visible to everyone.</div>
+
+<h2>3. Who fills what</h2>
+<table>
+<tr><th style="width:16%">Actor</th><th>What they enter or produce</th></tr>
+<tr><td class="who-p">Patient</td><td>Blood-pressure readings (manual), symptoms, meals / activity / sleep / stress, doses taken or missed, journal notes, trusted contacts, emergency-card details, consent choices, own devices.</td></tr>
+<tr><td class="who-d">Doctor</td><td>Care plan (target blood pressure, readings per day, instructions), prescribed medications, private notes and advice, alert review / resolve, journal review.</td></tr>
+<tr><td class="who-s">Device / import</td><td>Readings with device id and reading id, device quality flags, raw device payload; steps and sleep from a wearable.</td></tr>
+<tr><td class="who-s">System</td><td>Database trigger: validation status and flags, audit log. Rule engine (backend): alerts. ML job: predictions. Auth trigger: profile row on sign-up.</td></tr>
+<tr><td>Admin</td><td>Roles (doctor / admin), doctor-patient assignments. Reads everything.</td></tr>
+</table>
+
+<h2>4. Every table and field in the database</h2>
+<p class="small muted">All 21 tables exist in the cloud project. Every table has the system fields <code>id</code> (except link tables) and <code>created_at</code>; these are filled automatically and not repeated below. <span class="who-p">Blue</span> = patient, <span class="who-d">purple</span> = doctor, <span class="who-s">green</span> = system / device / admin.</p>
+
+<h3>People and access</h3>
+<table>
+<tr><th style="width:17%">Table</th><th style="width:20%">Purpose</th><th style="width:22%" class="who-p">Patient fills</th><th style="width:19%" class="who-d">Doctor fills</th><th class="who-s">System / admin fills</th></tr>
+<tr><td class="t-name">profiles</td><td>One row per account</td><td>display_name, timezone (default Africa/Algiers), preferred_language (fr / ar)</td><td>display_name, timezone, preferred_language</td><td>id (= login id), role patient / doctor / admin (admin only), updated_at</td></tr>
+<tr><td class="t-name">patient_profiles</td><td>Medical background and risk factors</td><td>relevant_conditions (free list), condition_codes (controlled list), birth_year, sex, smoking_status, bread_portions_per_day, adds_salt_at_table, salty_processed_food, allergies, medication_context, regular_clinic, emergency_preferences, consent_location, data_consent_at</td><td>(reads)</td><td>user_id, regular_doctor_id (set by doctor/admin; read-only for patient), updated_at</td></tr>
+<tr><td class="t-name">body_measurements</td><td>Weight, height, waist (BMI, abdominal obesity)</td><td>measured_at, weight_kg, height_cm, waist_cm (source patient_reported)</td><td>same values (source clinician)</td><td>created_by; no edits or deletes</td></tr>
+<tr><td class="t-name">doctor_patient_assignments</td><td>Which doctor follows which patient. Drives all doctor access</td><td>(reads)</td><td>(reads)</td><td>doctor_id, patient_id, status active / ended, ended_at (admin / backend only)</td></tr>
+<tr><td class="t-name">audit_log</td><td>Who changed what</td><td>-</td><td>-</td><td>table_name, row_id, action, actor, changed_at, old_data, new_data (triggers; admin reads)</td></tr>
+</table>
+
+<h3>Readings and devices</h3>
+<table>
+<tr><th style="width:17%">Table</th><th style="width:20%">Purpose</th><th style="width:22%" class="who-p">Patient fills</th><th style="width:19%" class="who-s">Device / import fills</th><th class="who-s">System fills</th></tr>
+<tr><td class="t-name">measurements</td><td>Every blood-pressure reading (append-only)</td><td>systolic, diastolic, pulse, measured_at, measured_tz, body_position (sitting / standing / lying), arm (left / right), context (note), rested_5_min</td><td>device_id, ingestion_batch_id, external_id (device reading id), method, raw_payload, device quality flags</td><td>source (manual / device_sync / csv_import / simulated), provenance (measured / estimated / simulated), unit = mmHg, validation_status, quality_flags, validation_policy_version, created_by</td></tr>
+<tr><td class="t-name">devices</td><td>Cuffs, wearables, phone apps</td><td>device_type, manufacturer, model, external_device_id, label, bp_capability</td><td>-</td><td>patient_id (simulator devices only from seed)</td></tr>
+<tr><td class="t-name">wearable_samples</td><td>Ring / bracelet / watch data</td><td>-</td><td>device_id, metric (heart_rate, hrv_rmssd, spo2, skin_temperature), value, unit, measured_at, external_id</td><td>source (device_sync / csv_import / simulated); unit and range checked per metric</td></tr>
+<tr><td class="t-name">ingestion_batches</td><td>One row per file import or device sync</td><td>-</td><td>source, device_id, file_name, file_sha256 (same file never imported twice)</td><td>rows_total / inserted / duplicate / rejected, rejections (row number + reason, no health values), created_by</td></tr>
+</table>
+
+<h3>Patient-reported context</h3>
+<table>
+<tr><th style="width:17%">Table</th><th style="width:20%">Purpose</th><th style="width:38%" class="who-p">Patient fills</th><th class="who-s">System fills</th></tr>
+<tr><td class="t-name">symptom_reports</td><td>Symptoms; checked independently of BP</td><td>symptoms: none, or any of chest_pain, shortness_of_breath, back_pain, weakness, numbness, vision_change, difficulty_speaking, severe_headache, confusion, dizziness, nausea, palpitations, other · onset_at · notes</td><td>reported_at, source (patient / bystander / clinician / simulated)</td></tr>
+<tr><td class="t-name">lifestyle_logs</td><td>Meals, activity, sleep, stress, fasting days</td><td>category, started_at, ended_at, description · meal: meal_type, sodium_mg + sodium_basis (label / estimated) · activity: activity_type, intensity, steps · sleep: sleep_quality 1-5 · stress: stress_level 1-5</td><td>source (patient / device / simulated), updated_at</td></tr>
+<tr><td class="t-name">medication_adherence_events</td><td>Each dose taken / missed / skipped</td><td>medication_id, status, scheduled_for, taken_at (only if taken), note</td><td>source, reported_at</td></tr>
+<tr><td class="t-name">journal_entries</td><td>Notes / questions for the doctor</td><td>category, entry_text</td><td>doctor_review_status, reviewed_by, reviewed_at (filled by the <span class="who-d">doctor</span>)</td></tr>
+<tr><td class="t-name">trusted_contacts</td><td>People to call in an emergency</td><td>name, relationship, phone, consented_at (contact agreed), active</td><td>-</td></tr>
+<tr><td class="t-name">emergency_events</td><td>Emergency screen history</td><td>trigger_reason, alert_id, symptoms_snapshot, started_at, ended_at, actions_attempted (logged as "tapped / opened", never "called"), reported_outcome, location_lat / lon (only if location_shared_with_consent)</td><td>-</td></tr>
+</table>
+
+<h3>Doctor-authored</h3>
+<table>
+<tr><th style="width:17%">Table</th><th style="width:20%">Purpose</th><th style="width:38%" class="who-d">Doctor fills</th><th>Notes</th></tr>
+<tr><td class="t-name">care_plans</td><td>Targets and monitoring plan</td><td>target_systolic, target_diastolic, monitoring_readings_per_day, monitoring_instructions, lifestyle_recommendations, follow_up_instructions, clinician_guidance, effective_from / to, review_date, status, supersedes_id</td><td>One active plan per patient; a change = new row, old row becomes "superseded". Default target 140/90 when there is no plan.</td></tr>
+<tr><td class="t-name">medications</td><td>Prescriptions and patient-reported meds</td><td>name, dose_text, schedule_text (as written), active, started_on, ended_on (source = clinician, prescribed_by = doctor)</td><td>The patient may add own meds (source = patient_reported). PULSE never computes or changes doses.</td></tr>
+<tr><td class="t-name">doctor_notes</td><td>Private note + advice</td><td>note (private), advice, follow_up_at</td><td>Patients cannot read this table directly; the API shows them only advice and follow-up date.</td></tr>
+</table>
+
+<h3>Alerts and predictions (system)</h3>
+<table>
+<tr><th style="width:17%">Table</th><th style="width:20%">Purpose</th><th style="width:38%" class="who-s">System fills</th><th>Patient / doctor actions</th></tr>
+<tr><td class="t-name">alerts</td><td>Rule results shown to patient and doctor</td><td>alert_class, rule_code, rule_version, reason, actions, persistent, measurement_id, symptom_report_id, trigger_source</td><td><span class="who-p">Patient</span>: acknowledge. <span class="who-d">Doctor</span>: review, resolve, resolution_note. States: open → acknowledged → reviewed → resolved.</td></tr>
+<tr><td class="t-name">alert_measurements</td><td>Readings attached to one alert episode (e.g. the recheck)</td><td>alert_id, measurement_id, patient_id, attached_at</td><td>read only</td></tr>
+<tr><td class="t-name">ml_predictions</td><td>Model estimate of next-day morning BP</td><td>target_date, target, status (ok / insufficient_history), predicted_systolic / diastolic, intervals, model_version, trained_on, features_until, n_readings_used</td><td><span class="who-d">Doctor</span> reads only. Patients never see it. Never used for alerts.</td></tr>
+</table>
+
+<h2>5. Ring, bracelet and cuff data</h2>
+<table>
+<tr><th style="width:16%">Device</th><th style="width:27%">What it sends</th><th style="width:16%">How much to trust it</th><th>Where it goes in PULSE</th></tr>
+<tr><td><b>Upper-arm cuff</b> (validated, e.g. Omron with Bluetooth)</td><td>Systolic, diastolic, mean pressure, pulse, time, and status flags (body movement, cuff fit, irregular pulse, wrong position) through the standard Bluetooth Blood Pressure Profile (service 0x1810, measurement 0x2A35)</td><td><b>Real measurement</b> if the model is clinically validated</td><td><code>measurements</code>: source device_sync, provenance measured, method cuff_oscillometric; status flags → <code>quality_flags</code>; device → <code>devices</code> (bp_capability measured). <span class="pill live">fields LIVE</span> <span class="pill none">adapter MISSING</span></td></tr>
+<tr><td><b>Smart ring / bracelet / watch</b></td><td>Usually heart rate, heart-rate variability, SpO2, skin temperature, steps, sleep. Some show a <b>cuffless blood-pressure estimate</b> from the optical sensor (PPG), often calibrated with a cuff</td><td><b>Estimate only.</b> ESH guidelines do not recommend cuffless devices for diagnosing or managing hypertension</td><td>BP estimate → <code>measurements</code> with provenance estimated, method wearable_estimate → automatically <b>needs_review</b> (flag estimated_not_cuff). Steps / activity → <code>lifestyle_logs</code> (activity, source device). Sleep → <code>lifestyle_logs</code> (sleep). Heart rate, HRV, SpO2, skin temperature → <code>wearable_samples</code> (unit and plausible range checked per metric) <span class="pill live">LIVE</span></td></tr>
+</table>
+
+<h3>How the data reaches PULSE</h3>
+<ul>
+<li><b>Cuff, direct Bluetooth:</b> phone browser with Web Bluetooth (Chrome / Edge on Android or desktop; not Safari / iPhone) → FastAPI → <code>measurements</code>.</li>
+<li><b>Any device with a CSV export:</b> export file → our import tool (<code>python -m pulse_data.ingest import-csv</code>) <span class="pill built">BUILT</span>. It checks columns and units, rejects bad rows with reasons and refuses the same file twice.</li>
+<li><b>Ring / bracelet vendor cloud or SDK:</b> depends on the brand. Many need a developer account or partnership. Choose the device first, then check its export options.</li>
+</ul>
+
+<h3>Rules for ring / bracelet data</h3>
+<ul>
+<li>Never show a ring estimate as a measured blood pressure. Always label it "estimate".</li>
+<li>Estimates are <code>needs_review</code>, so they are left out of averages, trends and ML training (team rule: valid readings only).</li>
+<li>A high estimate should ask the patient for a <b>cuff reading</b>. It should not trigger the emergency path on its own; symptoms always can. <span class="pill verify">clinician to confirm</span></li>
+<li>Heart rate / HRV / SpO2 / skin temperature go to <code>wearable_samples</code> (patient, device, metric, value, unit, time, source). Written by the backend only; demo data has a simulated ring for Karim, Nadia and Fatima. <span class="pill live">LIVE</span></li>
+</ul>
+<div class="box small"><b>Recommendation for the demo:</b> a validated upper-arm cuff gives real numbers that the database already handles. A ring is good for activity and sleep context, not for the blood-pressure value itself.</div>
+
+<h2>6. Do the fields match the Algerian factors that affect blood pressure?</h2>
+<div class="box small">
+<b>What the Algerian national survey shows</b> (WHO STEPwise 2016–2017, analysis by Moussouni et al., <i>BMC Public Health</i> 2022; 6,765 adults aged 18–69):
+<ul>
+<li>Hypertension <b>31.6%</b>, prehypertension <b>36.2%</b>. Hypertension is higher in women (34.2%) than men (28.3%).</li>
+<li><b>41.1%</b> of people with hypertension did not know they had it.</li>
+<li>Independent risk factors for hypertension: <b>age</b> (60–69 vs 18–29: odds ratio 12.3), <b>hypercholesterolemia</b> (2.0), <b>obesity</b> BMI ≥ 30 (1.7), <b>abdominal obesity</b> (1.7), separated / divorced (2.9).</li>
+<li>Common but not significant after adjustment: daily smoking 11.1%, physical inactivity 19.4%, diabetes / high blood sugar 17.5%. Obesity 24.9%, overweight 35.0%, abdominal obesity 67.8%.</li>
+</ul>
+<b>Salt:</b> bread is described as a major salt source in western Algeria (low-salt bread study). A pilot study in Casablanca bakeries (Morocco) found about 17 g of salt per kg of bread, roughly 8–9 g of salt a day from bread alone. We found no measured national salt-intake figure for Algeria.<br>
+<b>Ramadan:</b> small studies show blood pressure mostly unchanged when treatment continues. Medication timing (iftar or suhoor) varies, and fasting brings a risk of dehydration. Any change of timing or dose is the doctor's decision only.
+</div>
+
+<table>
+<tr><th style="width:15%">Factor</th><th style="width:19%">Why it matters</th><th style="width:12%">Status</th><th>Where it lives (migrations M5 / M6, live in the cloud)</th></tr>
+<tr><td>Age</td><td>Strongest factor</td><td><span class="pill live">YES</span></td><td><code>patient_profiles.birth_year</code> (year only, data minimisation)</td></tr>
+<tr><td>Sex</td><td>Hypertension higher in women</td><td><span class="pill live">YES</span></td><td><code>patient_profiles.sex</code> female / male</td></tr>
+<tr><td>Weight, BMI, waist</td><td>Obesity and abdominal obesity are significant</td><td><span class="pill live">YES</span></td><td>table <code>body_measurements</code>: weight_kg, height_cm, waist_cm (BMI computed; abdominal obesity = waist &gt; 94 cm men / &gt; 80 cm women)</td></tr>
+<tr><td>Cholesterol, diabetes, kidney / heart disease</td><td>Cholesterol significant; diabetes common</td><td><span class="pill live">YES</span></td><td><code>patient_profiles.condition_codes</code>: hypertension, diabetes, dyslipidemia, chronic_kidney_disease, heart_disease, stroke_history, pregnancy</td></tr>
+<tr><td>Salt / bread</td><td>Main dietary salt source</td><td><span class="pill live">YES</span></td><td><code>bread_portions_per_day</code>, <code>adds_salt_at_table</code>, <code>salty_processed_food</code> (never … always, STEPS style) + meal <code>sodium_mg</code> when known</td></tr>
+<tr><td>Smoking</td><td>11.1% smoke daily; cardiovascular risk</td><td><span class="pill live">YES</span></td><td><code>patient_profiles.smoking_status</code> never / former / current</td></tr>
+<tr><td>Physical activity</td><td>19.4% inactive</td><td><span class="pill live">YES</span></td><td>lifestyle_logs: activity_type, intensity, steps</td></tr>
+<tr><td>Sleep, stress</td><td>Context for the doctor</td><td><span class="pill live">YES</span></td><td>lifestyle_logs: sleep_quality, stress_level</td></tr>
+<tr><td>Medication + adherence</td><td>Key for control</td><td><span class="pill live">YES</span></td><td>medications + adherence events (Algerian brand names as free text)</td></tr>
+<tr><td>Ramadan fasting</td><td>Meal and medication timing change</td><td><span class="pill live">YES</span></td><td>lifestyle_logs category <code>fasting</code> (start of fast → iftar); medication timing stays the doctor's decision</td></tr>
+<tr><td>Local time (morning / evening)</td><td>Morning readings, daily windows</td><td><span class="pill live">YES</span></td><td>timezone default Africa/Algiers</td></tr>
+<tr><td>Language</td><td>French / Arabic wording</td><td><span class="pill live">YES</span></td><td><code>profiles.preferred_language</code> fr / ar</td></tr>
+<tr><td>Emergency number</td><td>Shown on the emergency screen</td><td><span class="pill verify">TO VERIFY</span></td><td>backend config (14 or 1021); verify with a local source; never dial in tests</td></tr>
+<tr><td>Undiagnosed patients (41.1%)</td><td>Screening need</td><td>out of scope</td><td>PULSE follows known patients; mention in the pitch as future work</td></tr>
+</table>
+<p class="small"><b>Demo data:</b> 8 of the 12 demo patients have their sex, age band, smoking, diabetes, cholesterol, BMI band and abdominal obesity drawn from the published STEPS shares above. Height, salt-habit answers, language and ring values are labelled assumptions (<code>docs/data/DATA_SOURCES.md</code>). The ML MVP still uses blood-pressure history only (team contract); the new fields serve the doctor view first.</p>
+
+<h2>7. The full logic</h2>
+<h3>7.1 Life of one reading</h3>
+<div class="flow">
+  <div class="step"><b>1. Enter</b>Patient types it (or device / CSV)</div>
+  <div class="step"><b>2. Format check</b>FastAPI / importer: numbers, unit mmHg, time</div>
+  <div class="step"><b>3. Validate</b>DB trigger pulse-v1 sets valid / needs_review / invalid + flags</div>
+  <div class="step"><b>4. Rules</b>Backend rules evaluate reading + symptoms</div>
+  <div class="step"><b>5. Alert</b>Create or attach to an open alert (no duplicates)</div>
+  <div class="step"><b>6. Show</b>Next step for the patient; emergency screen if red flags</div>
+  <div class="step"><b>7. Doctor</b>Patient list sorted: emergency &gt; severe &gt; trend &gt; notice</div>
+  <div class="step"><b>8. ML</b>Batch job: next-day estimate for the doctor</div>
+</div>
+
+<h3>7.2 Validation policy <code>pulse-v1</code> (database trigger, applies to every reading)</h3>
+<table>
+<tr><th style="width:20%">Result</th><th>Rule</th></tr>
+<tr><td><b>invalid</b> (stored, not used)</td><td>systolic ≤ diastolic · systolic outside 50–300 · diastolic outside 25–200 · pulse outside 25–250 · more than 5 minutes in the future</td></tr>
+<tr><td><b>needs_review</b> (stored, shown with flags)</td><td>systolic outside 70–250 or diastolic outside 40–150 · estimated (not a cuff) · same values within 2 minutes (double entry) · device reported a problem</td></tr>
+<tr><td><b>valid</b></td><td>everything else. A very high reading (e.g. 186/118) is <b>valid data</b>; it is an alert matter, not a data problem.</td></tr>
+</table>
+<p class="small muted">Open point: the backend's own Python validation uses diastolic ≥ 30 and a pulse-pressure check (20–120). The team contract makes the database trigger the single source of truth. Whether to add a pulse-pressure flag to the trigger is a clinician question.</p>
+
+<h3>7.3 Alert rules (backend <code>rules.py</code>, deterministic, independent of ML)</h3>
+<table>
+<tr><th style="width:11%">Rule</th><th style="width:40%">When</th><th style="width:12%">Level</th><th>What happens</th></tr>
+<tr><td>R-EMG-1</td><td>Any red-flag symptom: chest_pain, shortness_of_breath, back_pain, numbness, weakness, vision_change, difficulty_speaking</td><td>emergency</td><td>Emergency screen immediately, whatever the reading. Raises a recent severe alert instead of making a second one.</td></tr>
+<tr><td>R-SEV-1</td><td>systolic ≥ 180 or diastolic ≥ 120</td><td>severe</td><td>Symptom check, then recheck after 60 seconds</td></tr>
+<tr><td>R-SEV-2</td><td>Recheck within 15 min still ≥ 180 / ≥ 120</td><td>severe, persistent</td><td>Attached to the same alert; urgent guidance</td></tr>
+<tr><td>R-SEV-3</td><td>Recheck within 15 min below 180 / 120</td><td>severe</td><td>Alert stays open for the doctor; reading attached</td></tr>
+<tr><td>R-TGT-1</td><td>Reading ≥ target (care plan, default 140/90)</td><td>notice</td><td>One active notice per patient</td></tr>
+<tr><td>R-TRD-1</td><td>≥ 3 valid readings in 7 days and their mean ≥ target</td><td>trend</td><td>One active trend alert per patient</td></tr>
+</table>
+<p class="small">Alert states: open → acknowledged (patient or doctor) → reviewed (doctor) → resolved (doctor; a note is required for severe / emergency). Expected mapping to the database <code>alert_class</code>: emergency → possible_emergency, severe → severely_high, notice → above_target, trend → above_target_trend <span class="pill verify">confirm with backend</span>.</p>
+
+<h3>7.4 Summary numbers (backend <code>summary.py</code>)</h3>
+<ul class="small">
+<li>7-day and 30-day average systolic / diastolic, 7-day maximum, % of readings above target, days with a reading. <b>Valid readings only.</b> needs_review and invalid readings are counted, not averaged.</li>
+<li>Trend: last 7 days vs the 7 days before, at least 3 readings in each. Systolic change ≥ +5 → rising; ≤ −5 → falling; else stable; otherwise "insufficient data".</li>
+</ul>
+
+<h3>7.5 ML model (next task, data/AI)</h3>
+<table class="small">
+<tr><th style="width:22%">Item</th><th>Decision (team contract §4)</th></tr>
+<tr><td>Predicts</td><td>Next day's <b>morning</b> mean systolic and diastolic (readings before 12:00 local time)</td></tr>
+<tr><td>Inputs</td><td>Valid readings from before the target day only; blood-pressure history + day of week (no lifestyle in the MVP)</td></tr>
+<tr><td>Eligibility</td><td>≥ 6 valid readings on ≥ 4 days in the last 7 days and ≥ 1 morning reading; otherwise status "insufficient_history"</td></tr>
+<tr><td>Training data</td><td>Synthetic set <code>pulse-sim-v1</code> (200 patients × 90 days). Labelled synthetic everywhere</td></tr>
+<tr><td>Testing</td><td>Patients split 70 / 15 / 15 (no patient in two sets), time order kept. Compared with two baselines: yesterday's morning value and the 7-day mean</td></tr>
+<tr><td>Models</td><td>Regularised linear regression and gradient boosting; keep the best on validation, test once</td></tr>
+<tr><td>Metrics</td><td>MAE and RMSE in mmHg with 95% confidence intervals over patients</td></tr>
+<tr><td>Output</td><td><code>ml_predictions</code>, doctor-only panel "Model estimate (synthetic training data)"</td></tr>
+<tr><td>Never</td><td>Writes alerts or measurements, decides an emergency, or suggests medication changes</td></tr>
+</table>
+
+<h3>7.7 ML phase 2: live ring, weekly doctor loop, classification (built 30 Oct, local)</h3>
+<div class="flow">
+  <div class="step"><b>1. Ring</b>Samples arrive in <code>wearable_samples</code> (simulated stream for now)</div>
+  <div class="step"><b>2. Monitor</b>Live 10-minute and night windows; compared with medical references, the personal normal (28 nights) or the doctor's band</div>
+  <div class="step"><b>3. Flags</b><code>wearable_flags</code>: advisory, never alerts, never the safety path</div>
+  <div class="step"><b>4. Weekly</b>Report per patient: home-BP category, control vs target, P(next week above target), ring summary, proposed bands</div>
+  <div class="step"><b>5. Doctor</b>Approves or edits bands (<code>approve_band</code>), confirms or dismisses flags, reviews the report</div>
+  <div class="step"><b>6. Learn</b>Doctor labels retune personal thresholds only; recall gate; no automatic deployment</div>
+</div>
+<table class="small">
+<tr><th style="width:24%">Model</th><th>Result on synthetic test patients</th><th style="width:22%">Status</th></tr>
+<tr><td><code>ring-v1</code> ring monitor</td><td>Personal baseline catches 10 / 11 injected episodes (0.22 false flags per patient-week); medical ranges alone catch 3 / 11</td><td>advisory, doctor only</td></tr>
+<tr><td><code>wcls-v1</code> weekly classifier</td><td>AUROC 0.977 vs 0.907 for "status persists", better calibrated; but no skill on weeks where the status changes, so it is shown as "how close to the line"</td><td>in the weekly report</td></tr>
+<tr><td><code>mbp-v2</code> (ring features)</td><td>5.20 vs 5.23 mmHg for v1: no real gain</td><td>not served; v1 stays</td></tr>
+</table>
+<p class="small">Safety: the ring rule R-RING-1 (SpO2 below 94 % over 10 minutes → prompt a cuff reading + symptom check) is specified for the <b>backend</b> to run directly on raw samples, so the safety path never depends on an ML job. Home-BP categories use the ACC/AHA 2017 <b>home</b> values (135/85 = office 140/90), never office grades.</p>
+
+<h3>7.6 Safety rules that hold everywhere</h3>
+<ul class="small">
+<li>No diagnosis, no prescription, no advice to start / stop / change medication.</li>
+<li>Symptoms trigger the emergency path on their own; ML never delays urgent guidance.</li>
+<li>Nothing is silently deleted: wrong readings stay, flagged. Readings cannot be edited by app users.</li>
+<li>Synthetic data is always labelled; ring estimates are always labelled.</li>
+<li>Health values never go into logs or error messages.</li>
+</ul>
+
+<h2>8. What we need</h2>
+<table>
+<tr><th style="width:34%">Item</th><th style="width:28%">Why</th><th style="width:18%">Who</th><th>Status</th></tr>
+<tr><td>Turn off public sign-up</td><td>Otherwise anyone with the public key can create accounts</td><td>Project owner</td><td><span class="pill live">DONE</span> verified: sign-up refused</td></tr>
+<tr><td>Approve the backend architecture and contract (D-1 to D-4), merge PR #1</td><td>Everyone builds on the same base</td><td>Backend lead</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>Demo data in the cloud (password from <code>PULSE_DEMO_PASSWORD</code>, never committed)</td><td>Shared data for frontend and demo</td><td>Data/AI</td><td><span class="pill live">DONE</span> 14 accounts, 730 readings</td></tr>
+<tr><td>Share the demo password with the team privately (it is in the local <code>.env</code>)</td><td>Teammates log in as demo users</td><td>You</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>Cloud ML predictions: put the cloud <code>DATABASE_URL</code> in the local <code>.env</code>, then run the prediction job</td><td>Doctor prediction panel</td><td>You (password) + data/AI</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>Clinician review: 180/120, red-flag list, validation limits, wording</td><td>Safe, honest alerts</td><td>Medical mentor</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>Verified Algerian emergency number + demo substitute number</td><td>Emergency screen</td><td>Team + mentor</td><td><span class="pill verify">TO VERIFY</span></td></tr>
+<tr><td>Device decision (validated cuff recommended)</td><td>Real readings in the demo</td><td>Team</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>Algerian fields (section 6) + ring table (section 5)</td><td>Age, BMI, smoking, conditions, salt, fasting, language, wearables</td><td>Data/AI</td><td><span class="pill live">DONE</span> M5 + M6 live; backend to review</td></tr>
+<tr><td>Hosting for FastAPI (HTTPS)</td><td>Demo URL, location permission</td><td>Backend lead</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>ML pipeline (training, evaluation, prediction job, model card)</td><td>Doctor prediction panel</td><td>Data/AI</td><td><span class="pill live">DONE</span> <code>ml/</code></td></tr>
+<tr><td>Real consented readings (later)</td><td>Real model accuracy</td><td>Team</td><td><span class="pill none">MISSING</span> no open dataset fits</td></tr>
+<tr><td>Security scan key (HAWK_API_KEY), branch protection on main</td><td>Optional hardening</td><td>Repo owner</td><td><span class="pill none">OPEN</span></td></tr>
+</table>
+
+<h2>9. Next steps, in order</h2>
+<table>
+<tr><th style="width:5%">#</th><th style="width:55%">Step</th><th style="width:20%">Who</th><th>Depends on</th></tr>
+<tr><td>1</td><td>Tell the backend that M5 + M6 and the demo data are live (<code>docs/data/MIGRATIONS.md</code>); share the demo password privately</td><td>You</td><td>-</td></tr>
+<tr><td>2</td><td>Backend maps the new fields and tables in its API (profile, body measurements, wearable read); replays alerts on the demo history</td><td>Backend</td><td>1</td></tr>
+<tr><td>3</td><td>Fill <code>ml_predictions</code> in the cloud: cloud <code>DATABASE_URL</code> in the local <code>.env</code>, then <code>python -m pulse_ml.predict --all</code></td><td>You + data/AI</td><td>-</td></tr>
+<tr><td>4</td><td>Choose a real device (validated cuff recommended); build its adapter</td><td>Team, then data/AI</td><td>-</td></tr>
+<tr><td>5</td><td>Screens for the new fields: profile (age, sex, smoking, conditions, salt habits), weight / waist entry, fasting days, ring data chart</td><td>Frontend</td><td>2</td></tr>
+<tr><td>6</td><td>Frontend screens on the API contract (reading, symptoms, emergency, doctor list, prediction panel)</td><td>Frontend</td><td>3</td></tr>
+<tr><td>7</td><td>Clinician review and emergency number check</td><td>Team + mentor</td><td>-</td></tr>
+<tr><td>8</td><td>Full demo from a fresh reset: seed → alerts → predictions → demo script</td><td>Everyone</td><td>2–7</td></tr>
+</table>
+
+<h2>Sources</h2>
+<ol class="small">
+<li>Moussouni A. et al. Prevalence and risk factors of prehypertension and hypertension in Algeria. <i>BMC Public Health</i> 2022. https://pmc.ncbi.nlm.nih.gov/articles/PMC9386961/</li>
+<li>WHO NCD Microdata Repository, Algeria STEPS 2016–2017 (questionnaire incl. salt behaviours). https://extranet.who.int/ncdsmicrodata/index.php/catalog/91</li>
+<li>The impact of low-salt bread as a simple diet on hypertensive patients with cardiovascular comorbidities (western Algeria). https://www.ebsco.com/articles/nutrition-and-dietetics/34e26de2-31ce-5a22-a8f4-4befaa377461/</li>
+<li>Should bread be targeted as a vector to reduce sodium intake in Morocco? (Casablanca bakeries, pilot). https://peerj.com/preprints/188</li>
+<li>Zairi et al. Effect of intermittent fasting and chronotherapy on BP control during Ramadan. <i>Arterial Hypertension</i> 2022;26(2):67-72. https://journals.viamedica.pl/arterial_hypertension/article/view/83432</li>
+<li>The effect of the fast of Ramadan on ambulatory blood pressure in treated hypertensives (2001). https://pubmed.ncbi.nlm.nih.gov/11607803</li>
+<li>European Society of Hypertension: cuffless BP devices statement (J Hypertens 2022;40(8):1449-1460) and validation recommendations (J Hypertens 2023;41(12):2074-2087). https://pubmed.ncbi.nlm.nih.gov/37303198/</li>
+<li>PULSE team documents: <code>PULSE_INTEGRATION_CONTRACTS.md</code>, <code>PULSE_BLOCKERS_AND_REQUIREMENTS.md</code> (branch docs/backend-architecture); <code>docs/data/</code> (branch AI); backend <code>api/app/analysis/rules.py</code>, <code>summary.py</code>.</li>
+</ol>
+<p class="small muted">Study figures are quoted from the sources above. Thresholds and proposals in this guide are prototype choices awaiting clinician review.</p>
+
+</body>
+</html>

@@ -1,0 +1,203 @@
+{
+  "model_version": "ring-v1.1",
+  "trained_on": "synthetic:pulse-sim-v2 ring (invented BP coupling)",
+  "features": [
+    "z_heart_rate",
+    "z_hrv_rmssd",
+    "z_spo2",
+    "z_skin_temperature"
+  ],
+  "baseline": "rolling 28 days before the night, >= 14 nights, robust z (median / MAD)",
+  "z_limit": 3.5,
+  "contamination": 0.01,
+  "contamination_note": "synthetic setting: tuned to the simulator's invented episode rate",
+  "split": {
+    "method": "patient-level 70/15/15",
+    "seed": 7,
+    "train": 140,
+    "val": 30,
+    "test": 30
+  },
+  "test_metrics": {
+    "reference_only": {
+      "episodes": 7,
+      "episodes_detected": 2,
+      "episode_recall": 0.286,
+      "flagged_nights": 140,
+      "night_precision": 0.029,
+      "false_flags_per_patient_week": 0.389
+    },
+    "personal_baseline": {
+      "episodes": 7,
+      "episodes_detected": 3,
+      "episode_recall": 0.429,
+      "flagged_nights": 104,
+      "night_precision": 0.077,
+      "false_flags_per_patient_week": 0.274
+    },
+    "isolation_forest": {
+      "episodes": 7,
+      "episodes_detected": 1,
+      "episode_recall": 0.143,
+      "flagged_nights": 23,
+      "night_precision": 0.13,
+      "false_flags_per_patient_week": 0.057
+    },
+    "personal_or_isolation_forest": {
+      "episodes": 7,
+      "episodes_detected": 3,
+      "episode_recall": 0.429,
+      "flagged_nights": 107,
+      "night_precision": 0.075,
+      "false_flags_per_patient_week": 0.283
+    }
+  },
+  "limitations": "Ring data and episodes are simulated. Flags are advisory for the doctor; they never create alerts and are not the safety path.",
+  "trained_at": "2026-10-30T07:59:25+00:00",
+  "real_tests": {
+    "apnea_ecg": {
+      "source": "real:apnea_ecg",
+      "credit": "Penzel T, Moody GB, Mark RG, Goldberger AL, Peter JH. The Apnea-ECG Database. Computers in Cardiology 2000;27:255-258; Goldberger AL et al. PhysioNet, Circulation 2000",
+      "licence": "Open Data Commons Attribution License v1.0",
+      "recordings": {
+        "a01r": {
+          "group": "apnea",
+          "hours": 8.2,
+          "median": 91.0,
+          "p5": 76.0,
+          "minimum": 66.0,
+          "pct_time_below_90": 45.3,
+          "odi4_per_hour": 70.5,
+          "ring6_median": 82.0,
+          "ring6_samples": 6,
+          "ring6_dips_4pct": 2,
+          "ring_rule_outside_reference": true
+        },
+        "a02r": {
+          "group": "apnea",
+          "hours": 8.8,
+          "median": 86.0,
+          "p5": 71.0,
+          "minimum": 61.0,
+          "pct_time_below_90": 61.0,
+          "odi4_per_hour": 56.5,
+          "ring6_median": 83.5,
+          "ring6_samples": 6,
+          "ring6_dips_4pct": 2,
+          "ring_rule_outside_reference": true
+        },
+        "a03r": {
+          "group": "apnea",
+          "hours": 8.7,
+          "median": 92.0,
+          "p5": 76.0,
+          "minimum": 50.0,
+          "pct_time_below_90": 26.1,
+          "odi4_per_hour": 57.7,
+          "ring6_median": 87.5,
+          "ring6_samples": 6,
+          "ring6_dips_4pct": 1,
+          "ring_rule_outside_reference": true
+        },
+        "a04r": {
+          "group": "apnea",
+          "hours": 7.5,
+          "median": 86.0,
+          "p5": 68.0,
+          "minimum": 50.0,
+          "pct_time_below_90": 61.1,
+          "odi4_per_hour": 59.4,
+          "ring6_median": 83.5,
+          "ring6_samples": 6,
+          "ring6_dips_4pct": 1,
+          "ring_rule_outside_reference": true
+        },
+        "b01r": {
+          "group": "borderline",
+          "hours": 8.0,
+          "median": 96.0,
+          "p5": 95.0,
+          "minimum": 51.0,
+          "pct_time_below_90": 0.5,
+          "odi4_per_hour": 1.5,
+          "ring6_median": 96.0,
+          "ring6_samples": 6,
+          "ring6_dips_4pct": 0,
+          "ring_rule_outside_reference": false
+        },
+        "c01r": {
+          "group": "control",
+          "hours": 7.8,
+          "median": 96.0,
+          "p5": 94.0,
+          "minimum": 57.5,
+          "pct_time_below_90": 0.1,
+          "odi4_per_hour": 0.3,
+          "ring6_median": 96.0,
+          "ring6_samples": 6,
+          "ring6_dips_4pct": 0,
+          "ring_rule_outside_reference": false
+        },
+        "c02r": {
+          "group": "control",
+          "hours": 8.1,
+          "median": 95.0,
+          "p5": 94.0,
+          "minimum": 62.5,
+          "pct_time_below_90": 0.3,
+          "odi4_per_hour": 2.1,
+          "ring6_median": 95.0,
+          "ring6_samples": 6,
+          "ring6_dips_4pct": 0,
+          "ring_rule_outside_reference": false
+        },
+        "c03r": {
+          "group": "control",
+          "hours": 7.6,
+          "median": 95.0,
+          "p5": 95.0,
+          "minimum": 69.5,
+          "pct_time_below_90": 0.1,
+          "odi4_per_hour": 0.4,
+          "ring6_median": 96.0,
+          "ring6_samples": 6,
+          "ring6_dips_4pct": 0,
+          "ring_rule_outside_reference": false
+        }
+      },
+      "by_group": {
+        "apnea": {
+          "recordings": 4,
+          "median": 88.75,
+          "minimum": 56.75,
+          "pct_time_below_90": 48.38,
+          "odi4_per_hour": 61.02,
+          "ring6_median": 84.12,
+          "ring6_dips_4pct": 1.5,
+          "ring_rule_flagged": 4
+        },
+        "borderline": {
+          "recordings": 1,
+          "median": 96.0,
+          "minimum": 51.0,
+          "pct_time_below_90": 0.5,
+          "odi4_per_hour": 1.5,
+          "ring6_median": 96.0,
+          "ring6_dips_4pct": 0.0,
+          "ring_rule_flagged": 0
+        },
+        "control": {
+          "recordings": 3,
+          "median": 95.33,
+          "minimum": 63.17,
+          "pct_time_below_90": 0.17,
+          "odi4_per_hour": 0.93,
+          "ring6_median": 95.67,
+          "ring6_dips_4pct": 0.0,
+          "ring_rule_flagged": 0
+        }
+      },
+      "simulator_assumption": "sleep apnea: 2-4 of 6 night samples dip 4-9 %; healthy: 0-1 dip of 3-5 %"
+    }
+  }
+}

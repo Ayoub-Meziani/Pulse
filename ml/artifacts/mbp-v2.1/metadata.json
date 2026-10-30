@@ -1,0 +1,93 @@
+{
+  "model_version": "mbp-v2.1",
+  "status": "experiment, not served",
+  "trained_on": "synthetic:pulse-sim-v2",
+  "ring_features": [
+    "hr_last_night",
+    "hrv_last_night",
+    "spo2_last_night",
+    "temp_last_night",
+    "hr_7_nights",
+    "hrv_7_nights",
+    "ring_nights_7"
+  ],
+  "split": {
+    "method": "patient-level 70/15/15",
+    "seed": 7,
+    "train_examples": 8730,
+    "val_examples": 1918,
+    "test_examples": 1929
+  },
+  "comparison": {
+    "v1_features": {
+      "validation_mae_mean_of_sys_dia": {
+        "ridge": 6.178,
+        "hist_gradient_boosting": 6.302
+      },
+      "chosen": "ridge",
+      "test_metrics_mmHg": {
+        "sys": {
+          "mae": 7.75,
+          "mae_ci95": [
+            7.49,
+            8.0
+          ],
+          "rmse": 9.8,
+          "rmse_ci95": [
+            9.51,
+            10.11
+          ]
+        },
+        "dia": {
+          "mae": 4.67,
+          "mae_ci95": [
+            4.55,
+            4.8
+          ],
+          "rmse": 5.87,
+          "rmse_ci95": [
+            5.69,
+            6.06
+          ]
+        }
+      }
+    },
+    "v2_features": {
+      "validation_mae_mean_of_sys_dia": {
+        "ridge": 6.125,
+        "hist_gradient_boosting": 6.291
+      },
+      "chosen": "ridge",
+      "test_metrics_mmHg": {
+        "sys": {
+          "mae": 7.71,
+          "mae_ci95": [
+            7.45,
+            7.97
+          ],
+          "rmse": 9.75,
+          "rmse_ci95": [
+            9.46,
+            10.05
+          ]
+        },
+        "dia": {
+          "mae": 4.64,
+          "mae_ci95": [
+            4.51,
+            4.77
+          ],
+          "rmse": 5.84,
+          "rmse_ci95": [
+            5.66,
+            6.03
+          ]
+        }
+      }
+    }
+  },
+  "v2_wins_on_validation": true,
+  "serving_decision": "mbp-v1 stays served unless v2 wins on validation AND the backend agrees",
+  "limitations": "Ring <-> BP coupling in the simulator is invented: any v2 gain is by construction.",
+  "trained_at": "2026-10-30T08:01:06+00:00"
+}

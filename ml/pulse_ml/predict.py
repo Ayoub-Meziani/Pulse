@@ -12,16 +12,36 @@ import argparse
 import json
 import os
 from datetime import date, datetime, time, timedelta
+from time import sleep
 from zoneinfo import ZoneInfo
 
 import joblib
 import pandas as pd
 import psycopg
+from psycopg import sql
 
 from .features import daily_table, window_features
 from .train import ARTIFACTS, MODEL_VERSION, TRAINED_ON
 
 LOCAL_DB = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"
+
+
+def connect(**kw) -> psycopg.Connection:
+    """DATABASE_URL (default: local stack). PULSE_DB_ROLE, if set, is assumed right after login: the Supabase CLI's
+    temporary login (scripts/run_cloud_jobs.ps1) must act as postgres, and the pooler drops startup options."""
+    role = os.environ.get("PULSE_DB_ROLE")
+    for attempt in range(6 if role else 1):
+        try:
+            conn = psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB), **kw)
+            break
+        except psycopg.OperationalError:
+            if attempt == (5 if role else 0):
+                raise
+            sleep(5)   # the pooler can take a few seconds to accept a freshly issued CLI login
+    if role:
+        conn.execute(sql.SQL("set role {}").format(sql.Identifier(role)))
+        conn.commit()
+    return conn
 
 PATIENTS = """
     select distinct p.id::text, p.timezone from public.profiles p
@@ -95,7 +115,7 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="compute, do not write")
     ap.add_argument("--model-version", default=MODEL_VERSION)
     a = ap.parse_args()
-    with psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB)) as conn:
+    with connect() as conn:
         rows = run(conn, load_bundle(a.model_version), a.date, a.dry_run, a.model_version)
     counts = pd.Series([r["status"] for r in rows], dtype=str).value_counts().to_dict()
     print(json.dumps({"model_version": a.model_version, "patients": len(rows), "by_status": counts,

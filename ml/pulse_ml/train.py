@@ -6,7 +6,7 @@
 Patient-level 70/15/15 split (no patient in two sets), features only from earlier days,
 scaler fitted on training patients only. Two candidates are compared on validation patients;
 the chosen one is scored once on test patients against two baselines.
-Results describe SYNTHETIC data (generator pulse-sim-v1) only.
+Results describe SYNTHETIC data (generator pulse-sim-v2) only.
 """
 from __future__ import annotations
 
@@ -29,8 +29,8 @@ from .features import FEATURES, build_examples, daily_table, pulse_v1_valid
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data" / "synthetic" / "readings.csv"
 ARTIFACTS = ROOT / "ml" / "artifacts"
-MODEL_VERSION = "mbp-v1"
-TRAINED_ON = "synthetic:pulse-sim-v1"
+MODEL_VERSION = "mbp-v1.1"   # v1 features/method, retrained on pulse-sim-v2
+TRAINED_ON = "synthetic:pulse-sim-v2"
 TZ = "Africa/Algiers"
 SEED = 7
 INTERVAL_COVERAGE = 0.90
@@ -130,7 +130,7 @@ def main() -> None:
     a = ap.parse_args()
     bundle, meta = fit_and_evaluate(load_readings(a.data))
     meta["trained_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    meta["data"] = {"file": a.data.name, "generator_version": "pulse-sim-v1", "generator_seed": SEED}
+    meta["data"] = {"file": a.data.name, "generator_version": "pulse-sim-v2", "generator_seed": SEED}
     out = ARTIFACTS / MODEL_VERSION
     out.mkdir(parents=True, exist_ok=True)
     joblib.dump(bundle, out / "model.joblib")

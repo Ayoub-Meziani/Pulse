@@ -1,0 +1,818 @@
+{
+  "what": "30-day walk-forward test on an unseen synthetic cohort; models frozen (no retraining)",
+  "holdout": {
+    "generator": "pulse-sim-v2",
+    "seed": 2026,
+    "patient_keys": "H0001-H0100 (training: S0001-S0200)",
+    "patients": 100,
+    "history_days": 60,
+    "test_window": [
+      "2026-03-02",
+      "2026-03-31"
+    ]
+  },
+  "mbp": {
+    "test_days": 30,
+    "patient_days_to_predict": 2282,
+    "patient_days_predicted": 2271,
+    "insufficient_history": 11,
+    "patients": 100,
+    "metrics_mmHg": {
+      "mbp-v1.1": {
+        "sys": {
+          "mae": 7.88,
+          "mae_ci95": [
+            7.65,
+            8.11
+          ],
+          "rmse": 9.8,
+          "rmse_ci95": [
+            9.52,
+            10.07
+          ]
+        },
+        "dia": {
+          "mae": 4.56,
+          "mae_ci95": [
+            4.41,
+            4.71
+          ],
+          "rmse": 5.7,
+          "rmse_ci95": [
+            5.53,
+            5.87
+          ]
+        }
+      },
+      "mbp-v2.1": {
+        "sys": {
+          "mae": 7.88,
+          "mae_ci95": [
+            7.65,
+            8.11
+          ],
+          "rmse": 9.79,
+          "rmse_ci95": [
+            9.51,
+            10.08
+          ]
+        },
+        "dia": {
+          "mae": 4.56,
+          "mae_ci95": [
+            4.41,
+            4.71
+          ],
+          "rmse": 5.7,
+          "rmse_ci95": [
+            5.53,
+            5.87
+          ]
+        }
+      },
+      "persistence_last_morning": {
+        "sys": {
+          "mae": 9.5,
+          "mae_ci95": [
+            9.21,
+            9.8
+          ],
+          "rmse": 11.85,
+          "rmse_ci95": [
+            11.49,
+            12.19
+          ]
+        },
+        "dia": {
+          "mae": 5.48,
+          "mae_ci95": [
+            5.3,
+            5.65
+          ],
+          "rmse": 6.89,
+          "rmse_ci95": [
+            6.67,
+            7.11
+          ]
+        }
+      },
+      "mean_7_days": {
+        "sys": {
+          "mae": 8.41,
+          "mae_ci95": [
+            8.17,
+            8.69
+          ],
+          "rmse": 10.51,
+          "rmse_ci95": [
+            10.19,
+            10.85
+          ]
+        },
+        "dia": {
+          "mae": 4.83,
+          "mae_ci95": [
+            4.66,
+            5.01
+          ],
+          "rmse": 6.04,
+          "rmse_ci95": [
+            5.85,
+            6.25
+          ]
+        }
+      }
+    },
+    "within_10_mmHg_systolic": {
+      "mbp-v1.1": 0.686,
+      "mbp-v2.1": 0.689,
+      "persistence_last_morning": 0.609,
+      "mean_7_days": 0.659
+    },
+    "within_5_mmHg_diastolic": {
+      "mbp-v1.1": 0.62,
+      "mbp-v2.1": 0.617,
+      "persistence_last_morning": 0.557,
+      "mean_7_days": 0.594
+    },
+    "interval_coverage_mbp_v1_1": {
+      "nominal": 0.9,
+      "sys": 0.907,
+      "dia": 0.91
+    },
+    "days_mbp_v1_1_beats_7_day_mean_systolic": "28 / 30",
+    "per_day": [
+      {
+        "day": "2026-03-02",
+        "n": 78,
+        "mae_sys:mbp-v1.1": 7.66,
+        "mae_sys:mbp-v2.1": 7.55,
+        "mae_sys:persistence_last_morning": 8.85,
+        "mae_sys:mean_7_days": 8.79
+      },
+      {
+        "day": "2026-03-03",
+        "n": 75,
+        "mae_sys:mbp-v1.1": 6.49,
+        "mae_sys:mbp-v2.1": 6.37,
+        "mae_sys:persistence_last_morning": 8.57,
+        "mae_sys:mean_7_days": 6.72
+      },
+      {
+        "day": "2026-03-04",
+        "n": 74,
+        "mae_sys:mbp-v1.1": 8.11,
+        "mae_sys:mbp-v2.1": 8.06,
+        "mae_sys:persistence_last_morning": 8.97,
+        "mae_sys:mean_7_days": 8.86
+      },
+      {
+        "day": "2026-03-05",
+        "n": 80,
+        "mae_sys:mbp-v1.1": 8.45,
+        "mae_sys:mbp-v2.1": 8.58,
+        "mae_sys:persistence_last_morning": 10.51,
+        "mae_sys:mean_7_days": 8.7
+      },
+      {
+        "day": "2026-03-06",
+        "n": 68,
+        "mae_sys:mbp-v1.1": 9.37,
+        "mae_sys:mbp-v2.1": 9.27,
+        "mae_sys:persistence_last_morning": 10.59,
+        "mae_sys:mean_7_days": 9.63
+      },
+      {
+        "day": "2026-03-07",
+        "n": 76,
+        "mae_sys:mbp-v1.1": 9.38,
+        "mae_sys:mbp-v2.1": 9.28,
+        "mae_sys:persistence_last_morning": 10.73,
+        "mae_sys:mean_7_days": 10.19
+      },
+      {
+        "day": "2026-03-08",
+        "n": 81,
+        "mae_sys:mbp-v1.1": 7.28,
+        "mae_sys:mbp-v2.1": 7.15,
+        "mae_sys:persistence_last_morning": 8.64,
+        "mae_sys:mean_7_days": 7.69
+      },
+      {
+        "day": "2026-03-09",
+        "n": 79,
+        "mae_sys:mbp-v1.1": 8.68,
+        "mae_sys:mbp-v2.1": 8.58,
+        "mae_sys:persistence_last_morning": 9.13,
+        "mae_sys:mean_7_days": 8.97
+      },
+      {
+        "day": "2026-03-10",
+        "n": 82,
+        "mae_sys:mbp-v1.1": 7.17,
+        "mae_sys:mbp-v2.1": 7.32,
+        "mae_sys:persistence_last_morning": 8.15,
+        "mae_sys:mean_7_days": 8.2
+      },
+      {
+        "day": "2026-03-11",
+        "n": 80,
+        "mae_sys:mbp-v1.1": 8.97,
+        "mae_sys:mbp-v2.1": 8.91,
+        "mae_sys:persistence_last_morning": 10.79,
+        "mae_sys:mean_7_days": 9.72
+      },
+      {
+        "day": "2026-03-12",
+        "n": 78,
+        "mae_sys:mbp-v1.1": 7.43,
+        "mae_sys:mbp-v2.1": 7.42,
+        "mae_sys:persistence_last_morning": 9.81,
+        "mae_sys:mean_7_days": 8.31
+      },
+      {
+        "day": "2026-03-13",
+        "n": 74,
+        "mae_sys:mbp-v1.1": 7.32,
+        "mae_sys:mbp-v2.1": 7.2,
+        "mae_sys:persistence_last_morning": 8.26,
+        "mae_sys:mean_7_days": 7.42
+      },
+      {
+        "day": "2026-03-14",
+        "n": 71,
+        "mae_sys:mbp-v1.1": 7.16,
+        "mae_sys:mbp-v2.1": 7.19,
+        "mae_sys:persistence_last_morning": 8.71,
+        "mae_sys:mean_7_days": 8.01
+      },
+      {
+        "day": "2026-03-15",
+        "n": 65,
+        "mae_sys:mbp-v1.1": 7.46,
+        "mae_sys:mbp-v2.1": 7.5,
+        "mae_sys:persistence_last_morning": 9.27,
+        "mae_sys:mean_7_days": 8.3
+      },
+      {
+        "day": "2026-03-16",
+        "n": 78,
+        "mae_sys:mbp-v1.1": 8.28,
+        "mae_sys:mbp-v2.1": 8.31,
+        "mae_sys:persistence_last_morning": 9.55,
+        "mae_sys:mean_7_days": 8.82
+      },
+      {
+        "day": "2026-03-17",
+        "n": 78,
+        "mae_sys:mbp-v1.1": 8.06,
+        "mae_sys:mbp-v2.1": 8.19,
+        "mae_sys:persistence_last_morning": 9.28,
+        "mae_sys:mean_7_days": 8.41
+      },
+      {
+        "day": "2026-03-18",
+        "n": 80,
+        "mae_sys:mbp-v1.1": 7.14,
+        "mae_sys:mbp-v2.1": 7.09,
+        "mae_sys:persistence_last_morning": 9.31,
+        "mae_sys:mean_7_days": 7.48
+      },
+      {
+        "day": "2026-03-19",
+        "n": 71,
+        "mae_sys:mbp-v1.1": 8.68,
+        "mae_sys:mbp-v2.1": 8.81,
+        "mae_sys:persistence_last_morning": 10.18,
+        "mae_sys:mean_7_days": 8.61
+      },
+      {
+        "day": "2026-03-20",
+        "n": 77,
+        "mae_sys:mbp-v1.1": 8.55,
+        "mae_sys:mbp-v2.1": 8.65,
+        "mae_sys:persistence_last_morning": 10.99,
+        "mae_sys:mean_7_days": 9.02
+      },
+      {
+        "day": "2026-03-21",
+        "n": 76,
+        "mae_sys:mbp-v1.1": 7.73,
+        "mae_sys:mbp-v2.1": 7.75,
+        "mae_sys:persistence_last_morning": 9.5,
+        "mae_sys:mean_7_days": 7.88
+      },
+      {
+        "day": "2026-03-22",
+        "n": 78,
+        "mae_sys:mbp-v1.1": 7.21,
+        "mae_sys:mbp-v2.1": 7.17,
+        "mae_sys:persistence_last_morning": 9.54,
+        "mae_sys:mean_7_days": 7.68
+      },
+      {
+        "day": "2026-03-23",
+        "n": 74,
+        "mae_sys:mbp-v1.1": 8.84,
+        "mae_sys:mbp-v2.1": 8.69,
+        "mae_sys:persistence_last_morning": 10.22,
+        "mae_sys:mean_7_days": 10.08
+      },
+      {
+        "day": "2026-03-24",
+        "n": 66,
+        "mae_sys:mbp-v1.1": 7.01,
+        "mae_sys:mbp-v2.1": 7.11,
+        "mae_sys:persistence_last_morning": 8.87,
+        "mae_sys:mean_7_days": 7.5
+      },
+      {
+        "day": "2026-03-25",
+        "n": 81,
+        "mae_sys:mbp-v1.1": 7.87,
+        "mae_sys:mbp-v2.1": 7.7,
+        "mae_sys:persistence_last_morning": 8.96,
+        "mae_sys:mean_7_days": 8.09
+      },
+      {
+        "day": "2026-03-26",
+        "n": 76,
+        "mae_sys:mbp-v1.1": 7.12,
+        "mae_sys:mbp-v2.1": 7.33,
+        "mae_sys:persistence_last_morning": 9.07,
+        "mae_sys:mean_7_days": 8.17
+      },
+      {
+        "day": "2026-03-27",
+        "n": 71,
+        "mae_sys:mbp-v1.1": 8.75,
+        "mae_sys:mbp-v2.1": 8.89,
+        "mae_sys:persistence_last_morning": 10.09,
+        "mae_sys:mean_7_days": 8.97
+      },
+      {
+        "day": "2026-03-28",
+        "n": 77,
+        "mae_sys:mbp-v1.1": 7.87,
+        "mae_sys:mbp-v2.1": 7.77,
+        "mae_sys:persistence_last_morning": 9.58,
+        "mae_sys:mean_7_days": 8.47
+      },
+      {
+        "day": "2026-03-29",
+        "n": 78,
+        "mae_sys:mbp-v1.1": 7.71,
+        "mae_sys:mbp-v2.1": 7.92,
+        "mae_sys:persistence_last_morning": 10.21,
+        "mae_sys:mean_7_days": 7.69
+      },
+      {
+        "day": "2026-03-30",
+        "n": 78,
+        "mae_sys:mbp-v1.1": 6.59,
+        "mae_sys:mbp-v2.1": 6.6,
+        "mae_sys:persistence_last_morning": 9.94,
+        "mae_sys:mean_7_days": 7.11
+      },
+      {
+        "day": "2026-03-31",
+        "n": 71,
+        "mae_sys:mbp-v1.1": 8.21,
+        "mae_sys:mbp-v2.1": 8.29,
+        "mae_sys:persistence_last_morning": 8.9,
+        "mae_sys:mean_7_days": 9.04
+      }
+    ],
+    "example_patient": {
+      "patient": "H0020",
+      "series": [
+        {
+          "day": "2026-03-02",
+          "actual_sys": 163.0,
+          "predicted_sys": 180.8,
+          "mean_7_days_sys": 185.2
+        },
+        {
+          "day": "2026-03-03",
+          "actual_sys": 172.0,
+          "predicted_sys": 175.6,
+          "mean_7_days_sys": 181.7
+        },
+        {
+          "day": "2026-03-04",
+          "actual_sys": 170.0,
+          "predicted_sys": 175.5,
+          "mean_7_days_sys": 180.5
+        },
+        {
+          "day": "2026-03-05",
+          "actual_sys": 176.5,
+          "predicted_sys": 171.6,
+          "mean_7_days_sys": 177.2
+        },
+        {
+          "day": "2026-03-06",
+          "actual_sys": 174.5,
+          "predicted_sys": 172.6,
+          "mean_7_days_sys": 175.1
+        },
+        {
+          "day": "2026-03-07",
+          "actual_sys": 171.0,
+          "predicted_sys": 172.4,
+          "mean_7_days_sys": 172.3
+        },
+        {
+          "day": "2026-03-08",
+          "actual_sys": 178.0,
+          "predicted_sys": 171.6,
+          "mean_7_days_sys": 169.6
+        },
+        {
+          "day": "2026-03-09",
+          "actual_sys": 183.0,
+          "predicted_sys": 175.9,
+          "mean_7_days_sys": 171.7
+        },
+        {
+          "day": "2026-03-10",
+          "actual_sys": 175.5,
+          "predicted_sys": 176.1,
+          "mean_7_days_sys": 173.3
+        },
+        {
+          "day": "2026-03-11",
+          "actual_sys": 156.0,
+          "predicted_sys": 176.2,
+          "mean_7_days_sys": 173.9
+        },
+        {
+          "day": "2026-03-12",
+          "actual_sys": 162.0,
+          "predicted_sys": 169.2,
+          "mean_7_days_sys": 172.4
+        },
+        {
+          "day": "2026-03-13",
+          "actual_sys": 157.5,
+          "predicted_sys": 168.1,
+          "mean_7_days_sys": 170.5
+        },
+        {
+          "day": "2026-03-14",
+          "actual_sys": 163.5,
+          "predicted_sys": 162.9,
+          "mean_7_days_sys": 168.1
+        },
+        {
+          "day": "2026-03-15",
+          "actual_sys": 165.0,
+          "predicted_sys": 163.7,
+          "mean_7_days_sys": 166.5
+        },
+        {
+          "day": "2026-03-16",
+          "actual_sys": 163.0,
+          "predicted_sys": 164.0,
+          "mean_7_days_sys": 164.4
+        },
+        {
+          "day": "2026-03-17",
+          "actual_sys": 177.0,
+          "predicted_sys": 162.8,
+          "mean_7_days_sys": 162.5
+        },
+        {
+          "day": "2026-03-18",
+          "actual_sys": 167.0,
+          "predicted_sys": 165.8,
+          "mean_7_days_sys": 161.1
+        },
+        {
+          "day": "2026-03-19",
+          "actual_sys": 171.5,
+          "predicted_sys": 165.2,
+          "mean_7_days_sys": 162.2
+        },
+        {
+          "day": "2026-03-20",
+          "actual_sys": 170.5,
+          "predicted_sys": 167.3,
+          "mean_7_days_sys": 164.2
+        },
+        {
+          "day": "2026-03-21",
+          "actual_sys": 182.0,
+          "predicted_sys": 166.9,
+          "mean_7_days_sys": 165.7
+        },
+        {
+          "day": "2026-03-22",
+          "actual_sys": 178.0,
+          "predicted_sys": 173.3,
+          "mean_7_days_sys": 169.4
+        },
+        {
+          "day": "2026-03-23",
+          "actual_sys": 175.0,
+          "predicted_sys": 174.5,
+          "mean_7_days_sys": 170.3
+        },
+        {
+          "day": "2026-03-24",
+          "actual_sys": 169.0,
+          "predicted_sys": 172.9,
+          "mean_7_days_sys": 171.4
+        },
+        {
+          "day": "2026-03-25",
+          "actual_sys": 174.0,
+          "predicted_sys": 172.8,
+          "mean_7_days_sys": 171.4
+        },
+        {
+          "day": "2026-03-26",
+          "actual_sys": 179.0,
+          "predicted_sys": 174.1,
+          "mean_7_days_sys": 172.9
+        },
+        {
+          "day": "2026-03-27",
+          "actual_sys": 169.5,
+          "predicted_sys": 175.0,
+          "mean_7_days_sys": 174.3
+        },
+        {
+          "day": "2026-03-28",
+          "actual_sys": 175.0,
+          "predicted_sys": 172.2,
+          "mean_7_days_sys": 174.2
+        },
+        {
+          "day": "2026-03-29",
+          "actual_sys": 177.0,
+          "predicted_sys": 170.4,
+          "mean_7_days_sys": 171.8
+        },
+        {
+          "day": "2026-03-30",
+          "actual_sys": 186.0,
+          "predicted_sys": 173.2,
+          "mean_7_days_sys": 172.3
+        },
+        {
+          "day": "2026-03-31",
+          "actual_sys": 187.0,
+          "predicted_sys": 176.0,
+          "mean_7_days_sys": 173.4
+        }
+      ]
+    }
+  },
+  "ring": {
+    "nights_checked": 2703,
+    "patients": 100,
+    "methods": {
+      "reference_only": {
+        "episodes": 14,
+        "episodes_detected": 6,
+        "episode_recall": 0.429,
+        "flagged_nights": 443,
+        "night_precision": 0.023,
+        "false_flags_per_patient_week": 1.121
+      },
+      "personal_baseline": {
+        "episodes": 14,
+        "episodes_detected": 13,
+        "episode_recall": 0.929,
+        "flagged_nights": 107,
+        "night_precision": 0.224,
+        "false_flags_per_patient_week": 0.215
+      },
+      "isolation_forest": {
+        "episodes": 14,
+        "episodes_detected": 9,
+        "episode_recall": 0.643,
+        "flagged_nights": 44,
+        "night_precision": 0.318,
+        "false_flags_per_patient_week": 0.078
+      },
+      "personal_or_isolation_forest": {
+        "episodes": 14,
+        "episodes_detected": 13,
+        "episode_recall": 0.929,
+        "flagged_nights": 117,
+        "night_precision": 0.205,
+        "false_flags_per_patient_week": 0.241
+      }
+    },
+    "personal_baseline_by_episode_type": {
+      "hr_rise": "7 / 7",
+      "hrv_drop": "2 / 2",
+      "spo2_dip": "4 / 5"
+    }
+  },
+  "wcls": {
+    "weeks_predicted": [
+      "2026-03-02",
+      "2026-03-09",
+      "2026-03-16",
+      "2026-03-23"
+    ],
+    "predictions": 400,
+    "model": {
+      "n": 400,
+      "positives": 285,
+      "brier": 0.0717,
+      "balanced_accuracy": 0.873,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          95,
+          20
+        ],
+        [
+          23,
+          262
+        ]
+      ],
+      "auroc": 0.963,
+      "auroc_ci95": [
+        0.937,
+        0.98
+      ],
+      "balanced_accuracy_ci95": [
+        0.823,
+        0.913
+      ]
+    },
+    "baseline_status_persists": {
+      "n": 400,
+      "positives": 285,
+      "brier": 0.1,
+      "balanced_accuracy": 0.881,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          96,
+          19
+        ],
+        [
+          21,
+          264
+        ]
+      ],
+      "auroc": 0.881,
+      "auroc_ci95": [
+        0.831,
+        0.919
+      ],
+      "balanced_accuracy_ci95": [
+        0.831,
+        0.919
+      ]
+    },
+    "status_changes_only": {
+      "n": 40,
+      "model": {
+        "n": 40,
+        "positives": 21,
+        "brier": 0.5546,
+        "balanced_accuracy": 0.076,
+        "confusion_matrix [[tn, fp], [fn, tp]]": [
+          [
+            2,
+            17
+          ],
+          [
+            20,
+            1
+          ]
+        ],
+        "auroc": 0.055,
+        "auroc_ci95": [
+          0.0,
+          0.138
+        ],
+        "balanced_accuracy_ci95": [
+          0.0,
+          0.158
+        ]
+      },
+      "baseline_status_persists": {
+        "n": 40,
+        "positives": 21,
+        "brier": 1.0,
+        "balanced_accuracy": 0.0,
+        "confusion_matrix [[tn, fp], [fn, tp]]": [
+          [
+            0,
+            19
+          ],
+          [
+            21,
+            0
+          ]
+        ],
+        "auroc": 0.0,
+        "auroc_ci95": [
+          0.0,
+          0.0
+        ],
+        "balanced_accuracy_ci95": [
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "wrisk_real_external": {
+    "source": "real:nhanes_2021 (NHANES August 2021-August 2023 (CDC / NCHS))",
+    "credit": "National Center for Health Statistics, NHANES August 2021-August 2023 data files",
+    "terms": "NCHS data user agreement: statistical analysis only; no re-identification; no linkage (https://www.cdc.gov/nchs/data_access/restrictions.htm)",
+    "people": 1851,
+    "uncontrolled_rate_weighted": 0.311,
+    "model": {
+      "n": 1851,
+      "positives": 577,
+      "brier": 0.2104,
+      "balanced_accuracy": 0.508,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          1247,
+          27
+        ],
+        [
+          555,
+          22
+        ]
+      ],
+      "auroc": 0.596,
+      "auroc_ci95": [
+        0.568,
+        0.624
+      ],
+      "balanced_accuracy_ci95": [
+        0.5,
+        0.518
+      ],
+      "auroc_weighted": 0.592,
+      "calibration_quintiles": [
+        {
+          "predicted_mean": 0.226,
+          "observed_rate": 0.251,
+          "n": 371
+        },
+        {
+          "predicted_mean": 0.295,
+          "observed_rate": 0.256,
+          "n": 371
+        },
+        {
+          "predicted_mean": 0.336,
+          "observed_rate": 0.259,
+          "n": 371
+        },
+        {
+          "predicted_mean": 0.382,
+          "observed_rate": 0.369,
+          "n": 371
+        },
+        {
+          "predicted_mean": 0.457,
+          "observed_rate": 0.426,
+          "n": 371
+        }
+      ]
+    },
+    "baseline_age_sex": {
+      "n": 1851,
+      "positives": 577,
+      "brier": 0.2129,
+      "balanced_accuracy": 0.5,
+      "confusion_matrix [[tn, fp], [fn, tp]]": [
+        [
+          1274,
+          0
+        ],
+        [
+          577,
+          0
+        ]
+      ],
+      "auroc": 0.565,
+      "auroc_ci95": [
+        0.534,
+        0.597
+      ],
+      "balanced_accuracy_ci95": [
+        0.5,
+        0.5
+      ],
+      "auroc_weighted": 0.555
+    }
+  },
+  "not_testable_on_real_data": {
+    "mbp-v1.1 / mbp-v2.1 / wcls-v1.1": "no open real dataset has daily home BP of many patients; the one real series (Mendeley, 1 patient, every 3 days) was used to calibrate the simulator",
+    "ring-v1.1": "real SpO2 test already done on all 8 PhysioNet Apnea-ECG nights (artifacts/ring-v1.1/metadata.json)"
+  },
+  "run_at": "2026-10-30T18:14:04+00:00"
+}

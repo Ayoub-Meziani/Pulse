@@ -1,0 +1,180 @@
+{
+  "model_version": "mbp-v1.1",
+  "algorithm": "ridge",
+  "target": "morning_mean_bp",
+  "trained_on": "synthetic:pulse-sim-v2",
+  "features": [
+    "last_m_sys",
+    "last_m_dia",
+    "mean7_sys",
+    "mean7_dia",
+    "mean3_sys",
+    "mean3_dia",
+    "m7_sys",
+    "m7_dia",
+    "slope7_sys",
+    "slope7_dia",
+    "sd7_sys",
+    "gap7_sys",
+    "n7",
+    "days7",
+    "dow_0",
+    "dow_1",
+    "dow_2",
+    "dow_3",
+    "dow_4",
+    "dow_5",
+    "dow_6"
+  ],
+  "eligibility": "\u22656 valid readings on \u22654 local days in the 7 days before the target day, \u22651 morning reading",
+  "split": {
+    "method": "patient-level 70/15/15",
+    "seed": 7,
+    "train_patients": 140,
+    "val_patients": 30,
+    "test_patients": 30,
+    "train_examples": 8730,
+    "val_examples": 1918,
+    "test_examples": 1929
+  },
+  "validation_mae_mean_of_sys_dia": {
+    "ridge": 6.178,
+    "hist_gradient_boosting": 6.302
+  },
+  "test_metrics_mmHg": {
+    "persistence_last_morning": {
+      "sys": {
+        "mae": 9.56,
+        "mae_ci95": [
+          9.24,
+          9.89
+        ],
+        "rmse": 12.04,
+        "rmse_ci95": [
+          11.66,
+          12.44
+        ]
+      },
+      "dia": {
+        "mae": 5.77,
+        "mae_ci95": [
+          5.58,
+          5.97
+        ],
+        "rmse": 7.31,
+        "rmse_ci95": [
+          7.05,
+          7.59
+        ]
+      }
+    },
+    "mean_7_days": {
+      "sys": {
+        "mae": 8.29,
+        "mae_ci95": [
+          7.98,
+          8.59
+        ],
+        "rmse": 10.42,
+        "rmse_ci95": [
+          10.07,
+          10.77
+        ]
+      },
+      "dia": {
+        "mae": 4.85,
+        "mae_ci95": [
+          4.7,
+          4.99
+        ],
+        "rmse": 6.11,
+        "rmse_ci95": [
+          5.92,
+          6.3
+        ]
+      }
+    },
+    "model:ridge": {
+      "sys": {
+        "mae": 7.75,
+        "mae_ci95": [
+          7.49,
+          8.0
+        ],
+        "rmse": 9.8,
+        "rmse_ci95": [
+          9.51,
+          10.11
+        ]
+      },
+      "dia": {
+        "mae": 4.67,
+        "mae_ci95": [
+          4.55,
+          4.8
+        ],
+        "rmse": 5.87,
+        "rmse_ci95": [
+          5.69,
+          6.06
+        ]
+      }
+    }
+  },
+  "interval": {
+    "method": "split-conformal on validation patients",
+    "nominal_coverage": 0.9,
+    "half_width_sys": 16.2,
+    "half_width_dia": 9.6,
+    "test_coverage_sys": 0.901,
+    "test_coverage_dia": 0.895
+  },
+  "limitations": "Model estimate trained on synthetic data only. Not a measurement, not clinically validated, not used for alerts, never a basis for medication decisions.",
+  "trained_at": "2026-10-30T07:58:55+00:00",
+  "data": {
+    "file": "readings.csv",
+    "generator_version": "pulse-sim-v2",
+    "generator_seed": 7
+  },
+  "real_tests": {
+    "mendeley_hbpm": {
+      "source": "real:mendeley_hbpm",
+      "credit": "Dvornik O, Chuiko G, Baganov Y, Shyian I (2017), Mendeley Data v1, doi:10.17632/pjcv33hpp7.1",
+      "licence": "CC BY-NC 3.0 (non-commercial, attribution)",
+      "patient": "1 treated 67-year-old man (dataset description), Microlife BP 3AG1, mean of 3 trials, 1 measurement every 3 days over 384 days",
+      "mbp_v1_applicable": false,
+      "why_not": "mbp-v1 needs >= 6 valid readings on >= 4 days in the 7 days before the target day and a morning reading; this series has 1 measurement every 3 days and no clock times",
+      "real_systolic": {
+        "n": 128,
+        "mean": 158.3,
+        "sd": 11.7,
+        "persistence_mae": 9.97,
+        "mean_last3_mae": 8.6,
+        "lag1_correlation": 0.399
+      },
+      "real_diastolic": {
+        "n": 128,
+        "mean": 84.7,
+        "sd": 6.4,
+        "persistence_mae": 5.13,
+        "mean_last3_mae": 4.67,
+        "lag1_correlation": 0.367
+      },
+      "real_pulse": {
+        "n": 128,
+        "mean": 85.6,
+        "sd": 9.7,
+        "persistence_mae": 5.46,
+        "mean_last3_mae": 4.85,
+        "lag1_correlation": 0.711
+      },
+      "synthetic_systolic_same_sampling_median_patient": {
+        "patients": 111,
+        "sd": 11.8,
+        "persistence_mae": 10.04,
+        "mean_last3_mae": 9.04,
+        "lag1_correlation": 0.411
+      }
+    }
+  }
+}

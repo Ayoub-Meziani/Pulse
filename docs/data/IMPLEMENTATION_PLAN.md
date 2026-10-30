@@ -34,7 +34,7 @@ Raw/validated measurements, patient-reported data, clinician-authored data, rule
 ## Blockers / open items
 - No BP device chosen: real adapter not built (docs/DEVICE_INTEGRATION.md).
 - No open multi-patient longitudinal home-BP dataset found: ML will start on labelled synthetic data (docs/DATA_SOURCES.md).
-- Validation thresholds, alert thresholds and emergency wording need clinician review; emergency number for Algeria must be verified.
+- ~~Alert thresholds and emergency wording need clinician review; emergency number must be verified~~: done 30 Oct 2026 (medical mentor review; number **14**). Validation limits (`pulse-v1`) remain engineering defaults.
 - Backend teammate to confirm: who owns the shared Supabase project and applies migrations.
 
 ## Next concrete task

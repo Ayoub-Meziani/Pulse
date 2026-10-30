@@ -282,6 +282,7 @@ def test_doctor_notes_hidden_from_patient(db):
 
 
 def test_ml_predictions_doctor_only(db):
+    db.execute("delete from public.ml_predictions")   # the local predict job may have written rows
     q = ("insert into public.ml_predictions (patient_id, target_date, target, status, predicted_systolic,"
          " predicted_diastolic, model_version, trained_on, features_until, n_readings_used)"
          " values (%s, current_date, 'morning_mean_bp', %s, %s, %s, 'test', 'synthetic:pulse-sim-v1', now(), 10)")
@@ -304,7 +305,9 @@ def test_patient_sets_own_birth_year(db):
 
 
 def test_algerian_factor_fields(db):
-    fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set condition_codes = '{asthma}' where user_id = %s", (AMINA,))
+    fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set condition_codes = '{tuberculosis}' where user_id = %s", (AMINA,))
+    db.execute("update public.patient_profiles set condition_codes = '{hypertension,copd,obstructive_sleep_apnea,"
+               "atrial_fibrillation,heart_failure,thyroid_disease,asthma}' where user_id = %s", (AMINA,))  # M8
     fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set adds_salt_at_table = 'daily' where user_id = %s", (AMINA,))
     db.execute("insert into public.lifestyle_logs (patient_id, category, started_at, ended_at)"
                " values (%s, 'fasting', now() - interval '13 hours', now() - interval '30 minutes')", (AMINA,))
@@ -330,7 +333,99 @@ def test_wearable_samples(db):
     fails(db, Denied, q, (KARIM, ring, "heart_rate", 70, "bpm"))  # written by the backend only
     db.execute("reset role")
     as_user(db, AMINA)
-    assert visible_patients(db, "wearable_samples") == set()
+    assert visible_patients(db, "wearable_samples") == {AMINA}   # every demo patient has a simulated ring
+
+
+# ---------------------------------------------------------------- M7 ml_monitoring (review M1-M4, M8)
+
+def band(db, patient, status="proposed", low=55, high=75):
+    active = status == "active"
+    return db.execute("insert into public.patient_bands (patient_id, metric, statistic, low, high, basis, status,"
+                      " approved_by, approved_at, effective_from) values (%s, 'heart_rate', 'night_median', %s, %s,"
+                      " 'model_proposal', %s, %s, case when %s then now() end, case when %s then current_date end)"
+                      " returning id", (patient, low, high, status, sim.DOCTOR.id if active else None, active, active)
+                      ).fetchone()[0]
+
+
+def test_m7_tables_are_doctor_only(db):
+    for table in ("wearable_flags", "weekly_reports", "patient_bands"):  # local job runs may have left rows
+        db.execute(f"delete from public.{table}")
+    band(db, KARIM)
+    db.execute("insert into public.weekly_reports (patient_id, week_start, control_status)"
+               " values (%s, date_trunc('week', now())::date, 'above_target')", (KARIM,))
+    as_user(db, KARIM)
+    for table in ("patient_bands", "wearable_flags", "weekly_reports"):
+        assert visible_patients(db, table) == set(), table
+    db.execute("reset role")
+    as_user(db, sim.DOCTOR.id)
+    assert visible_patients(db, "patient_bands") == visible_patients(db, "weekly_reports") == {KARIM}
+    db.execute("reset role")
+    as_user(db, None, role="anon")
+    for table in ("patient_bands", "wearable_flags", "weekly_reports"):
+        fails(db, Denied, f"select 1 from public.{table}")
+
+
+def test_approve_band_supersedes_and_is_audited(db):
+    old = band(db, KARIM, status="active")
+    new = band(db, KARIM, low=58, high=78)
+    other_doctor = new_user(db, "doctor")
+    as_user(db, other_doctor)
+    fails(db, psycopg.errors.CheckViolation, "select private.approve_band(%s, %s)", (new, other_doctor))  # cannot see it
+    db.execute("reset role")
+    fails(db, Denied, "select private.approve_band(%s, %s)", (new, other_doctor))  # not assigned (privileged path)
+    as_user(db, sim.DOCTOR.id)
+    fails(db, Denied, "select private.approve_band(%s, %s)", (new, other_doctor))  # approver must be the caller
+    db.execute("select private.approve_band(%s, %s, %s, %s)", (new, sim.DOCTOR.id, 57, 78))
+    db.execute("reset role")
+    rows = {r[0]: r[1:] for r in db.execute("select id, status, basis, supersedes_id, low from public.patient_bands"
+                                            " where patient_id = %s", (KARIM,)).fetchall()}
+    assert rows[old][0] == "superseded"
+    assert rows[new] == ("active", "doctor", old, 57)
+    assert db.execute("select count(*) from public.audit_log where table_name = 'patient_bands' and row_id = %s",
+                      (new,)).fetchone()[0] >= 2
+
+
+def test_flag_and_report_review_by_assigned_doctor(db):
+    flag = db.execute("insert into public.wearable_flags (patient_id, metric, kind, window_kind, window_start, window_end,"
+                      " value, reference_basis, model_version) values (%s, 'spo2', 'outside_reference', 'live_10min',"
+                      " now() - interval '10 minutes', now(), 91, 'reference:spo2', 'test') returning id",
+                      (KARIM,)).fetchone()[0]
+    fails(db, psycopg.errors.CheckViolation, "insert into public.wearable_flags (patient_id, metric, kind, window_kind,"
+          " window_start, window_end, reference_basis, model_version) values (%s, 'heart_rate', 'multivariate_anomaly',"
+          " 'night', now() - interval '6 hours', now(), 'x', 'test')", (KARIM,))
+    fails(db, psycopg.errors.CheckViolation, "insert into public.weekly_reports (patient_id, week_start, control_status)"
+          " values (%s, date_trunc('week', now())::date + 2, 'above_target')", (KARIM,))  # not a Monday
+    report = db.execute("insert into public.weekly_reports (patient_id, week_start, control_status) values"
+                        " (%s, date_trunc('week', now())::date, 'above_target') returning id", (KARIM,)).fetchone()[0]
+    other_doctor = new_user(db, "doctor")
+    as_user(db, KARIM)
+    assert db.execute("update public.wearable_flags set review_status = 'dismissed' where id = %s", (flag,)).rowcount == 0
+    db.execute("reset role")
+    as_user(db, sim.DOCTOR.id)
+    fails(db, Denied, "update public.wearable_flags set review_status = 'confirmed', reviewed_by = %s, reviewed_at = now()"
+          " where id = %s", (other_doctor, flag))  # reviewer must be the caller
+    assert db.execute("update public.wearable_flags set review_status = 'confirmed', reviewed_by = %s, reviewed_at = now(),"
+                      " review_note = 'checked with patient' where id = %s", (sim.DOCTOR.id, flag)).rowcount == 1
+    assert db.execute("update public.weekly_reports set status = 'reviewed', reviewed_by = %s, reviewed_at = now(),"
+                      " doctor_comment = 'ok' where id = %s", (sim.DOCTOR.id, report)).rowcount == 1
+    fails(db, Denied, "update public.weekly_reports set summary = '{}' where id = %s", (report,))  # job-only column
+
+
+def test_m9_early_warnings_are_forecast_flags_for_the_doctor_only(db):
+    db.execute("delete from public.wearable_flags")  # local job runs may have left rows
+    q = ("insert into public.wearable_flags (patient_id, metric, kind, window_kind, window_start, window_end, value,"
+         " score, reference_basis, model_version) values (%s, %s, %s, %s, now(), now() + interval '20 minutes', 93.1,"
+         " 0.8, 'forecast:test', 'live-v1')")
+    db.execute(q, (KARIM, "spo2", "early_warning", "forecast"))
+    db.execute(q, (KARIM, "sleep", "early_warning", "forecast"))                       # "this night is going badly"
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, "heart_rate", "early_warning", "live_10min"))
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, "heart_rate", "outside_reference", "forecast"))
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, "sleep", "personal_anomaly", "night"))
+    as_user(db, KARIM)
+    assert visible_patients(db, "wearable_flags") == set()                             # patients see no ML output (M4)
+    db.execute("reset role")
+    as_user(db, sim.DOCTOR.id)
+    assert visible_patients(db, "wearable_flags") == {KARIM}
 
 
 def test_new_tables_have_no_anon_access(db):
