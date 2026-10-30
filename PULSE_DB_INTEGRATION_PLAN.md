@@ -80,7 +80,7 @@ Both as new files after `20261029120100`, never edits of applied files. Tests in
 5. **Done** (`feat/api-supabase` `52b4d02`): alert episodes (create / attach / raise), symptom reports with R-EMG-1, alerts list/detail, transitions; retries (`possible_duplicate`) never change alerts; 235 tests on M1–M6. `symptom_reports.measurement_id` does not exist: validated, not stored (M7 requested).
 6. **Done** (`feat/api-supabase` `ab778d8`): doctor list, summary, profile, trusted contacts (consent enforced; phone change needs a new consented contact), care plan GET/PUT, emergency card (no notes, no M6 fields, no wearable data; last reading labelled with source/provenance); 282 tests on M1–M6. **Demo readiness:** the seeded `pulse` has readings but no alerts, so the doctor list shows no alert levels and no alert history until the step 9 replay job runs the rules over the seed; nothing is invented in the meantime.
 7. Emergency events (idempotent create, actions, patch, report), notes.
-8. Predictions endpoint (M4 live; fixture rows in tests, `pulse_ml.predict` rows in the demo).
+8. **Done (plan step 7)** (`feat/api-supabase` `6eef991`): predictions endpoint, doctor only, configured model version (`PULSE_ML_MODEL_VERSION`, default `mbp-v1`), stale rows → `model_unavailable`; 297 tests on M1–M6. Live `pulse` has 0 prediction rows until the data/AI developer runs `pulse_ml.predict` against it.
 9. Replay job for seeded history; demo reset script.
 10. Run against `pulse` with the fictional seed (after sign-up is disabled).
 

@@ -305,3 +305,4 @@ Explicit REVOKE ALL FROM anon, authenticated first (default privileges would oth
 | 2026-10-30 | `SymptomReportIn/Out.measurement_id` descriptions: validated, not stored until M7 | description | column does not exist (B24) |
 | 2026-10-30 | `LastReading.source`, `LastReading.provenance` (required) | additive response fields | simulated readings must stay labelled on the emergency card |
 | 2026-10-30 | `TrustedContactPatch` + PATCH summary: phone change refused (422 `consent_required`) | description / behaviour | a new number may be a person who never consented |
+| 2026-10-30 | `PredictionOut.limitations` default starts with "Experimental" and adds "never used for alerts or emergency guidance"; description documents stale → `model_unavailable` | wording | label estimates as experimental (step 7) |
