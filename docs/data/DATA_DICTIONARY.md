@@ -27,7 +27,7 @@ One row per `auth.users` account, created by trigger.
 | created_at / updated_at | timestamptz | |
 
 ### patient_profiles
-Patient-only (trigger-enforced). `relevant_conditions text[]`, `allergies`, `medication_context` (free text for the emergency card), `regular_doctor_id` → doctor profile, `regular_clinic`, `emergency_preferences jsonb`, `consent_location bool`, `data_consent_at`. No date of birth or demographics (data minimisation; add only if the ML phase justifies it).
+Patient-only (trigger-enforced). `relevant_conditions text[]`, `allergies`, `medication_context` (free text for the emergency card), `regular_doctor_id` → doctor profile, `regular_clinic`, `emergency_preferences jsonb`, `consent_location bool`, `data_consent_at`, `birth_year` (M5, year only, 1900–2100, patient-entered). No full date of birth (data minimisation).
 
 ### doctor_patient_assignments
 Who may see whom. `doctor_id` (must be a doctor), `patient_id` (must be a patient), `status` active|ended, `ended_at` (required iff ended). One active row per pair. **This table drives all doctor access.**
@@ -116,7 +116,7 @@ Clinician-authored. `status` draft|active|superseded|completed (one active per p
 doctor_id, patient_id, note, advice, follow_up_at. Readable by assigned doctors and admin only (M3); patients get `advice`/`follow_up_at` through the API.
 
 ### alerts
-`alert_class` routine|above_target|above_target_trend|severely_high|possible_emergency|follow_up|lifestyle_review|data_quality_review, `persistent` (episode stays open across readings; readings attached in `alert_measurements`), `trigger_source` rule_engine|clinician|patient, `rule_code`, `rule_version`, `reason`, `actions[]`, `status` open→acknowledged→reviewed→resolved with *_at/*_by, `measurement_id` / `symptom_report_id` (same-patient FKs). The same rule fires at most once per measurement and once per symptom report. Opening an alert never closes it.
+`alert_class` routine|above_target|above_target_trend|severely_high|possible_emergency|follow_up|lifestyle_review|data_quality_review, `persistent` (episode stays open across readings; readings attached in `alert_measurements`), `trigger_source` rule_engine|clinician|patient, `rule_code`, `rule_version`, `reason`, `actions[]`, `status` open→acknowledged→reviewed→resolved with *_at/*_by, `resolution_note` (doctor's note when resolving; required by the API for severe/emergency), `measurement_id` / `symptom_report_id` (same-patient FKs). The same rule fires at most once per measurement and once per symptom report. Opening an alert never closes it.
 
 ### alert_measurements (M3)
 `alert_id`, `measurement_id`, `patient_id`, `attached_at`. Readings that belong to one alert episode; same-patient composite FKs. Read like alerts; written by the backend only.

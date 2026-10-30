@@ -1,28 +1,19 @@
 # PULSE ML inventory
 
-Snapshot: 30 Oct 2026. Short answer: **no ML work exists yet.** [verified]
+**Update, 30 Oct 2026 (later the same day): the ML workstream is built.** See [`ml/README.md`](../../ml/README.md) (commands, inference output contract, demo scenarios) and [`ml/MODEL_CARD.md`](../../ml/MODEL_CARD.md) (method and test metrics, synthetic only).
 
 ## 1. What exists
 | item | status |
 |---|---|
-| Notebooks (`*.ipynb`) | none |
-| Training / feature / evaluation scripts | none |
-| Trained models, artifacts (`.pkl`, `.joblib`, `.onnx`, …) | none |
-| Metrics, experiment logs, model cards | none |
-| `ml_predictions` table or model registry in the DB | none (the DB has no ML tables) |
-| Inference endpoint / batch job | none |
-| ML libraries installed | none: the venv has psycopg, pytest and tzdata only |
+| Notebooks | none (scripts only) |
+| Training / feature / evaluation code | `ml/pulse_ml/train.py`, `features.py` |
+| Trained model | `ml/artifacts/mbp-v1/model.joblib` (ridge, 2.6 KB) + `metadata.json` |
+| Metrics, model card | `ml/MODEL_CARD.md`: test systolic MAE 5.23 mmHg vs 5.68 (7-day mean) and 6.30 (yesterday), synthetic |
+| `ml_predictions` table | migration M4, live in the cloud |
+| Batch job | `python -m pulse_ml.predict --all`; no HTTP endpoint (the backend reads the table) |
+| ML libraries | numpy, pandas, scikit-learn, joblib (pinned in `ml/requirements.txt`) |
 
-**Every one of the following is missing:**
-- what a model predicts
-- training data used
-- preprocessing
-- training method
-- evaluation method
-- train/test split strategy
-- metrics
-
-Nothing has been trained, so no metric can be reported.
+Sections 2–5 below are the original plan; the implementation follows it. Differences: lifestyle features are left out of the MVP (team contract §4), and the interval is split-conformal.
 
 ## 2. Data available for ML
 The only training-ready dataset is the **synthetic** set described in [DATA_AI_INVENTORY.md §1.2](DATA_AI_INVENTORY.md#12-ml-training-set-synthetic-verified):

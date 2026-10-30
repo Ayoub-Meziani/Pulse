@@ -11,12 +11,14 @@ Hypertension monitoring prototype (36-hour hackathon). This part of the repo hol
 | `pulse_data/ingest.py` | CSV adapter + batch import CLI |
 | `pulse_data/simulate.py` | labelled synthetic data: seed, ML dataset, sample CSV |
 | `tests/` | ingestion, database/RLS tests |
+| `ml/` | ML workstream: features, training, prediction job, model card (see `ml/README.md`) |
+| `docs/data/MIGRATIONS.md` | every migration, its cloud status and what the backend must update |
 | `docs/data/` | data dictionary, schema, device integration, data sources, data-layer contract, inventories |
 
 ## Setup (Windows, from this folder)
 ```
 py -3.13 -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m pip install -r requirements.txt -r ml\requirements.txt
 ```
 Docker Desktop must be running. Use Supabase CLI **2.122.0** through npx (the globally installed 2.40.7 references a corrupted cached image on this machine):
 ```

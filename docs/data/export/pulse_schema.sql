@@ -654,7 +654,9 @@ CREATE TABLE public.patient_profiles (
     consent_location boolean DEFAULT false NOT NULL,
     data_consent_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    birth_year smallint,
+    CONSTRAINT patient_profiles_birth_year_check CHECK (((birth_year >= 1900) AND (birth_year <= 2100)))
 );
 
 

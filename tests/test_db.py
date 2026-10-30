@@ -291,6 +291,13 @@ def test_ml_predictions_doctor_only(db):
     assert visible_patients(db, "ml_predictions") == {AMINA}
 
 
+def test_patient_sets_own_birth_year(db):
+    as_user(db, AMINA)
+    assert db.execute("update public.patient_profiles set birth_year = 1968 where user_id = %s", (AMINA,)).rowcount == 1
+    fails(db, psycopg.errors.CheckViolation, "update public.patient_profiles set birth_year = 1850 where user_id = %s", (AMINA,))
+    assert db.execute("update public.patient_profiles set birth_year = 1970 where user_id = %s", (KARIM,)).rowcount == 0
+
+
 def test_new_tables_have_no_anon_access(db):
     as_user(db, None, role="anon")
     for table in ("alert_measurements", "ml_predictions"):
