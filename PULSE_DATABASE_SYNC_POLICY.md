@@ -43,6 +43,15 @@ Shortcut allowed only when step 2 shows no new commit on `origin/AI` **and** ste
 | Seed data | Fictional only; never `supabase/seed.sql` with a known password on a shared project; demo password from `PULSE_DEMO_PASSWORD`. |
 | Credentials | Never read secrets from credential stores, never sign in to dashboards on someone's behalf, never commit keys. The API holds no service-role key. |
 
+## 3b. Backend test database
+
+`python scripts/test_db.py up` recreates the throwaway test database: same image as the live project, then
+`scripts/test_db_auth_live.sql` (the live project's `auth.uid()`, `auth.role()`, `auth.email()`, `auth.jwt()`,
+because the plain image ships older helpers), then every file of `supabase/migrations/` in order. During each
+sync (step 5), compare these four functions with the live `-s auth` dump and update the file if they differ.
+The test database contains every migration on the branch, including ones not yet applied to `pulse`
+(e.g. M5 until it is pushed); say so when reporting test results.
+
 ## 4. Known practical issues (Ayoub's Windows machine)
 
 - Supabase CLI 2.54.11 `db start` fails (container closes connections); use the throwaway-container method above or `npx supabase@2.122.0`.
