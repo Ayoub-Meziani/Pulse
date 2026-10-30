@@ -467,8 +467,8 @@ class JournalOut(BaseModel):
 
 
 # ---------------------------------------------------------------- ML (doctor only)
-PREDICTION_LIMITATIONS = ("Model estimate trained on synthetic data only. Not a measurement, "
-                          "not clinically validated, not used for alerts.")
+PREDICTION_LIMITATIONS = ("Experimental model estimate trained on synthetic data only. Not a measurement, "
+                          "not clinically validated, never used for alerts or emergency guidance.")
 
 
 class Interval(BaseModel):
@@ -477,6 +477,8 @@ class Interval(BaseModel):
 
 
 class PredictionOut(BaseModel):
+    """Latest row of ml_predictions for the configured model version, written by the offline batch job.
+    model_unavailable: no row, or the newest row targets a day before the patient's local today (stale)."""
     status: Literal["ok", "insufficient_history", "model_unavailable"]
     target: Literal["morning_mean_bp"] = "morning_mean_bp"
     target_date: date | None

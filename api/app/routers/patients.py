@@ -16,8 +16,8 @@ from ..analysis.types import Evaluation
 from ..auth import CurrentUser, current_user
 from ..db import require_session
 from ..errors import AUTH_RESPONSES, not_implemented
-from ..permissions import require_patient_access, require_role
-from ..services import patient_data
+from ..permissions import require_assigned_doctor, require_patient_access, require_role
+from ..services import patient_data, predictions
 from ..schemas import (AlertOut, DailyPoint, EvaluationOut, MeasurementIn, MeasurementOut, MeasurementResult,
                        PatientListItem, PredictionOut, SummaryOut, SymptomReportIn, SymptomReportOut,
                        SymptomResult)
@@ -101,6 +101,9 @@ def list_alerts(patient_id: UUID, status: Literal["active", "all"] = "active",
 
 
 @router.get("/patients/{patient_id}/predictions/latest", response_model=PredictionOut,
-            summary="Doctor only: latest ML estimate (synthetic training data); never used for alerts")
-def latest_prediction(patient_id: UUID):
-    not_implemented()
+            summary="Doctor only: latest experimental ML estimate (synthetic training data); never used for alerts")
+def latest_prediction(patient_id: UUID, request: Request, user: CurrentUser = Depends(current_user),
+                      db: Session = Depends(require_session)):
+    require_assigned_doctor(db, user, patient_id)  # patients, unassigned doctors and admin: 403
+    today = patient_data.local_today(db, patient_id, request.app.state.clock())
+    return predictions.latest_prediction(db, patient_id, request.app.state.settings.ml_model_version, today)

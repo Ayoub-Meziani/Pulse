@@ -2087,6 +2087,7 @@
         "type": "object"
       },
       "PredictionOut": {
+        "description": "Latest row of ml_predictions for the configured model version, written by the offline batch job.\nmodel_unavailable: no row, or the newest row targets a day before the patient's local today (stale).",
         "properties": {
           "generated_at": {
             "anyOf": [
@@ -2111,7 +2112,7 @@
             ]
           },
           "limitations": {
-            "default": "Model estimate trained on synthetic data only. Not a measurement, not clinically validated, not used for alerts.",
+            "default": "Experimental model estimate trained on synthetic data only. Not a measurement, not clinically validated, never used for alerts or emergency guidance.",
             "title": "Limitations",
             "type": "string"
           },
@@ -5825,7 +5826,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Doctor only: latest ML estimate (synthetic training data); never used for alerts",
+        "summary": "Doctor only: latest experimental ML estimate (synthetic training data); never used for alerts",
         "tags": [
           "patients"
         ]
