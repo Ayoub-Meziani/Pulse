@@ -35,7 +35,7 @@ Doctor-only model estimate, trained on **synthetic data**. It is not a measureme
 | `predicted_systolic`, `predicted_diastolic` | mmHg, 1 decimal; **null unless `ok`** (DB CHECK) |
 | `interval_*_low/high` | ± split-conformal half-width (90 % nominal on synthetic validation patients); null unless `ok` |
 | `model_version` | `mbp-v1.1` |
-| `trained_on` | `synthetic:pulse-sim-v1` |
+| `trained_on` | `synthetic:pulse-sim-v2` |
 | `features_until` | start of the target day (patient-local), the cutoff for every input |
 | `n_readings_used` | valid readings in the 7-day window |
 

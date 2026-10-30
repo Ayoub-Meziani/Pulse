@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PULSE Full Report</title>
+<style>
+  @page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+  :root { --ink:#1b2430; --muted:#5b6675; --line:#d9dee5; --soft:#f3f5f8; --accent:#b4232a; --blue:#1f5fa8;
+          --live:#1d7a46; --built:#1f5fa8; --prop:#9a5b00; --none:#8a1c1c;
+          --s1:#2a78d6; --s2:#eb6834; --base:#a9a79e; --grid:#e1e0d9; --axis:#c3c2b7; --ink2:#52514e; --ink3:#898781; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.42; margin: 0 auto; max-width: 190mm; background:#fff; }
+  h1 { font-size: 24pt; margin: 0 0 4px; letter-spacing: -0.5px; }
+  h2 { font-size: 15pt; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 14px 0 6px; break-after: avoid; }
+  h4 { font-size: 10pt; margin: 10px 0 4px; break-after: avoid; }
+  p { margin: 4px 0 8px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 8.6pt; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 8.9pt; }
+  th, td { border: 1px solid var(--line); padding: 4px 6px; vertical-align: top; text-align: left; }
+  th { background: var(--soft); font-weight: 600; }
+  tr { break-inside: avoid; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  code { font-family: Consolas, monospace; font-size: 8.5pt; background: var(--soft); padding: 0 3px; border-radius: 3px; }
+  .pill { display:inline-block; font-size: 7.6pt; font-weight: 700; padding: 1px 6px; border-radius: 8px; color:#fff; white-space: nowrap; }
+  .live { background: var(--live); } .built { background: var(--built); } .prop { background: var(--prop); } .none { background: var(--none); } .verify { background:#6b4fa0; } .exp { background:#5b6675; }
+  .cover { border-left: 6px solid var(--accent); padding: 6px 0 6px 14px; margin-bottom: 14px; }
+  .box { border: 1px solid var(--line); background: var(--soft); border-radius: 6px; padding: 8px 10px; margin: 8px 0; break-inside: avoid; }
+  .warn { border-color: #e2b4b4; background: #fbf1f1; }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; margin: 8px 0; break-inside: avoid; }
+  .step { flex: 1 1 0; min-width: 80px; border: 1px solid var(--line); border-top: 3px solid var(--blue); border-radius: 5px; padding: 6px; font-size: 8.4pt; background:#fff; }
+  .step b { display:block; font-size: 8.8pt; margin-bottom: 2px; }
+  .page-break { break-before: page; }
+  ul, ol { margin: 4px 0 8px 18px; padding: 0; } li { margin: 2px 0; }
+  .who-p { color: #1d5d9b; font-weight: 600; } .who-d { color: #7a2e86; font-weight: 600; } .who-s { color: #3d6b2f; font-weight: 600; }
+  .t-name { font-weight: 700; white-space: nowrap; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0 12px; }
+  .kpi { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; break-inside: avoid; }
+  .kpi .v { font-size: 17pt; font-weight: 600; line-height: 1.1; }
+  .kpi .l { font-size: 8.2pt; color: var(--muted); }
+  .card { border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 6px; padding: 8px 11px 4px; margin: 10px 0; }
+  .card.real { border-left-color: var(--live); }
+  .card.off { border-left-color: #8a8f98; }
+  .card h3 { margin-top: 2px; }
+  .kv { display: grid; grid-template-columns: 26% 74%; gap: 0; font-size: 8.9pt; margin: 4px 0 8px; break-inside: avoid; }
+  .kv div { border-top: 1px solid var(--line); padding: 3px 6px; }
+  .kv div:nth-child(odd) { font-weight: 600; background: var(--soft); }
+  figure { margin: 10px 0 12px; break-inside: avoid; }
+  figcaption { font-size: 8.4pt; color: var(--muted); margin-top: 4px; }
+  svg { display: block; width: 100%; height: auto; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; break-inside: avoid; }
+  .flow.eight .step { flex: 1 1 22%; }
+  thead { display: table-header-group; } h3 + table, h4 + table { break-before: avoid; }
+  .legend { font-size: 8.4pt; color: var(--ink2); margin: 2px 0 4px; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin: 0 4px 0 10px; }
+  .toc { columns: 2; font-size: 9pt; margin: 6px 0 0 18px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>PULSE: Data, Database &amp; AI: Full Report</h1>
+  <div class="muted">Everything the data/AI workstream built for the PULSE hypertension-monitoring prototype: how the parts relate, every table, every dataset, and every model with its training data, test data and results.</div>
+  <div class="small muted" style="margin-top:6px">30 October 2026 · Data/AI workstream · Branch <code>AI</code> of <code>github.com/Ayoub-Meziani/Pulse</code> · Cloud project <code>pulse</code> (Supabase, Paris).<br>
+  Prototype, not a medical device. Patient data is <b>fictional</b> and labelled <code>simulated</code>. Real public datasets were used only for statistics, calibration and tests.</div>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="v">8 / 8</div><div class="l">migrations, cloud in sync</div></div>
+  <div class="kpi"><div class="v">24</div><div class="l">tables, all with access rules (52 policies)</div></div>
+  <div class="kpi"><div class="v">14</div><div class="l">demo accounts (1 doctor, 1 admin, 12 patients)</div></div>
+  <div class="kpi"><div class="v">730</div><div class="l">blood-pressure readings in the cloud</div></div>
+  <div class="kpi"><div class="v">20,832</div><div class="l">simulated ring samples (12 patients × 28 days)</div></div>
+  <div class="kpi"><div class="v">5</div><div class="l">models: 3 in use, 1 experiment, 1 not shown</div></div>
+  <div class="kpi"><div class="v">3</div><div class="l">real public datasets (NHANES, Mendeley, PhysioNet)</div></div>
+  <div class="kpi"><div class="v">86</div><div class="l">automated tests (database, data, ML)</div></div>
+</div>
+
+<p class="small"><b>Status labels:</b>
+<span class="pill live">LIVE</span> in the cloud database ·
+<span class="pill built">BUILT</span> code exists and is tested ·
+<span class="pill exp">EXPERIMENT</span> evaluated, not used ·
+<span class="pill prop">TO BUILD</span> another owner's next step ·
+<span class="pill none">MISSING</span> nobody has it yet ·
+<span class="pill verify">TO VERIFY</span> check before use</p>
+
+<b class="small">Contents</b>
+<ol class="toc">
+  <li>Where we are</li><li>System map: how everything connects</li><li>What relates to what</li><li>Database</li>
+  <li>Data: synthetic, demo and real</li><li>AI models: training, test data, results</li><li>Live ring monitoring and the weekly doctor loop</li>
+  <li>How the jobs run (inference contract)</li><li>Tests and quality</li><li>Commands</li><li>Safety, ethics and limits</li><li>Next steps</li><li>Sources</li>
+</ol>
+
+<h2>1. Where we are</h2>
+<table>
+<tr><th style="width:27%">Part</th><th style="width:13%">Status</th><th>Details</th></tr>
+<tr><td>Cloud database <code>pulse</code></td><td><span class="pill live">LIVE</span></td><td>Migrations M1–M8 applied and in sync (checked 30 Oct). 24 tables, row-level security (RLS) on every table, 52 policies, nothing granted to logged-out users, public sign-up off.</td></tr>
+<tr><td>Demo data in the cloud</td><td><span class="pill live">LIVE</span></td><td>14 accounts; 730 readings (727 valid, 2 needs_review, 1 invalid, on purpose); 316 lifestyle logs; 154 dose events; 11 care plans; 24 body measurements; 24 devices; 20,832 ring samples for all 12 patients. All labelled <code>simulated</code>. Password only in the local, git-ignored <code>.env</code>.</td></tr>
+<tr><td>ML outputs in the cloud</td><td><span class="pill none">EMPTY</span></td><td><code>ml_predictions</code>, <code>wearable_flags</code>, <code>weekly_reports</code>, <code>patient_bands</code>: 0 rows. The jobs need the cloud connection string (<code>DATABASE_URL</code>) in <code>.env</code>, then <code>scripts\run_cloud_jobs.ps1</code>. On the local copy they produce 11 predictions, 34 ring flags, 11 weekly reports and 43 band proposals.</td></tr>
+<tr><td>Alerts in the cloud</td><td><span class="pill prop">TO BUILD</span></td><td>0 rows. The alert rules live in the backend (FastAPI, teammate), which still runs on SQLite. The tables and the episode logic (M3) are ready.</td></tr>
+<tr><td>5 models (<code>ml/</code>, Python)</td><td><span class="pill built">BUILT</span></td><td><code>mbp-v1.1</code> next-day BP (served), <code>ring-v1.1</code> ring flags, <code>wcls-v1.1</code> weekly classifier, <code>mbp-v2.1</code> (experiment), <code>wrisk-v1</code> on real NHANES people (evaluated, not shown). Section 6.</td></tr>
+<tr><td>Real public data</td><td><span class="pill built">BUILT</span></td><td>NHANES 2017–2020 (CDC), Mendeley home-BP series, PhysioNet Apnea-ECG. Downloaded to git-ignored <code>data/external/</code> with a manifest, never committed or uploaded. Section 5.6.</td></tr>
+<tr><td>Device (cuff / ring)</td><td><span class="pill none">MISSING</span></td><td>No physical device yet. Tables for cuff readings and ring samples are live; ring data is simulated from published values.</td></tr>
+<tr><td>Real patient data</td><td><span class="pill none">MISSING</span></td><td>None, on purpose. No open multi-patient home-BP dataset exists, so real accuracy needs consented PULSE data later.</td></tr>
+</table>
+
+<h2>2. System map: how everything connects</h2>
+<figure>
+<svg viewBox="0 0 760 395" role="img" aria-label="PULSE system map: apps and devices send data through FastAPI or the data tools into the Supabase database; three ML jobs read readings and ring samples and write only advisory output tables; offline training produces the model files the jobs load.">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6675"/></marker></defs>
+  <g font-size="11">
+    <rect x="10" y="20" width="140" height="50" rx="6" fill="#eaf1fa" stroke="#1f5fa8"/>
+    <text x="80" y="41" text-anchor="middle" font-weight="700">Patient app</text>
+    <text x="80" y="58" text-anchor="middle" font-size="9.5">readings, symptoms, factors</text>
+    <rect x="10" y="82" width="140" height="50" rx="6" fill="#f3eaf6" stroke="#7a2e86"/>
+    <text x="80" y="103" text-anchor="middle" font-weight="700">Doctor app</text>
+    <text x="80" y="120" text-anchor="middle" font-size="9.5">plans, reviews, bands</text>
+    <rect x="10" y="144" width="140" height="50" rx="6" fill="#fff6e6" stroke="#9a5b00" stroke-dasharray="4 3"/>
+    <text x="80" y="165" text-anchor="middle" font-weight="700">Cuff (future)</text>
+    <text x="80" y="182" text-anchor="middle" font-size="9.5">Bluetooth or CSV export</text>
+    <rect x="10" y="206" width="140" height="50" rx="6" fill="#fff6e6" stroke="#9a5b00" stroke-dasharray="4 3"/>
+    <text x="80" y="227" text-anchor="middle" font-weight="700">Ring / bracelet</text>
+    <text x="80" y="244" text-anchor="middle" font-size="9.5">simulated for now</text>
+
+    <rect x="190" y="40" width="140" height="125" rx="6" fill="#fff" stroke="#1b2430" stroke-width="1.5"/>
+    <text x="260" y="62" text-anchor="middle" font-weight="700">FastAPI backend</text>
+    <text x="260" y="80" text-anchor="middle" font-size="9.5">the only app API</text>
+    <text x="260" y="96" text-anchor="middle" font-size="9.5">login, input checks</text>
+    <text x="260" y="112" text-anchor="middle" font-size="9.5">alert rules (deterministic)</text>
+    <text x="260" y="128" text-anchor="middle" font-size="9.5">R-RING-1 (to build)</text>
+    <text x="260" y="152" text-anchor="middle" font-size="9" fill="#5b6675">owner: backend</text>
+    <rect x="190" y="200" width="140" height="62" rx="6" fill="#fff" stroke="#3d6b2f"/>
+    <text x="260" y="220" text-anchor="middle" font-weight="700">pulse_data tools</text>
+    <text x="260" y="237" text-anchor="middle" font-size="9.5">seed, CSV import,</text>
+    <text x="260" y="252" text-anchor="middle" font-size="9.5">live ring stream</text>
+
+    <rect x="368" y="10" width="234" height="290" rx="8" fill="#edf6f0" stroke="#1d7a46" stroke-width="1.5"/>
+    <text x="485" y="30" text-anchor="middle" font-weight="700">Supabase "pulse" (Postgres 17)</text>
+    <g font-size="9.5">
+      <rect x="378" y="40" width="214" height="36" rx="4" fill="#fff" stroke="#9cc9ad"/>
+      <text x="385" y="54" font-weight="700">People</text><text x="385" y="69">profiles, patient_profiles, assignments, body</text>
+      <rect x="378" y="82" width="214" height="36" rx="4" fill="#fff" stroke="#9cc9ad"/>
+      <text x="385" y="96" font-weight="700">Readings &amp; context</text><text x="385" y="111">measurements, symptoms, lifestyle, meds, plans</text>
+      <rect x="378" y="124" width="214" height="36" rx="4" fill="#fff" stroke="#9cc9ad"/>
+      <text x="385" y="138" font-weight="700">Alerts (written by backend rules)</text><text x="385" y="153">alerts, alert_measurements</text>
+      <rect x="378" y="166" width="214" height="36" rx="4" fill="#fff" stroke="#9cc9ad"/>
+      <text x="385" y="180" font-weight="700">Ring</text><text x="385" y="195">devices, wearable_samples</text>
+      <rect x="378" y="208" width="214" height="36" rx="4" fill="#eaf1fa" stroke="#1f5fa8"/>
+      <text x="385" y="222" font-weight="700">ML outputs (advisory only)</text><text x="385" y="237">ml_predictions, wearable_flags, bands, reports</text>
+      <rect x="378" y="250" width="214" height="40" rx="4" fill="#fff" stroke="#9cc9ad"/>
+      <text x="385" y="264" font-weight="700">Guards</text><text x="385" y="280">RLS, trigger pulse-v1, audit_log, imports</text>
+    </g>
+
+    <rect x="636" y="40" width="114" height="200" rx="6" fill="#fff" stroke="#3d6b2f" stroke-width="1.5"/>
+    <text x="693" y="58" text-anchor="middle" font-weight="700">ML jobs</text>
+    <g font-size="9.5">
+      <rect x="644" y="68" width="98" height="46" rx="4" fill="#f4f8f1" stroke="#9cc9ad"/>
+      <text x="693" y="86" text-anchor="middle" font-weight="700">predict</text><text x="693" y="102" text-anchor="middle">mbp-v1.1</text>
+      <rect x="644" y="120" width="98" height="46" rx="4" fill="#f4f8f1" stroke="#9cc9ad"/>
+      <text x="693" y="138" text-anchor="middle" font-weight="700">monitor</text><text x="693" y="154" text-anchor="middle">ring-v1.1</text>
+      <rect x="644" y="172" width="98" height="60" rx="4" fill="#f4f8f1" stroke="#9cc9ad"/>
+      <text x="693" y="190" text-anchor="middle" font-weight="700">weekly</text><text x="693" y="206" text-anchor="middle">wcls-v1.1, bands,</text><text x="693" y="220" text-anchor="middle">NHANES pulse</text>
+    </g>
+    <rect x="620" y="300" width="130" height="64" rx="6" fill="#fff" stroke="#5b6675" stroke-dasharray="4 3"/>
+    <text x="685" y="320" text-anchor="middle" font-weight="700">Offline training</text>
+    <text x="685" y="336" text-anchor="middle" font-size="9.5">data/synthetic, data/external</text>
+    <text x="685" y="351" text-anchor="middle" font-size="9.5">→ ml/artifacts/*</text>
+  </g>
+  <g stroke="#5b6675" stroke-width="1.4" fill="none" marker-end="url(#ar)">
+    <path d="M150,45 L188,75"/><path d="M150,107 L188,107"/><path d="M150,169 L188,140" stroke-dasharray="4 3"/>
+    <path d="M150,231 L188,231"/>
+    <path d="M330,100 L366,100"/><path d="M330,231 L366,231"/>
+    <path d="M602,110 L634,110"/><path d="M634,226 L604,226"/>
+    <path d="M693,300 L693,242"/>
+  </g>
+  <g font-size="9" fill="#5b6675">
+    <text x="348" y="93" text-anchor="middle">SQL</text>
+    <text x="348" y="224" text-anchor="middle">SQL</text>
+    <text x="618" y="103" text-anchor="middle">reads</text>
+    <text x="618" y="240" text-anchor="middle">writes</text>
+    <text x="700" y="275">loads model</text>
+    <text x="169" y="224" text-anchor="middle">sim</text>
+  </g>
+  <text x="10" y="325" font-size="10" fill="#1b2430"><tspan font-weight="700">Read path:</tspan> doctor screens get every ML output through FastAPI only.</text>
+  <text x="10" y="342" font-size="10" fill="#1b2430"><tspan font-weight="700">Patients</tspan> never see ML output (decision M4). <tspan font-weight="700">Safety</tspan> never depends on ML: alert rules and R-RING-1 run in the backend.</text>
+  <text x="10" y="359" font-size="10" fill="#1b2430"><tspan font-weight="700">Jobs write</tspan> only the four ML-output tables, never readings or alerts.</text>
+</svg>
+<figcaption>Figure 1. Data enters through FastAPI or the data tools, lands in Supabase, and the three ML jobs read it and write back only advisory outputs. Dashed = not built yet or simulated.</figcaption>
+</figure>
+
+<table>
+<tr><th style="width:22%">Component</th><th style="width:30%">Talks to</th><th style="width:24%">Credential it uses</th><th>Where that credential lives</th></tr>
+<tr><td>Frontend (patient, doctor)</td><td>FastAPI only (team decision A2)</td><td>the user's own login token</td><td>nothing stored</td></tr>
+<tr><td>FastAPI backend</td><td>Postgres; Supabase Auth (JWT checked with JWKS, ES256)</td><td>database URL, Supabase URL, anon key</td><td>server <code>.env</code> / hosting secrets</td></tr>
+<tr><td>ML jobs, CSV import, seed</td><td>Postgres directly</td><td><code>DATABASE_URL</code></td><td>data/AI machine <code>.env</code> (git-ignored)</td></tr>
+<tr><td>Migrations</td><td>Supabase CLI <code>db push</code></td><td>project owner's CLI login</td><td>never shared</td></tr>
+</table>
+<div class="box warn small"><b>Never:</b> the service-role key or the database password in the frontend, git, chat or screenshots. The GitHub repo is <b>public</b>.</div>
+
+<h2>3. What relates to what</h2>
+<figure>
+<svg viewBox="0 0 760 365" role="img" aria-label="Data lineage: which dataset feeds which model, and which table each model writes. Mendeley real home BP calibrates the v2 simulator; v2 trains mbp-v1.1, wcls-v1.1, mbp-v2.1 and ring-v1.1; Apnea-ECG tests the ring SpO2 rule; NHANES gives wrisk-v1 and the pulse bands; the v1 simulator and the ring simulator make the cloud demo data.">
+  <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6675"/></marker></defs>
+  <g font-size="10.5" font-weight="700" fill="#5b6675">
+    <text x="95" y="10" text-anchor="middle">DATA</text><text x="385" y="10" text-anchor="middle">WHAT WE BUILT FROM IT</text><text x="670" y="10" text-anchor="middle">WHERE IT GOES</text>
+  </g>
+  <g font-size="10">
+    <rect x="10" y="18" width="170" height="40" rx="5" fill="#edf6f0" stroke="#1d7a46"/>
+    <text x="95" y="34" text-anchor="middle" font-weight="700">Mendeley home BP</text><text x="95" y="50" text-anchor="middle" font-size="9">REAL · 1 patient, 128 readings</text>
+    <rect x="10" y="80" width="170" height="40" rx="5" fill="#f3f5f8" stroke="#5b6675"/>
+    <text x="95" y="96" text-anchor="middle" font-weight="700">pulse-sim-v2 cohort</text><text x="95" y="112" text-anchor="middle" font-size="9">synthetic · 200 × 90 days</text>
+    <rect x="10" y="140" width="170" height="40" rx="5" fill="#f3f5f8" stroke="#5b6675"/>
+    <text x="95" y="156" text-anchor="middle" font-weight="700">Ring simulator</text><text x="95" y="172" text-anchor="middle" font-size="9">synthetic · published values</text>
+    <rect x="10" y="200" width="170" height="40" rx="5" fill="#edf6f0" stroke="#1d7a46"/>
+    <text x="95" y="216" text-anchor="middle" font-weight="700">PhysioNet Apnea-ECG</text><text x="95" y="232" text-anchor="middle" font-size="9">REAL · 8 overnight SpO2</text>
+    <rect x="10" y="260" width="170" height="40" rx="5" fill="#edf6f0" stroke="#1d7a46"/>
+    <text x="95" y="276" text-anchor="middle" font-weight="700">NHANES 2017–2020</text><text x="95" y="292" text-anchor="middle" font-size="9">REAL · US adults, weighted</text>
+    <rect x="10" y="320" width="170" height="40" rx="5" fill="#f3f5f8" stroke="#5b6675"/>
+    <text x="95" y="336" text-anchor="middle" font-weight="700">pulse-sim-v1 demo seed</text><text x="95" y="352" text-anchor="middle" font-size="9">synthetic · 12 patients</text>
+
+    <rect x="300" y="22" width="170" height="30" rx="5" fill="#eaf1fa" stroke="#1f5fa8"/><text x="385" y="41" text-anchor="middle"><tspan font-weight="700">mbp-v1.1</tspan> · served</text>
+    <rect x="300" y="62" width="170" height="30" rx="5" fill="#eaf1fa" stroke="#1f5fa8"/><text x="385" y="81" text-anchor="middle"><tspan font-weight="700">wcls-v1.1</tspan> · weekly report</text>
+    <rect x="300" y="102" width="170" height="30" rx="5" fill="#fff" stroke="#8a8f98" stroke-dasharray="4 3"/><text x="385" y="121" text-anchor="middle"><tspan font-weight="700">mbp-v2.1</tspan> · not served</text>
+    <rect x="300" y="152" width="170" height="30" rx="5" fill="#eaf1fa" stroke="#1f5fa8"/><text x="385" y="171" text-anchor="middle"><tspan font-weight="700">ring-v1.1</tspan> · flags</text>
+    <rect x="300" y="232" width="170" height="30" rx="5" fill="#fff" stroke="#8a8f98" stroke-dasharray="4 3"/><text x="385" y="251" text-anchor="middle"><tspan font-weight="700">wrisk-v1</tspan> · not shown</text>
+    <rect x="300" y="272" width="170" height="30" rx="5" fill="#eaf1fa" stroke="#1f5fa8"/><text x="385" y="291" text-anchor="middle"><tspan font-weight="700">Pulse bands</tspan> (JSON)</text>
+    <rect x="300" y="325" width="170" height="30" rx="5" fill="#eaf1fa" stroke="#1f5fa8"/><text x="385" y="344" text-anchor="middle"><tspan font-weight="700">Cloud demo data</tspan></text>
+
+    <rect x="590" y="22" width="160" height="30" rx="5" fill="#fff" stroke="#1d7a46"/><text x="670" y="41" text-anchor="middle">ml_predictions</text>
+    <rect x="590" y="74" width="160" height="30" rx="5" fill="#fff" stroke="#1d7a46"/><text x="670" y="93" text-anchor="middle">weekly_reports</text>
+    <rect x="590" y="152" width="160" height="30" rx="5" fill="#fff" stroke="#1d7a46"/><text x="670" y="171" text-anchor="middle">wearable_flags</text>
+    <rect x="590" y="200" width="160" height="30" rx="5" fill="#fff" stroke="#1d7a46"/><text x="670" y="219" text-anchor="middle">patient_bands (proposed)</text>
+    <rect x="590" y="325" width="160" height="30" rx="5" fill="#fff" stroke="#1d7a46"/><text x="670" y="344" text-anchor="middle">all demo tables (LIVE)</text>
+  </g>
+  <g stroke="#5b6675" stroke-width="1.3" fill="none" marker-end="url(#ar2)">
+    <path d="M95,58 L95,78"/>
+    <path d="M180,95 L298,37"/><path d="M180,100 L298,77"/><path d="M180,105 L298,115"/><path d="M180,112 L298,160"/>
+    <path d="M180,160 L298,167"/><path d="M180,150 L298,122" stroke-dasharray="3 3"/><path d="M180,172 L298,333"/>
+    <path d="M180,220 L298,174"/>
+    <path d="M180,275 L298,247"/><path d="M180,285 L298,287"/>
+    <path d="M180,340 L298,340"/>
+    <path d="M470,37 L588,37"/><path d="M470,77 L588,86"/><path d="M470,287 L588,97"/>
+    <path d="M470,167 L588,167"/><path d="M470,172 L588,213"/>
+    <path d="M470,340 L588,340"/>
+  </g>
+  <g font-size="8.8" fill="#5b6675">
+    <text x="102" y="72">calibrates noise</text>
+    <text x="529" y="32" text-anchor="middle">predict</text>
+    <text x="529" y="72" text-anchor="middle">weekly</text>
+    <text x="529" y="162" text-anchor="middle">monitor</text>
+    <text x="550" y="219">weekly</text>
+    <text x="546" y="148" text-anchor="end">pulse placement</text>
+  </g>
+</svg>
+<figcaption>Figure 2. Every dataset, what it produced, and the table each result lands in. Mendeley calibrates the v2 simulator; Apnea-ECG tests the ring SpO2 rule; NHANES gives the pulse bands and wrisk-v1. Green = real public data; dashed = evaluated but not used in the product.</figcaption>
+</figure>
+
+<table class="small">
+<tr><th style="width:15%">Component</th><th style="width:17%">Code</th><th style="width:20%">Reads</th><th style="width:18%">Writes</th><th style="width:16%">Who sees it</th><th>Status</th></tr>
+<tr><td>Validation trigger <code>pulse-v1</code></td><td>migration M1</td><td>each new reading</td><td>validation_status, quality_flags</td><td>everyone (on the reading)</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Access rules (RLS)</td><td>M2, M3, M6, M7</td><td>caller's role + assignments</td><td>-</td><td>-</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Demo seed</td><td><code>pulse_data/simulate.py seed</code></td><td>STEPS-DZ shares, ring values</td><td>all demo tables</td><td>team, demo</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Cloud ring refresh</td><td><code>simulate ring-demo-sql</code>, <code>scripts/cloud_update.ps1</code></td><td>ring simulator</td><td>wearable_samples (simulated only)</td><td>doctor</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>CSV import</td><td><code>pulse_data/ingest.py</code></td><td>device CSV export</td><td>measurements, ingestion_batches</td><td>patient, doctor</td><td><span class="pill built">BUILT</span></td></tr>
+<tr><td>Live ring stream</td><td><code>pulse_data/stream.py</code></td><td>ring simulator</td><td>wearable_samples</td><td>doctor (via flags)</td><td><span class="pill built">BUILT</span> (local)</td></tr>
+<tr><td>Next-day BP</td><td><code>ml/pulse_ml/predict.py</code> + <code>mbp-v1.1</code></td><td>valid readings, assignments</td><td>ml_predictions</td><td>doctor only</td><td><span class="pill built">BUILT</span></td></tr>
+<tr><td>Ring monitor</td><td><code>monitor.py</code>, <code>ring.py</code> + <code>ring-v1.1</code></td><td>wearable_samples, active bands, conditions, confirmed flags</td><td>wearable_flags</td><td>doctor only</td><td><span class="pill built">BUILT</span></td></tr>
+<tr><td>Weekly report</td><td><code>weekly.py</code> + <code>wcls-v1.1</code>, <code>bands.py</code>, NHANES bands</td><td>readings, care plans, ring nights, flags, predictions, profile</td><td>weekly_reports, patient_bands (proposed)</td><td>doctor only</td><td><span class="pill built">BUILT</span></td></tr>
+<tr><td>Band approval</td><td><code>private.approve_band</code> (M7)</td><td>proposed band</td><td>patient_bands (active), audit_log</td><td>doctor acts</td><td><span class="pill live">LIVE</span> (API <span class="pill prop">TO BUILD</span>)</td></tr>
+<tr><td>Feedback gate</td><td><code>feedback.py</code></td><td>reviewed flags</td><td>git-ignored labels file</td><td>data/AI</td><td><span class="pill built">BUILT</span></td></tr>
+<tr><td>Medical references</td><td><code>reference.py</code></td><td>-</td><td>-</td><td>used by monitor, weekly, bands</td><td><span class="pill verify">CLINICIAN REVIEW</span></td></tr>
+<tr><td>Real-data tools</td><td><code>real_data.py</code>, <code>real_bands.py</code>, <code>wrisk.py</code>, <code>real_tests.py</code></td><td>data/external (git-ignored)</td><td>reference_nhanes.json, metadata</td><td>-</td><td><span class="pill built">BUILT</span></td></tr>
+<tr><td>Alert rules</td><td>backend <code>rules.py</code></td><td>readings, symptoms, care plan</td><td>alerts, alert_measurements</td><td>patient + doctor</td><td><span class="pill prop">TO BUILD</span> on Supabase</td></tr>
+</table>
+
+<h2>4. Database</h2>
+<h3>4.1 Migrations (one append-only history in <code>supabase/migrations/</code>)</h3>
+<table class="small">
+<tr><th style="width:6%">#</th><th style="width:25%">File</th><th>What it added, and why</th><th style="width:12%">Cloud</th></tr>
+<tr><td>M1</td><td><code>20261029120000_core_schema</code></td><td>17 tables; validation trigger <code>pulse-v1</code>; audit triggers; role checks; profile row on sign-up. The base of every feature.</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M2</td><td><code>20261029120100_access_policies</code></td><td>RLS on every table; <code>anon</code> gets nothing; per-role write policies; column grants (e.g. a patient cannot change their role).</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M3</td><td><code>20261030120000_backend_alignment</code></td><td>Backend contract: <code>above_target_trend</code> alert class, <code>alerts.persistent</code>, table <code>alert_measurements</code> (same-patient keys), <code>measurements.rested_5_min</code>, empty symptom answers allowed, doctor notes hidden from patients.</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M4</td><td><code>20261030120100_ml_predictions</code></td><td>Table <code>ml_predictions</code>: values present only when status is <code>ok</code>, low ≤ high; doctor/admin read only; no client writes.</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M5</td><td><code>20261030130000_patient_birth_year</code></td><td><code>patient_profiles.birth_year</code> (year only, data minimisation). Age is the strongest Algerian hypertension factor.</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M6</td><td><code>20261030140000_algerian_factors_wearables</code></td><td>Sex, smoking, condition codes, bread / salt habits, language, fasting logs; tables <code>body_measurements</code> and <code>wearable_samples</code> (unit and plausible range checked per metric).</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M7</td><td><code>20261030150000_ml_monitoring</code></td><td>Tables <code>wearable_flags</code>, <code>patient_bands</code>, <code>weekly_reports</code>; function <code>private.approve_band</code>; audit on all three; index for the live monitor. Built exactly as the backend's ML review asked.</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M8</td><td><code>20261030160000_chronic_conditions</code></td><td>Condition codes add copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease (they change how ring values are judged). Applied 30 Oct after team approval.</td><td><span class="pill live">LIVE</span></td></tr>
+</table>
+
+<h3>4.2 How the tables relate</h3>
+<ul class="small">
+<li><b>One person = one login</b> (<code>auth.users</code>) = one <code>profiles</code> row (role patient / doctor / admin). Patients have one <code>patient_profiles</code> row.</li>
+<li><b>Every patient-owned table</b> has <code>patient_id → profiles.id</code>. A doctor's access is never stored per row: it is computed from an <b>active</b> <code>doctor_patient_assignments</code> row by the helpers <code>private.is_assigned_doctor()</code> and <code>private.is_admin()</code>.</li>
+<li><b>Same-patient keys:</b> a reading can only use the patient's own device; an alert can only attach the same patient's readings (<code>alert_measurements</code>, composite keys); ring samples can only come from the patient's own device.</li>
+<li><b>Chains:</b> <code>measurements → alerts → alert_measurements</code>; <code>devices → wearable_samples → (monitor) → wearable_flags → band_id → patient_bands</code>; <code>patient_bands.supersedes_id</code> and <code>care_plans.supersedes_id</code> keep history instead of overwriting.</li>
+<li><b>History, never silent deletes:</b> readings are append-only; wrong readings stay, flagged; changes to sensitive tables are copied to <code>audit_log</code> (old row, new row, actor).</li>
+</ul>
+
+<h3>4.3 Every table and field (24 tables)</h3>
+<p class="small muted">Every table also has <code>id</code> (except link tables) and <code>created_at</code>, filled automatically. <span class="who-p">Blue</span> = patient, <span class="who-d">purple</span> = doctor, <span class="who-s">green</span> = system / device / admin. Column counts are from the cloud.</p>
+
+<h4>People and access</h4>
+<table class="small">
+<tr><th style="width:17%">Table</th><th style="width:18%">Purpose</th><th style="width:25%" class="who-p">Patient fills</th><th style="width:16%" class="who-d">Doctor fills</th><th class="who-s">System / admin</th></tr>
+<tr><td class="t-name">profiles (7)</td><td>One row per account</td><td>display_name, timezone (default Africa/Algiers), preferred_language (fr / ar)</td><td>same</td><td>id = login id, role (admin only), updated_at</td></tr>
+<tr><td class="t-name">patient_profiles (18)</td><td>Background and risk factors</td><td>birth_year, sex, smoking_status, condition_codes, relevant_conditions, bread_portions_per_day, adds_salt_at_table, salty_processed_food, allergies, medication_context, regular_clinic, emergency_preferences, consent_location, data_consent_at</td><td>(reads)</td><td>user_id, regular_doctor_id, updated_at</td></tr>
+<tr><td class="t-name">body_measurements (9)</td><td>Weight, height, waist</td><td>measured_at, weight_kg, height_cm, waist_cm (patient_reported)</td><td>same (clinician)</td><td>created_by; no edits or deletes</td></tr>
+<tr><td class="t-name">doctor_patient_assignments (7)</td><td>Who follows whom; drives all doctor access</td><td>(reads)</td><td>(reads)</td><td>doctor_id, patient_id, status active / ended, ended_at</td></tr>
+<tr><td class="t-name">audit_log (8)</td><td>Who changed what</td><td>-</td><td>-</td><td>table_name, row_id, action, actor, changed_at, old_data, new_data (admin reads)</td></tr>
+</table>
+
+<h4>Readings, devices, ring</h4>
+<table class="small">
+<tr><th style="width:17%">Table</th><th style="width:18%">Purpose</th><th style="width:25%" class="who-p">Patient fills</th><th style="width:16%" class="who-s">Device / import</th><th class="who-s">System</th></tr>
+<tr><td class="t-name">measurements (24)</td><td>Every BP reading (append-only)</td><td>systolic, diastolic, pulse, measured_at, measured_tz, body_position, arm, context, rested_5_min</td><td>device_id, ingestion_batch_id, external_id, method, raw_payload, device flags</td><td>source, provenance, unit mmHg, validation_status, quality_flags, validation_policy_version, created_by</td></tr>
+<tr><td class="t-name">devices (9)</td><td>Cuffs, rings, phone apps</td><td>device_type, manufacturer, model, external_device_id, label, bp_capability</td><td>-</td><td>patient_id</td></tr>
+<tr><td class="t-name">wearable_samples (10)</td><td>Ring / bracelet values</td><td>-</td><td>device_id, metric (heart_rate bpm, hrv_rmssd ms, spo2 percent, skin_temperature celsius), value, measured_at, external_id</td><td>source (device_sync / csv_import / simulated); unit + range checked; one row per (device, external_id)</td></tr>
+<tr><td class="t-name">ingestion_batches (13)</td><td>One row per import or sync</td><td>-</td><td>source, device_id, file_name, file_sha256 (same file never twice)</td><td>row counts, rejections (row + reason, no health values)</td></tr>
+</table>
+
+<h4>Patient-reported context</h4>
+<table class="small">
+<tr><th style="width:17%">Table</th><th style="width:18%">Purpose</th><th style="width:41%" class="who-p">Patient fills</th><th class="who-s">System</th></tr>
+<tr><td class="t-name">symptom_reports (8)</td><td>Symptoms, judged independently of BP</td><td>symptoms (none, or chest_pain, shortness_of_breath, back_pain, weakness, numbness, vision_change, difficulty_speaking, severe_headache, confusion, dizziness, nausea, palpitations, other), onset_at, notes</td><td>reported_at, source</td></tr>
+<tr><td class="t-name">lifestyle_logs (17)</td><td>Meals, activity, sleep, stress, fasting</td><td>category, started_at, ended_at, description; meal_type, sodium_mg + basis; activity_type, intensity, steps; sleep_quality 1–5; stress_level 1–5</td><td>source, updated_at</td></tr>
+<tr><td class="t-name">medication_adherence_events (10)</td><td>Each dose taken / missed / skipped</td><td>medication_id, status, scheduled_for, taken_at, note</td><td>source, reported_at</td></tr>
+<tr><td class="t-name">journal_entries (8)</td><td>Notes / questions for the doctor</td><td>category, entry_text</td><td>review status, reviewed_by / at (<span class="who-d">doctor</span>)</td></tr>
+<tr><td class="t-name">trusted_contacts (7)</td><td>Emergency contacts</td><td>name, relationship, phone, consented_at, active</td><td>-</td></tr>
+<tr><td class="t-name">emergency_events (12)</td><td>Emergency screen history</td><td>trigger_reason, alert_id, symptoms_snapshot, started / ended_at, actions_attempted ("tapped", never "called"), reported_outcome, location (only with consent)</td><td>-</td></tr>
+</table>
+
+<h4>Doctor-authored</h4>
+<table class="small">
+<tr><th style="width:17%">Table</th><th style="width:18%">Purpose</th><th style="width:41%" class="who-d">Doctor fills</th><th>Notes</th></tr>
+<tr><td class="t-name">care_plans (17)</td><td>Targets and monitoring plan</td><td>target_systolic / diastolic, readings per day, instructions, lifestyle and follow-up text, effective_from / to, review_date, status, supersedes_id</td><td>One active plan per patient; default target 140/90 if none</td></tr>
+<tr><td class="t-name">medications (12)</td><td>Prescriptions and own meds</td><td>name, dose_text, schedule_text, active, started_on, ended_on</td><td>PULSE never computes or changes a dose</td></tr>
+<tr><td class="t-name">doctor_notes (8)</td><td>Private note + advice</td><td>note, advice, follow_up_at</td><td>Patients get only advice and follow-up date, through the API</td></tr>
+</table>
+
+<h4>Alerts and ML outputs (system)</h4>
+<table class="small">
+<tr><th style="width:17%">Table</th><th style="width:18%">Purpose</th><th style="width:41%" class="who-s">Fields</th><th>Who can act</th></tr>
+<tr><td class="t-name">alerts (20)</td><td>Rule results</td><td>alert_class, rule_code, rule_version, reason, actions, persistent, measurement_id, symptom_report_id, trigger_source, status + timestamps, resolution_note</td><td><span class="who-p">patient</span> acknowledges; <span class="who-d">doctor</span> reviews, resolves</td></tr>
+<tr><td class="t-name">alert_measurements (4)</td><td>Readings of one alert episode</td><td>alert_id, measurement_id, patient_id, attached_at</td><td>read only</td></tr>
+<tr><td class="t-name">ml_predictions (16)</td><td>Next-day BP estimate</td><td>target_date, target, status (ok / insufficient_history), predicted_systolic / diastolic, 4 interval bounds, model_version, trained_on, features_until, n_readings_used</td><td><span class="who-d">doctor</span> reads only</td></tr>
+<tr><td class="t-name">wearable_flags (17)</td><td>Advisory ring flags</td><td>metric (+ multivariate), kind (outside_reference / personal_anomaly / multivariate_anomaly), window_kind (night / live_10min), window_start / end, value, score, reference_basis, band_id, model_version, review_status (open / confirmed / dismissed), reviewed_by / at, review_note</td><td><span class="who-d">doctor</span> updates review fields only</td></tr>
+<tr><td class="t-name">patient_bands (14)</td><td>Personal ring normal range</td><td>metric, statistic (night_median / night_min / live_10min_median), low, high, basis (reference / model_proposal / doctor), status (proposed → active → superseded, or rejected), proposed_model_version, approved_by / at, effective_from, supersedes_id</td><td><span class="who-d">doctor</span> approves via <code>private.approve_band</code> or rejects</td></tr>
+<tr><td class="t-name">weekly_reports (14)</td><td>Weekly summary per patient</td><td>week_start (local Monday), home_bp_category, control_status, next_week_above_target_prob, model_versions, summary (numbers only, ≤ 16 KB), status ready / reviewed, reviewed_by / at, doctor_comment</td><td><span class="who-d">doctor</span> reviews and comments</td></tr>
+</table>
+
+<h3>4.4 Rules inside the database</h3>
+<table class="small">
+<tr><th style="width:24%">Rule</th><th>What it does</th></tr>
+<tr><td>Validation <code>pulse-v1</code> (trigger, every reading)</td><td><b>invalid</b> (kept, not used): systolic ≤ diastolic, systolic outside 50–300, diastolic outside 25–200, pulse outside 25–250, more than 5 minutes in the future. <b>needs_review</b>: systolic outside 70–250 or diastolic outside 40–150, an estimate (not a cuff), the same values within 2 minutes, a device-reported problem. <b>valid</b>: everything else. A very high reading (186/118) is valid data and an alert matter, not a data problem.</td></tr>
+<tr><td>Checks (constraints)</td><td>Units fixed per metric; plausible ranges; ML predictions have values only if <code>ok</code>; a band's low &lt; high, and an active band needs an approver; a flag's review time is set exactly when it's reviewed; report weeks start on Monday; summaries stay small and numeric.</td></tr>
+<tr><td><code>private.approve_band(band, doctor, low, high)</code></td><td>One transaction: the active band for that metric becomes <code>superseded</code> and the proposed one becomes <code>active</code>. If the doctor edits low / high, the basis becomes <code>doctor</code>. Checks that the doctor is actively assigned and is the caller. It lives in the private schema, so it is not a public endpoint.</td></tr>
+<tr><td>Audit triggers</td><td>Inserts and updates on alerts, care plans, bands, flags, reports and other sensitive tables are copied to <code>audit_log</code>.</td></tr>
+<tr><td>One active row</td><td>One active care plan per patient; one active band per (patient, metric, statistic); one flag per (patient, metric, kind, window start); one rule firing per reading / symptom report.</td></tr>
+</table>
+
+<h3>4.5 Who can see what (RLS + grants)</h3>
+<table class="small">
+<tr><th style="width:24%">Data</th><th style="width:19%" class="who-p">Patient</th><th style="width:21%" class="who-d">Assigned doctor</th><th style="width:12%">Admin</th><th>Logged out</th></tr>
+<tr><td>Own profile, readings, context, devices</td><td>read + insert own</td><td>read</td><td>read</td><td>nothing</td></tr>
+<tr><td>Care plan, medications</td><td>read</td><td>read + write</td><td>read</td><td>nothing</td></tr>
+<tr><td>Doctor notes</td><td>no direct read (API shows advice only)</td><td>read + write</td><td>read</td><td>nothing</td></tr>
+<tr><td>Alerts</td><td>read, acknowledge</td><td>read, review, resolve</td><td>read</td><td>nothing</td></tr>
+<tr><td>ML outputs (predictions, flags, bands, reports)</td><td><b>nothing</b> (decision M4)</td><td>read; review fields only</td><td>read</td><td>nothing</td></tr>
+<tr><td>Ring samples</td><td>read own</td><td>read</td><td>read</td><td>nothing</td></tr>
+<tr><td>Audit log</td><td>-</td><td>-</td><td>read</td><td>nothing</td></tr>
+</table>
+<p class="small">A doctor who is not assigned sees nothing about a patient. ML jobs and the seed use the privileged database connection; no app user can write ML outputs. The live REST API refuses logged-out requests (error 42501, tested).</p>
+
+<h2>5. Data: synthetic, demo and real</h2>
+<table class="small">
+<tr><th style="width:20%">Dataset</th><th style="width:12%">Kind</th><th style="width:27%">Size</th><th>Used for</th></tr>
+<tr><td><code>pulse-sim-v1</code> demo seed</td><td>synthetic</td><td>12 patients × 30 days, 730 readings; ring 28 days</td><td>Cloud demo accounts; kept byte-stable by fingerprint tests</td></tr>
+<tr><td><code>pulse-sim-v2</code> ML cohort</td><td>synthetic</td><td>200 patients × 90 days, 36,890 readings; 1,005,144 ring samples; 67 labelled ring episodes</td><td>Training and testing <code>mbp-v1.1</code>, <code>ring-v1.1</code>, <code>wcls-v1.1</code>, <code>mbp-v2.1</code></td></tr>
+<tr><td>NHANES 2017–March 2020</td><td>real</td><td>7,296 adults with pulse bands; 2,309 treated adults for <code>wrisk-v1</code></td><td>Population pulse / BP bands; real classifier test</td></tr>
+<tr><td>Mendeley pjcv33hpp7</td><td>real</td><td>1 patient, 128 home readings over 384 days</td><td>Calibrating the simulator's day-to-day variation</td></tr>
+<tr><td>PhysioNet Apnea-ECG</td><td>real</td><td>8 overnight SpO2 recordings</td><td>Testing the ring SpO2 rule on real nights</td></tr>
+</table>
+
+<h3>5.1 How the BP simulator works (<code>pulse_data/simulate.py</code>)</h3>
+<p class="small">Each synthetic patient has a baseline systolic (cohort: uniform 110–165 mmHg), a diastolic of about 0.62 × systolic, a slow trend, a chance of skipping a session, and (60 % of them) a medication with a chance of missing doses. Every day the generator draws the day's context, then a hidden <b>BP effect</b>:</p>
+<div class="box small"><b>effect(day)</b> = latent drift + day noise + trend × day + <b>6</b> if a dose was missed yesterday + <b>1.2</b> × (sodium − 3,200 mg) / 1,000 − <b>2</b> if activity ≥ 30 min + <b>2</b> if sleep &lt; 6 h<br>
+<b>latent drift</b> = φ × yesterday's drift + Normal(0, σ) ·
+<b>reading</b>: systolic = baseline + effect + 4 (morning surge) + Normal(0, 5); diastolic = baseline + 0.55 × effect + 2 + Normal(0, 3.5), at least 15 below systolic; pulse ≈ Normal(72, 6), +3 in the morning.<br>
+Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % of readings have systolic and diastolic swapped on purpose, to test data cleaning.</div>
+<p class="small muted">The effects of missed doses, salt, activity and sleep are <b>invented</b> for testing the pipeline; they are not clinical estimates.</p>
+
+<h3>5.2 Calibrated on real home BP: v1 vs v2</h3>
+<table class="small">
+<tr><th>Systolic, 1 reading every 3 days</th><th class="num">SD (mmHg)</th><th class="num">change between readings</th><th class="num">lag-1 correlation</th><th>Noise setting</th></tr>
+<tr><td><b>Real</b> patient (Mendeley, n = 128)</td><td class="num">11.7</td><td class="num">9.97</td><td class="num">0.40</td><td>-</td></tr>
+<tr><td><code>pulse-sim-v1</code> (first generator)</td><td class="num">6.7</td><td class="num">6.45</td><td class="num">0.24</td><td>φ 0.70, σ 3.0, no day noise</td></tr>
+<tr><td><code>pulse-sim-v2</code> (median of 111 patients)</td><td class="num">11.8</td><td class="num">10.04</td><td class="num">0.41</td><td>φ 0.95, σ 3.6, day noise SD 6.0</td></tr>
+</table>
+<p class="small">The first generator was about half as variable as real home BP, which made the first model look too good (MAE 5.2). v2 was chosen from a small grid to match the real series; all models were retrained (<code>*.1</code>). Diastolic v2 6.8 / 5.8 / 0.41 vs real 6.4 / 5.1 / 0.37. One real patient gives a realistic size, not a population fit. The demo seed stays v1, so the cloud accounts did not change.</p>
+
+<h3>5.3 How the ring simulator works (values from published studies)</h3>
+<table class="small">
+<tr><th style="width:30%">Simulated value</th><th>Based on</th></tr>
+<tr><td>Night resting HR ~ 65 ± 7 bpm between people, ~3 bpm night to night; every 10 min at night, hourly by day</td><td>Quer et al., PLOS ONE 2020: 92,457 wearable users, mean 65 bpm</td></tr>
+<tr><td>Night SpO2 ~ 96.5 %, 6 samples per night; one 3–5 % dip on half the nights</td><td>Gries &amp; Brooks, Chest 1996: lowest sleep saturation 90.4 % in healthy people. This is why PULSE uses the night <b>median</b></td></tr>
+<tr><td>COPD: personal SpO2 4 points lower</td><td>BTS 2017: target 88–92 % if at risk; MENA COPD 5.2 % men / 1.8 % women (BREATHE)</td></tr>
+<tr><td>Sleep apnea: 2–4 dips of 4–9 % per night, night HR +3</td><td>Desaturations ≥ 4 % linked to resistant hypertension (cohort of 284). The 30 % rate is an assumption</td></tr>
+<tr><td>Type 2 diabetes: HRV (RMSSD) 0.92 SD lower</td><td>HRV in T2DM meta-analysis, PLoS ONE 2018</td></tr>
+<tr><td>Atrial fibrillation: noisy HR, meaningless HRV</td><td>Irregular pulse on wrist PPG (Apple Heart Study 2019); rates are assumptions</td></tr>
+<tr><td>HRV ~ 34 ± 9 ms, skin temperature ~ 34 °C</td><td>assumptions (personal baseline only)</td></tr>
+</table>
+<p class="small"><b>Invented coupling</b> (for testing only): night HR +0.25 bpm and HRV −0.3 ms per mmHg of the hidden BP effect. <b>Injected episodes</b> in the ML cohort (30 % of patients, 1–3 days, after day 35): <code>hr_rise</code> +15 bpm (18), <code>spo2_dip</code> −5 % (22), <code>hrv_drop</code> −40 % (27). 10 % of days have no ring data (ring not worn). Cohort conditions: sleep apnea 56, diabetes 32, COPD 8, atrial fibrillation 5 of 200. Ring values use a separate random generator, so the BP data never changes (tested).</p>
+
+<h3>5.4 The demo patients (fictional; risk factors from real Algerian statistics)</h3>
+<table class="small">
+<tr><th>Patient</th><th>Story</th><th>Sex, age</th><th>Smoking</th><th>Condition codes</th><th class="num">BMI</th><th class="num">Waist</th></tr>
+<tr><td>Amina</td><td>controlled</td><td>F, 58</td><td>never</td><td>hypertension</td><td class="num">26.5</td><td class="num">86</td></tr>
+<tr><td>Karim</td><td>rising trend, gaps; seeded night HR rise</td><td>M, 65</td><td>current</td><td>hypertension, diabetes, dyslipidemia, sleep apnea</td><td class="num">31.2</td><td class="num">104</td></tr>
+<tr><td>Nadia</td><td>severe event + chest pain</td><td>F, 69</td><td>never</td><td>hypertension, kidney disease</td><td class="num">33.0</td><td class="num">99</td></tr>
+<tr><td>Yacine</td><td>sparse, <b>not assigned</b></td><td>M, 47</td><td>former</td><td>hypertension</td><td class="num">24.0</td><td class="num">90</td></tr>
+<tr><td>Fatima</td><td>cohort; COPD story</td><td>F, 47</td><td>never</td><td>hypertension, COPD</td><td class="num">24.8</td><td class="num">73</td></tr>
+<tr><td>Khadija</td><td>cohort</td><td>F, 31</td><td>never</td><td>hypertension</td><td class="num">26.9</td><td class="num">89</td></tr>
+<tr><td>Samir</td><td>cohort</td><td>M, 43</td><td>current</td><td>hypertension, diabetes, dyslipidemia, sleep apnea</td><td class="num">22.7</td><td class="num">99</td></tr>
+<tr><td>Rachid</td><td>cohort</td><td>M, 44</td><td>never</td><td>hypertension</td><td class="num">19.5</td><td class="num">91</td></tr>
+<tr><td>Mourad</td><td>cohort</td><td>M, 66</td><td>never</td><td>hypertension, dyslipidemia</td><td class="num">19.1</td><td class="num">96</td></tr>
+<tr><td>Djamel</td><td>cohort</td><td>M, 42</td><td>never</td><td>hypertension, dyslipidemia</td><td class="num">24.2</td><td class="num">85</td></tr>
+<tr><td>Houria</td><td>cohort; atrial fibrillation story</td><td>F, 67</td><td>never</td><td>hypertension, dyslipidemia, atrial fibrillation</td><td class="num">26.5</td><td class="num">88</td></tr>
+<tr><td>Hocine</td><td>cohort</td><td>M, 55</td><td>never</td><td>hypertension, diabetes</td><td class="num">17.9</td><td class="num">85</td></tr>
+</table>
+<p class="small">Plus <b>Dr. Leila H.</b> (doctor, assigned to 11 patients) and an admin. The 8 cohort patients' sex, age band, smoking, diabetes, cholesterol, BMI band and abdominal obesity are drawn from the Algerian STEPS 2016–2017 shares (Moussouni et al. 2022): 55 % women among hypertensives; age 30–44 / 45–59 / 60–69 = 39.3 / 27.7 / 11.6 %; smoking 11.1 % current; diabetes 17.5 %; high cholesterol 29.6 %; obese 24.9 %; abdominal obesity 67.8 % (waist &gt; 94 cm men, &gt; 80 cm women). Height, salt answers, language and ring values are labelled assumptions. With 8 people the drawn shares can't match the published ones exactly.</p>
+
+<h3>5.5 Do the fields cover the Algerian blood-pressure factors?</h3>
+<table class="small">
+<tr><th style="width:22%">Factor (STEPS 2016–2017)</th><th>Where it lives</th><th style="width:12%">Status</th></tr>
+<tr><td>Age (strongest: odds ratio 12.3 for 60–69 vs 18–29)</td><td><code>patient_profiles.birth_year</code></td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Sex (34.2 % women vs 28.3 % men)</td><td><code>patient_profiles.sex</code></td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Obesity, abdominal obesity (OR 1.7 each)</td><td><code>body_measurements</code>: weight, height, waist; BMI computed</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Cholesterol (OR 2.0), diabetes, kidney, heart, stroke, chronic illness</td><td><code>condition_codes</code> (13 codes after M8)</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Salt / bread</td><td><code>bread_portions_per_day</code>, <code>adds_salt_at_table</code>, <code>salty_processed_food</code>, meal <code>sodium_mg</code></td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Smoking, activity, sleep, stress</td><td><code>smoking_status</code>; <code>lifestyle_logs</code></td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Ramadan fasting</td><td><code>lifestyle_logs</code> category <code>fasting</code> (medication timing stays the doctor's decision)</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Language, local time</td><td><code>preferred_language</code> fr / ar; timezone Africa/Algiers</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>Emergency number</td><td>backend config: 14 or 1021</td><td><span class="pill verify">TO VERIFY</span></td></tr>
+</table>
+
+<h3>5.6 Real public datasets (official sources only, no Kaggle)</h3>
+<table class="small">
+<tr><th style="width:17%">Source</th><th style="width:26%">What it is</th><th style="width:18%">Terms</th><th style="width:20%">What we used</th><th>Limits</th></tr>
+<tr><td>NHANES 2017–March 2020 (CDC / NCHS)</td><td>Real exams: 3 oscillometric BP and pulse readings (Omron HEM-907XL, 5 min seated), BMI, waist, smoking, diagnoses, survey weights</td><td>NCHS agreement: statistics only, no re-identification, no linkage</td><td>Weighted pulse / BP percentiles by sex × age; <code>wrisk-v1</code></td><td>US, not Algeria; exam BP, not home BP; self-reported diagnoses; one visit</td></tr>
+<tr><td>Mendeley pjcv33hpp7 (Dvornik et al. 2017)</td><td>128 home readings (mean of 3 trials) of 1 treated 67-year-old man, every 3 days for 384 days</td><td>CC BY-NC 3.0: non-commercial, credit</td><td>Calibrating <code>pulse-sim-v2</code></td><td>1 patient; no clock times; drop it if PULSE becomes commercial</td></tr>
+<tr><td>PhysioNet Apnea-ECG 1.0.0 (Penzel et al. 2000)</td><td>8 real overnight SpO2 recordings: 4 apnea, 1 borderline, 3 control</td><td>ODC Attribution 1.0</td><td>Testing the ring SpO2 rule</td><td>8 nights; sleep-lab oximeter, not a ring</td></tr>
+</table>
+<p class="small"><b>How they're handled:</b> <code>python -m pulse_ml.real_data fetch all</code> downloads into git-ignored <code>data/external/&lt;source&gt;/</code> and writes a <code>MANIFEST.json</code> (URL, licence, date, sha256). A changed file is never silently overwritten. Only aggregated numbers and trained models are committed, labelled <code>real:&lt;source&gt;</code>. Kaggle was rejected: it needs an account token, and the popular BP sets have unclear licences or origins.</p>
+
+<h3>5.7 Data rules that hold everywhere</h3>
+<ul class="small">
+<li>Every row says where it came from: <code>source</code> = manual / device_sync / csv_import / <b>simulated</b>; ML artefacts say <code>synthetic:pulse-sim-v2</code> or <code>real:nhanes</code>.</li>
+<li>Only <b>valid</b> readings feed averages, trends and ML; needs_review and invalid readings are counted, not used.</li>
+<li>No health values in logs or error messages; jobs print counts only.</li>
+<li>Raw real data never leaves the laptop; the demo password and the database URL live only in <code>.env</code>.</li>
+</ul>
+
+<h2>6. AI models: training, test data, results</h2>
+<table class="small">
+<tr><th style="width:13%">Model</th><th style="width:26%">Question it answers</th><th style="width:15%">Algorithm</th><th style="width:18%">Trained on</th><th style="width:13%">Writes</th><th>Status</th></tr>
+<tr><td><code>mbp-v1.1</code></td><td>What will tomorrow's morning BP be?</td><td>ridge regression</td><td>synthetic v2</td><td>ml_predictions</td><td><span class="pill built">SERVED</span></td></tr>
+<tr><td><code>ring-v1.1</code></td><td>Is tonight's ring data unusual for this person?</td><td>robust z + IsolationForest + references</td><td>synthetic ring</td><td>wearable_flags</td><td><span class="pill built">IN USE</span> (flags)</td></tr>
+<tr><td><code>wcls-v1.1</code></td><td>Will next week's home mean be above target?</td><td>logistic regression</td><td>synthetic v2</td><td>weekly_reports</td><td><span class="pill built">IN USE</span> (report)</td></tr>
+<tr><td><code>mbp-v2.1</code></td><td>Does ring data improve next-day BP?</td><td>ridge regression</td><td>synthetic v2 + ring</td><td>-</td><td><span class="pill exp">EXPERIMENT</span></td></tr>
+<tr><td><code>wrisk-v1</code></td><td>Is a treated adult's BP uncontrolled (≥ 140/90)?</td><td>logistic regression</td><td><b>real</b> NHANES</td><td>-</td><td><span class="pill exp">NOT SHOWN</span></td></tr>
+</table>
+<p class="small">All models are Python (pandas, numpy, scikit-learn 1.x, joblib). Each one is saved as <code>ml/artifacts/&lt;version&gt;/model.joblib</code> plus a <code>metadata.json</code> holding features, split, metrics and limits. Every number in this section is copied from those files. <b>None of them creates an alert, decides an emergency, or touches medication.</b></p>
+
+<figure>
+<div class="legend"><span class="sw" style="background:#2a78d6;margin-left:0"></span>PULSE model <span class="sw" style="background:#a9a79e"></span>simple baseline it must beat · whiskers = 95 % confidence interval</div>
+<div class="two">
+<svg viewBox="0 0 380 118" role="img" aria-label="Systolic error in mmHg, lower is better: same as yesterday 9.56, 7-day mean 8.29, mbp-v1.1 7.75.">
+  <text x="0" y="12" font-size="11" font-weight="700" fill="#0b0b0b">mbp-v1.1 · systolic error (MAE, mmHg) · lower is better</text>
+  <g stroke="#e1e0d9" stroke-width="1"><line x1="172" y1="22" x2="172" y2="96"/><line x1="214" y1="22" x2="214" y2="96"/><line x1="256" y1="22" x2="256" y2="96"/><line x1="298" y1="22" x2="298" y2="96"/><line x1="340" y1="22" x2="340" y2="96"/></g>
+  <line x1="130" y1="22" x2="130" y2="96" stroke="#c3c2b7"/>
+  <g font-size="10" fill="#52514e" text-anchor="end"><text x="124" y="38">same as yesterday</text><text x="124" y="62">7-day mean</text><text x="124" y="86" font-weight="700" fill="#0b0b0b">mbp-v1.1</text></g>
+  <path d="M130,26 H326.8 Q330.8,26 330.8,30 V38 Q330.8,42 326.8,42 H130 Z" fill="#a9a79e"/>
+  <path d="M130,50 H300.1 Q304.1,50 304.1,54 V62 Q304.1,66 300.1,66 H130 Z" fill="#a9a79e"/>
+  <path d="M130,74 H288.75 Q292.75,74 292.75,78 V86 Q292.75,90 288.75,90 H130 Z" fill="#2a78d6"/>
+  <g stroke="#0b0b0b" stroke-width="1.2"><line x1="324" y1="34" x2="337.7" y2="34"/><line x1="297.6" y1="58" x2="310.4" y2="58"/><line x1="287.3" y1="82" x2="298" y2="82"/></g>
+  <g font-size="10" fill="#0b0b0b"><text x="342" y="38">9.56</text><text x="315" y="62">8.29</text><text x="303" y="86" font-weight="700">7.75</text></g>
+  <g font-size="9" fill="#898781" text-anchor="middle"><text x="130" y="108">0</text><text x="172" y="108">2</text><text x="214" y="108">4</text><text x="256" y="108">6</text><text x="298" y="108">8</text><text x="340" y="108">10</text></g>
+</svg>
+<svg viewBox="0 0 380 118" role="img" aria-label="Diastolic error in mmHg, lower is better: same as yesterday 5.77, 7-day mean 4.85, mbp-v1.1 4.67.">
+  <text x="0" y="12" font-size="11" font-weight="700" fill="#0b0b0b">mbp-v1.1 · diastolic error (MAE, mmHg) · lower is better</text>
+  <g stroke="#e1e0d9" stroke-width="1"><line x1="200" y1="22" x2="200" y2="96"/><line x1="270" y1="22" x2="270" y2="96"/><line x1="340" y1="22" x2="340" y2="96"/></g>
+  <line x1="130" y1="22" x2="130" y2="96" stroke="#c3c2b7"/>
+  <g font-size="10" fill="#52514e" text-anchor="end"><text x="124" y="38">same as yesterday</text><text x="124" y="62">7-day mean</text><text x="124" y="86" font-weight="700" fill="#0b0b0b">mbp-v1.1</text></g>
+  <path d="M130,26 H327.95 Q331.95,26 331.95,30 V38 Q331.95,42 327.95,42 H130 Z" fill="#a9a79e"/>
+  <path d="M130,50 H295.75 Q299.75,50 299.75,54 V62 Q299.75,66 295.75,66 H130 Z" fill="#a9a79e"/>
+  <path d="M130,74 H289.45 Q293.45,74 293.45,78 V86 Q293.45,90 289.45,90 H130 Z" fill="#2a78d6"/>
+  <g stroke="#0b0b0b" stroke-width="1.2"><line x1="325.3" y1="34" x2="339" y2="34"/><line x1="294.5" y1="58" x2="304.65" y2="58"/><line x1="289.25" y1="82" x2="298" y2="82"/></g>
+  <g font-size="10" fill="#0b0b0b"><text x="343" y="38">5.77</text><text x="309" y="62">4.85</text><text x="303" y="86" font-weight="700">4.67</text></g>
+  <g font-size="9" fill="#898781" text-anchor="middle"><text x="130" y="108">0</text><text x="200" y="108">2</text><text x="270" y="108">4</text><text x="340" y="108">6</text></g>
+</svg>
+<svg viewBox="0 0 380 100" role="img" aria-label="Weekly classifier AUROC, higher is better: status persists 0.871, wcls-v1.1 0.954.">
+  <text x="0" y="12" font-size="11" font-weight="700" fill="#0b0b0b">wcls-v1.1 · AUROC (synthetic test) · higher is better</text>
+  <g stroke="#e1e0d9" stroke-width="1"><line x1="172" y1="22" x2="172" y2="72"/><line x1="214" y1="22" x2="214" y2="72"/><line x1="256" y1="22" x2="256" y2="72"/><line x1="298" y1="22" x2="298" y2="72"/><line x1="340" y1="22" x2="340" y2="72"/></g>
+  <line x1="130" y1="22" x2="130" y2="72" stroke="#c3c2b7"/>
+  <line x1="235" y1="20" x2="235" y2="74" stroke="#898781" stroke-width="1"/>
+  <g font-size="10" fill="#52514e" text-anchor="end"><text x="124" y="38">status persists</text><text x="124" y="62" font-weight="700" fill="#0b0b0b">wcls-v1.1</text></g>
+  <path d="M130,26 H308.9 Q312.9,26 312.9,30 V38 Q312.9,42 308.9,42 H130 Z" fill="#a9a79e"/>
+  <path d="M130,50 H326.3 Q330.3,50 330.3,54 V62 Q330.3,66 326.3,66 H130 Z" fill="#2a78d6"/>
+  <g stroke="#0b0b0b" stroke-width="1.2"><line x1="302.4" y1="34" x2="322.15" y2="34"/><line x1="323.6" y1="58" x2="335.4" y2="58"/></g>
+  <g font-size="10" fill="#0b0b0b"><text x="326" y="38">0.871</text><text x="339" y="62" font-weight="700">0.954</text></g>
+  <g font-size="9" fill="#898781" text-anchor="middle"><text x="130" y="84">0</text><text x="172" y="84">0.2</text><text x="214" y="84">0.4</text><text x="256" y="84">0.6</text><text x="298" y="84">0.8</text><text x="340" y="84">1</text><text x="235" y="96">chance 0.5</text></g>
+</svg>
+<svg viewBox="0 0 380 100" role="img" aria-label="Real NHANES classifier AUROC, higher is better: age and sex only 0.622, wrisk-v1 0.601.">
+  <text x="0" y="12" font-size="11" font-weight="700" fill="#0b0b0b">wrisk-v1 · AUROC (REAL NHANES test) · higher is better</text>
+  <g stroke="#e1e0d9" stroke-width="1"><line x1="172" y1="22" x2="172" y2="72"/><line x1="214" y1="22" x2="214" y2="72"/><line x1="256" y1="22" x2="256" y2="72"/><line x1="298" y1="22" x2="298" y2="72"/><line x1="340" y1="22" x2="340" y2="72"/></g>
+  <line x1="130" y1="22" x2="130" y2="72" stroke="#c3c2b7"/>
+  <line x1="235" y1="20" x2="235" y2="74" stroke="#898781" stroke-width="1"/>
+  <g font-size="10" fill="#52514e" text-anchor="end"><text x="124" y="38">age + sex only</text><text x="124" y="62" font-weight="700" fill="#0b0b0b">wrisk-v1</text></g>
+  <path d="M130,26 H256.6 Q260.6,26 260.6,30 V38 Q260.6,42 256.6,42 H130 Z" fill="#a9a79e"/>
+  <path d="M130,50 H252.2 Q256.2,50 256.2,54 V62 Q256.2,66 252.2,66 H130 Z" fill="#2a78d6"/>
+  <g stroke="#0b0b0b" stroke-width="1.2"><line x1="247.4" y1="34" x2="273.4" y2="34"/><line x1="243.4" y1="58" x2="269.4" y2="58"/></g>
+  <g font-size="10" fill="#0b0b0b"><text x="278" y="38">0.622</text><text x="274" y="62" font-weight="700">0.601</text></g>
+  <g font-size="9" fill="#898781" text-anchor="middle"><text x="130" y="84">0</text><text x="172" y="84">0.2</text><text x="214" y="84">0.4</text><text x="298" y="84">0.8</text><text x="340" y="84">1</text><text x="235" y="96">chance 0.5</text></g>
+</svg>
+</div>
+<figcaption>Figure 3. Each model against the simple method it has to beat, on held-out test data. mbp-v1.1 and wcls-v1.1 beat their baselines with confidence intervals that don't overlap. On real people, wrisk-v1 is no better than age and sex, so it isn't shown.</figcaption>
+</figure>
+
+<h3>6.1 How every model is trained and tested (same recipe)</h3>
+<div class="flow eight">
+  <div class="step"><b>1. Data</b>Generate the labelled synthetic cohort, or load real data from <code>data/external/</code></div>
+  <div class="step"><b>2. Features</b>Same code in training and serving (<code>features.py</code>, <code>ring.night_table</code>, <code>week_examples</code>)</div>
+  <div class="step"><b>3. Split by patient</b>70 / 15 / 15, seed 7; no patient in two sets; features only from earlier days</div>
+  <div class="step"><b>4. Candidates</b>A simple model (ridge or logistic) vs gradient boosting</div>
+  <div class="step"><b>5. Choose on validation</b>Pick the best on validation patients only</div>
+  <div class="step"><b>6. Test once</b>On unseen test patients, vs simple baselines; 95 % bootstrap CI over patients</div>
+  <div class="step"><b>7. Save</b><code>model.joblib</code> + <code>metadata.json</code>, versioned folder</div>
+  <div class="step"><b>8. Serve</b>A batch job loads it and writes only its own table</div>
+</div>
+<p class="small">Tests check the recipe: no patient overlap, no feature from the target day or later, deterministic retraining, and jobs that write only their own table.</p>
+
+<div class="card">
+<h3>6.2 <code>mbp-v1.1</code>: next-day morning blood pressure <span class="pill built">SERVED</span></h3>
+<div class="kv">
+<div>Use</div><div>Informational estimate in the <b>doctor's</b> view, labelled "Model estimate (synthetic training data)". Never shown to patients, never used for alerts or medication.</div>
+<div>Target</div><div>Mean systolic and diastolic of the next patient-local day's readings before 12:00.</div>
+<div>Inputs (21 features)</div><div>From valid readings of the 7 days before only: last morning value, 7-day and 3-day means, 7-day morning mean, 7-day slopes, systolic spread, morning−evening gap, reading count, days with readings, day of week (7 flags).</div>
+<div>Eligibility</div><div>≥ 6 valid readings on ≥ 4 local days in the 7 days before, and ≥ 1 morning reading; otherwise <code>insufficient_history</code> (no numbers).</div>
+<div>Training data</div><div><code>pulse-sim-v2</code>, 200 patients × 90 days (36,890 readings, seed 7).</div>
+<div>Split</div><div>By patient: 140 / 30 / 30 patients → 8,730 / 1,918 / 1,929 patient-days.</div>
+<div>Model choice</div><div>Validation MAE (mean of sys and dia): <b>ridge 6.18</b> vs gradient boosting 6.30 → ridge.</div>
+<div>Uncertainty</div><div>Split-conformal interval from validation patients: ±16.2 systolic / ±9.6 diastolic; on test it covered the true value <b>90.1 % / 89.5 %</b> of the time (target 90 %).</div>
+</div>
+<table class="small">
+<tr><th>Test: 30 unseen patients, 1,929 days</th><th class="num">systolic MAE (95 % CI)</th><th class="num">systolic RMSE</th><th class="num">diastolic MAE (95 % CI)</th><th class="num">diastolic RMSE</th></tr>
+<tr><td>"same as yesterday's morning"</td><td class="num">9.56 (9.24–9.89)</td><td class="num">12.04</td><td class="num">5.77 (5.58–5.97)</td><td class="num">7.31</td></tr>
+<tr><td>"7-day mean"</td><td class="num">8.29 (7.98–8.59)</td><td class="num">10.42</td><td class="num">4.85 (4.70–4.99)</td><td class="num">6.11</td></tr>
+<tr><td><b>mbp-v1.1</b></td><td class="num"><b>7.75 (7.49–8.00)</b></td><td class="num"><b>9.80</b></td><td class="num"><b>4.67 (4.55–4.80)</b></td><td class="num"><b>5.87</b></td></tr>
+</table>
+<p class="small"><b>Reading:</b> about 7.8 mmHg off on systolic, better than both simple methods. The error is larger than the first version's 5.2 because the training data is now as variable as real home BP; this is the more honest number. <b>Real-data check:</b> the only open real home series has 1 reading every 3 days, so the model can't run on it; it was used to calibrate the simulator instead.</p>
+</div>
+
+<div class="card">
+<h3>6.3 <code>ring-v1.1</code>: ring monitoring <span class="pill built">FLAGS ONLY</span></h3>
+<div class="kv">
+<div>Use</div><div>Advisory flags for the doctor, never an alert, never the safety path.</div>
+<div>Night statistic</div><div>Median of each metric 00:00–06:00 local (HR, HRV, SpO2, skin temperature), built from raw <code>wearable_samples</code> by the same code in training and serving.</div>
+<div>Flag 1: reference</div><div>SpO2 night median &lt; 94 % (BTS; <b>88 % with COPD</b>) or resting HR &gt; 100 bpm (Mayo). Live 10-minute windows need ≥ 2 samples.</div>
+<div>Flag 2: personal</div><div>Doctor-approved band if one exists; else robust z = (value − median) / (1.4826 × MAD) over the 28 nights before (≥ 14 nights, confirmed anomalies left out), flag if |z| &gt; <b>3.5</b>.</div>
+<div>Flag 3: multivariate</div><div>IsolationForest on the 4 personal z-scores (contamination 0.01, a synthetic setting). Skipped with atrial fibrillation; HRV is never flagged with AF.</div>
+<div>Training data</div><div>Synthetic ring data for the same 200 × 90 cohort (1,005,144 samples), 67 injected episodes. Split by patient 140 / 30 / 30, seed 7.</div>
+</div>
+<table class="small">
+<tr><th>Method (synthetic test, 30 patients)</th><th class="num">episodes found</th><th class="num">flagged nights</th><th class="num">night precision</th><th class="num">false flags / patient-week</th></tr>
+<tr><td>reference only</td><td class="num">2 / 7</td><td class="num">140</td><td class="num">0.029</td><td class="num">0.39</td></tr>
+<tr><td><b>personal baseline, z &gt; 3.5</b></td><td class="num"><b>3 / 7</b></td><td class="num">104</td><td class="num">0.077</td><td class="num">0.27</td></tr>
+<tr><td>IsolationForest</td><td class="num">1 / 7</td><td class="num">23</td><td class="num">0.130</td><td class="num">0.06</td></tr>
+<tr><td>personal or IsolationForest</td><td class="num">3 / 7</td><td class="num">107</td><td class="num">0.075</td><td class="num">0.28</td></tr>
+</table>
+<div class="two">
+<table class="small">
+<tr><th>z limit (validation only)</th><th class="num">episodes found</th><th class="num">false / patient-week</th></tr>
+<tr><td>2.5</td><td class="num">9 / 10</td><td class="num">0.91</td></tr>
+<tr><td>3.0</td><td class="num">7 / 10</td><td class="num">0.44</td></tr>
+<tr><td><b>3.5 (kept)</b></td><td class="num"><b>7 / 10</b></td><td class="num"><b>0.22</b></td></tr>
+</table>
+<p class="small" style="margin-top:6px"><b>Why 3.5:</b> same recall as 3.0 with half the false flags. 2.5 would mean about one false flag per patient every week. The doctor's band makes the limit patient-specific. 7 and 10 episodes are small samples.</p>
+</div>
+<h4>Real-data test: PhysioNet Apnea-ECG (8 real nights)</h4>
+<table class="small">
+<tr><th>Recording</th><th>Group</th><th class="num">hours</th><th class="num">SpO2 median</th><th class="num">minimum</th><th class="num">% time &lt; 90</th><th class="num">ODI-4 / h</th><th class="num">ring-cadence median (6 samples)</th><th>Ring rule flags?</th></tr>
+<tr><td>a01r</td><td>apnea</td><td class="num">8.2</td><td class="num">91</td><td class="num">66</td><td class="num">45.3</td><td class="num">70.5</td><td class="num">82.0</td><td><b>yes</b></td></tr>
+<tr><td>a02r</td><td>apnea</td><td class="num">8.8</td><td class="num">86</td><td class="num">61</td><td class="num">61.0</td><td class="num">56.5</td><td class="num">83.5</td><td><b>yes</b></td></tr>
+<tr><td>a03r</td><td>apnea</td><td class="num">8.7</td><td class="num">92</td><td class="num">50</td><td class="num">26.1</td><td class="num">57.7</td><td class="num">87.5</td><td><b>yes</b></td></tr>
+<tr><td>a04r</td><td>apnea</td><td class="num">7.5</td><td class="num">86</td><td class="num">50</td><td class="num">61.1</td><td class="num">59.4</td><td class="num">83.5</td><td><b>yes</b></td></tr>
+<tr><td>b01r</td><td>borderline</td><td class="num">8.0</td><td class="num">96</td><td class="num">51</td><td class="num">0.5</td><td class="num">1.5</td><td class="num">96.0</td><td>no</td></tr>
+<tr><td>c01r</td><td>control</td><td class="num">7.8</td><td class="num">96</td><td class="num">57.5</td><td class="num">0.1</td><td class="num">0.3</td><td class="num">96.0</td><td>no</td></tr>
+<tr><td>c02r</td><td>control</td><td class="num">8.1</td><td class="num">95</td><td class="num">62.5</td><td class="num">0.3</td><td class="num">2.1</td><td class="num">95.0</td><td>no</td></tr>
+<tr><td>c03r</td><td>control</td><td class="num">7.6</td><td class="num">95</td><td class="num">69.5</td><td class="num">0.1</td><td class="num">0.4</td><td class="num">96.0</td><td>no</td></tr>
+</table>
+<p class="small"><b>Reading:</b> the night-median rule flagged <b>4 / 4</b> apnea nights and <b>0 / 4</b> borderline / control nights. A night-<b>minimum</b> rule would fail, because even controls hit 57–69 % from sensor artefacts. This is a sleep-lab oximeter and only 8 nights: a sanity check, not a validation. The simulator's sleep apnea is milder than these severe cases (real ~60 dips per hour).</p>
+</div>
+
+<div class="card">
+<h3>6.4 <code>wcls-v1.1</code>: will next week be above target? <span class="pill built">IN THE WEEKLY REPORT</span></h3>
+<div class="kv">
+<div>Label</div><div>Next week's mean of valid home readings ≥ the patient's target (systolic OR diastolic). Synthetic targets 135/85 or 130/80; default 135/85.</div>
+<div>Inputs (11 features)</div><div>This week's mean systolic and diastolic, reading count, morning and evening systolic, slope, spread, last-3 systolic, gaps to target (sys, dia), "above target now".</div>
+<div>Split</div><div>By patient, seed 7: 1,791 / 384 / 387 patient-weeks.</div>
+<div>Model choice</div><div>Validation AUROC: <b>logistic regression, BP only 0.959</b>; gradient boosting BP only 0.941; logistic + ring 0.956; boosting + ring 0.944. Ring features didn't help, so BP only.</div>
+</div>
+<table class="small">
+<tr><th>Test (387 weeks, 240 above target)</th><th class="num">AUROC (95 % CI)</th><th class="num">balanced accuracy</th><th class="num">Brier (lower = better)</th><th>Confusion [TN FP / FN TP]</th></tr>
+<tr><td><b>wcls-v1.1</b></td><td class="num"><b>0.954 (0.922–0.978)</b></td><td class="num">0.892</td><td class="num"><b>0.080</b></td><td>130 17 / 24 216</td></tr>
+<tr><td>"status persists"</td><td class="num">0.871 (0.821–0.915)</td><td class="num">0.871</td><td class="num">0.124</td><td>125 22 / 26 214</td></tr>
+<tr><td>only the 48 weeks where status changes</td><td class="num">0.126 (0.054–0.197)</td><td class="num">0.210</td><td class="num">0.508</td><td>5 17 / 21 5</td></tr>
+</table>
+<p class="small"><b>Reading:</b> better ranked and better calibrated than "nothing changes", but it has no skill on the weeks that actually change. It mostly says "same as now". So the report shows it as <b>"how close to the target line"</b>, not as a predictor of change.</p>
+</div>
+
+<div class="card off">
+<h3>6.5 <code>mbp-v2.1</code>: does ring data help predict BP? <span class="pill exp">EXPERIMENT</span></h3>
+<p class="small">Same split and recipe as <code>mbp-v1.1</code>, plus 7 ring features (last night's HR, HRV, SpO2, temperature; 7-night HR and HRV; ring nights in 7). Validation ridge 6.125 vs 6.178.</p>
+<table class="small">
+<tr><th>Test MAE (synthetic)</th><th class="num">systolic</th><th class="num">diastolic</th></tr>
+<tr><td>v1.1 features</td><td class="num">7.75 (7.49–8.00)</td><td class="num">4.67 (4.55–4.80)</td></tr>
+<tr><td>+ ring night features</td><td class="num">7.71 (7.45–7.97)</td><td class="num">4.64 (4.51–4.77)</td></tr>
+</table>
+<p class="small"><b>Decision:</b> the 0.04 mmHg gain is within the noise, and the ring-to-BP link in the simulator is invented, so any gain is built in. <code>mbp-v1.1</code> stays served.</p>
+</div>
+
+<div class="card real">
+<h3>6.6 <code>wrisk-v1</code>: trained on REAL people (NHANES) <span class="pill exp">NOT SHOWN</span></h3>
+<div class="kv">
+<div>Question</div><div>Is a treated adult's exam BP uncontrolled (mean ≥ 140/90)?</div>
+<div>Population</div><div>US adults 18+ taking prescribed BP medicine, ≥ 2 valid exam readings: 2,309 people. Survey weights used as sample weights.</div>
+<div>Features (12, only fields PULSE stores)</div><div>age, female, BMI, waist, current / former smoker, diabetes, high cholesterol, kidney disease, COPD, heart failure, stroke.</div>
+<div>Split</div><div>By person, seed 7: 1,616 / 346 / 347. Weighted uncontrolled rate in test: 30.9 %.</div>
+<div>Model choice</div><div>Weighted validation AUROC: logistic 0.568 vs gradient boosting 0.511 → logistic.</div>
+</div>
+<div class="two">
+<table class="small">
+<tr><th>Test (347 people)</th><th class="num">AUROC (95 % CI)</th><th class="num">weighted</th><th class="num">bal. acc.</th></tr>
+<tr><td>wrisk-v1</td><td class="num">0.601 (0.540–0.664)</td><td class="num">0.623</td><td class="num">0.528</td></tr>
+<tr><td>age + sex only</td><td class="num">0.622 (0.559–0.683)</td><td class="num">0.611</td><td class="num">0.500</td></tr>
+</table>
+<table class="small">
+<tr><th>Calibration (test quintiles)</th><th class="num">predicted</th><th class="num">observed</th></tr>
+<tr><td>1 (lowest)</td><td class="num">0.22</td><td class="num">0.31</td></tr>
+<tr><td>2</td><td class="num">0.29</td><td class="num">0.26</td></tr>
+<tr><td>3</td><td class="num">0.34</td><td class="num">0.39</td></tr>
+<tr><td>4</td><td class="num">0.38</td><td class="num">0.41</td></tr>
+<tr><td>5 (highest)</td><td class="num">0.46</td><td class="num">0.47</td></tr>
+</table>
+</div>
+<p class="small">Odds ratios per unit: female 1.38, stroke 1.37, kidney disease 1.32, diabetes 1.29, current smoker 1.23, age 1.016 per year, high cholesterol 0.76, COPD 0.62. With the 130/80 label: weighted AUROC 0.624. <b>Reading:</b> on real data, these risk factors can't tell whose BP is controlled under treatment; control has to be <b>measured</b>, which is exactly what PULSE does. A near-random score would mislead a doctor, so it isn't displayed. Limits: US population, exam BP, self-reported diagnoses, one visit.</p>
+</div>
+
+<h3>6.7 Real population "safe band" for the cuff pulse (NHANES)</h3>
+<figure>
+<div class="legend"><span class="sw" style="background:#2a78d6;margin-left:0"></span>women <span class="sw" style="background:#eb6834"></span>men · line = middle 95 % (p2.5–p97.5), bar = middle 50 % (p25–p75), dot = median</div>
+<svg viewBox="0 0 720 290" role="img" aria-label="Seated pulse of US adults by sex and age, survey-weighted NHANES 2017-2020: the middle 95 percent runs from about 46 to 98 beats per minute in every group, with medians between 64 and 75.">
+  <g stroke="#e1e0d9" stroke-width="1"><line x1="165.4" y1="22" x2="165.4" y2="258"/><line x1="260.8" y1="22" x2="260.8" y2="258"/><line x1="356.1" y1="22" x2="356.1" y2="258"/><line x1="451.5" y1="22" x2="451.5" y2="258"/><line x1="546.9" y1="22" x2="546.9" y2="258"/></g>
+  <line x1="642.3" y1="18" x2="642.3" y2="258" stroke="#898781" stroke-width="1"/>
+  <text x="646" y="28" font-size="9" fill="#52514e">100 bpm: ring flag</text>
+  <text x="646" y="40" font-size="9" fill="#52514e">"resting HR high"</text>
+  <line x1="70" y1="258" x2="700" y2="258" stroke="#c3c2b7"/>
+  <g font-size="9" fill="#898781" text-anchor="middle"><text x="70" y="272">40</text><text x="165.4" y="272">50</text><text x="260.8" y="272">60</text><text x="356.1" y="272">70</text><text x="451.5" y="272">80</text><text x="546.9" y="272">90</text><text x="642.3" y="272">100</text><text x="385" y="286">seated pulse, beats per minute</text></g>
+  <g font-size="10" fill="#52514e" text-anchor="end"><text x="60" y="45">18–29</text><text x="60" y="85">30–44</text><text x="60" y="125">45–59</text><text x="60" y="165">60–69</text><text x="60" y="205">70–79</text><text x="60" y="245">80+</text></g>
+  <g stroke="#2a78d6" stroke-width="2">
+    <line x1="201.6" y1="34" x2="626.1" y2="34"/><line x1="191.1" y1="74" x2="616.5" y2="74"/><line x1="182.5" y1="114" x2="573.6" y2="114"/>
+    <line x1="169.2" y1="154" x2="559.3" y2="154"/><line x1="159.7" y1="194" x2="578.4" y2="194"/><line x1="148.2" y1="234" x2="584.1" y2="234"/>
+  </g>
+  <g fill="#2a78d6">
+    <rect x="346.6" y="30" width="121.1" height="8" rx="2"/><rect x="301.8" y="70" width="143" height="8" rx="2"/><rect x="292.2" y="110" width="130.7" height="8" rx="2"/>
+    <rect x="277" y="150" width="114.4" height="8" rx="2"/><rect x="273.2" y="190" width="139.2" height="8" rx="2"/><rect x="260.8" y="230" width="159.2" height="8" rx="2"/>
+  </g>
+  <g stroke="#eb6834" stroke-width="2">
+    <line x1="171.1" y1="48" x2="586" y2="48"/><line x1="162.5" y1="88" x2="568.8" y2="88"/><line x1="162.5" y1="128" x2="611.8" y2="128"/>
+    <line x1="156.8" y1="168" x2="572.7" y2="168"/><line x1="130.1" y1="208" x2="582.2" y2="208"/><line x1="141.5" y1="248" x2="539.3" y2="248"/>
+  </g>
+  <g fill="#eb6834">
+    <rect x="279.8" y="44" width="146" height="8" rx="2"/><rect x="277" y="84" width="139.2" height="8" rx="2"/><rect x="260.8" y="124" width="145.9" height="8" rx="2"/>
+    <rect x="244.5" y="164" width="146.9" height="8" rx="2"/><rect x="237.9" y="204" width="134.5" height="8" rx="2"/><rect x="232.1" y="244" width="146" height="8" rx="2"/>
+  </g>
+  <g fill="#fff" stroke="#0b0b0b" stroke-width="1.5">
+    <circle cx="403.8" cy="34" r="4"/><circle cx="375.2" cy="74" r="4"/><circle cx="353.3" cy="114" r="4"/><circle cx="339.9" cy="154" r="4"/><circle cx="334.2" cy="194" r="4"/><circle cx="356.1" cy="234" r="4"/>
+    <circle cx="349.5" cy="48" r="4"/><circle cx="339.9" cy="88" r="4"/><circle cx="330.4" cy="128" r="4"/><circle cx="311.3" cy="168" r="4"/><circle cx="298.9" cy="208" r="4"/><circle cx="301.8" cy="248" r="4"/>
+  </g>
+</svg>
+<figcaption>Figure 4. Real seated pulse of 7,296 US adults (NHANES 2017–2020, survey-weighted, mean of ≥ 2 valid readings). The middle 95 % is about 46–98 bpm in every group, so a pulse under 60 is common. That's why ring rules flag only a <b>high</b> resting HR.</figcaption>
+</figure>
+<p class="small"><b>How PULSE uses it:</b> the weekly report places the patient's 7-day mean <b>seated cuff</b> pulse as a percentile among US adults of the same sex and age (<code>summary.pulse_vs_population</code>). It's context, not a threshold, and it is never applied to ring night HR (a different measurement). BP percentiles are also stored, but home BP categories use the ACC/AHA home column, because NHANES BP is exam BP.</p>
+
+<h3>6.8 Medical reference values (pending clinician review)</h3>
+<table class="small">
+<tr><th style="width:25%">Value</th><th style="width:30%">Used where</th><th>Source</th></tr>
+<tr><td>Home BP categories: normal, elevated 120, stage 1 130/80, stage 2 <b>135/85</b> (= office 140/90)</td><td>weekly report <code>home_bp_category</code> (OR rule on the week's home mean)</td><td>ACC/AHA 2017, Table 11, home (HBPM) column</td></tr>
+<tr><td>SpO2 &lt; 94 % (COPD &lt; 88 %)</td><td>ring flag (reference), band floor, R-RING-1</td><td>BTS oxygen guideline 2017</td></tr>
+<tr><td>Resting HR &gt; 100 bpm (high side only)</td><td>ring flag (reference), band ceiling</td><td>Mayo Clinic (adults at rest 60–100)</td></tr>
+<tr><td>HRV, skin temperature</td><td>personal baseline only; HRV ignored with AF</td><td>no population reference used</td></tr>
+<tr><td>Oximeter accuracy limits</td><td>wording, limits text</td><td>FDA safety communication, 19 Feb 2021</td></tr>
+</table>
+<div class="box small"><b>Proposed safety rule R-RING-1, for the backend:</b> SpO2 median over 10 minutes &lt; 94 % with ≥ 2 samples → prompt a cuff reading, a symptom check and re-seating the ring. Never an emergency by itself; symptoms keep their own emergency path. It runs on raw <code>wearable_samples</code> in the backend, so the safety path never waits for an ML job. Spec: <code>ml/pulse_ml/reference.py</code> (<code>R_RING_1</code>). <span class="pill prop">TO BUILD</span> <span class="pill verify">CLINICIAN REVIEW</span></div>
+
+<h2>7. Live ring monitoring and the weekly doctor loop</h2>
+<figure>
+<svg viewBox="0 0 760 215" role="img" aria-label="Weekly doctor loop: ring samples are checked by the monitor, which writes flags; the weekly job writes reports and proposes bands; the doctor reviews flags and approves or edits bands; the active band is then used for the next nights; reviewed flags feed a feedback gate that never deploys automatically.">
+  <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6675"/></marker></defs>
+  <g font-size="10.5">
+    <rect x="10" y="20" width="130" height="72" rx="6" fill="#fff6e6" stroke="#9a5b00"/>
+    <text x="75" y="40" text-anchor="middle" font-weight="700">1. Ring samples</text><text x="75" y="57" text-anchor="middle" font-size="9.5">wearable_samples</text><text x="75" y="72" text-anchor="middle" font-size="9.5">(stream.py / seed now)</text>
+    <rect x="160" y="20" width="130" height="72" rx="6" fill="#f4f8f1" stroke="#3d6b2f"/>
+    <text x="225" y="40" text-anchor="middle" font-weight="700">2. Monitor</text><text x="225" y="57" text-anchor="middle" font-size="9.5">night + live 10 min</text><text x="225" y="72" text-anchor="middle" font-size="9.5">→ wearable_flags</text>
+    <rect x="310" y="20" width="130" height="72" rx="6" fill="#f4f8f1" stroke="#3d6b2f"/>
+    <text x="375" y="40" text-anchor="middle" font-weight="700">3. Weekly job</text><text x="375" y="57" text-anchor="middle" font-size="9.5">→ weekly_reports</text><text x="375" y="72" text-anchor="middle" font-size="9.5">→ bands (proposed)</text>
+    <rect x="460" y="20" width="130" height="72" rx="6" fill="#f3eaf6" stroke="#7a2e86"/>
+    <text x="525" y="40" text-anchor="middle" font-weight="700">4. Doctor</text><text x="525" y="57" text-anchor="middle" font-size="9.5">confirm / dismiss flags</text><text x="525" y="72" text-anchor="middle" font-size="9.5">approve / edit band</text>
+    <rect x="610" y="20" width="140" height="72" rx="6" fill="#eaf1fa" stroke="#1f5fa8"/>
+    <text x="680" y="40" text-anchor="middle" font-weight="700">5. Active band</text><text x="680" y="57" text-anchor="middle" font-size="9.5">private.approve_band</text><text x="680" y="72" text-anchor="middle" font-size="9.5">supersedes the old one</text>
+    <rect x="460" y="122" width="130" height="58" rx="6" fill="#fff" stroke="#5b6675" stroke-dasharray="4 3"/>
+    <text x="525" y="142" text-anchor="middle" font-weight="700">6. feedback.py</text><text x="525" y="158" text-anchor="middle" font-size="9.5">≥ 30 labels, recall gate</text><text x="525" y="172" text-anchor="middle" font-size="9.5">manual deploy only</text>
+  </g>
+  <g stroke="#5b6675" stroke-width="1.4" fill="none" marker-end="url(#ar3)">
+    <path d="M140,56 L158,56"/><path d="M290,56 L308,56"/><path d="M440,56 L458,56"/><path d="M590,56 L608,56"/>
+    <path d="M525,92 L525,120"/>
+    <path d="M680,92 V200 H225 V94"/>
+  </g>
+  <text x="452" y="196" font-size="9.5" fill="#5b6675" text-anchor="middle">next nights are judged against the doctor's band, not the learned baseline</text>
+</svg>
+<figcaption>Figure 5. The weekly loop. The model only proposes; a doctor activates a band; labels can retune personal thresholds, never the medical references, and never deploy themselves.</figcaption>
+</figure>
+<table class="small">
+<tr><th style="width:22%">Piece</th><th>Rule</th></tr>
+<tr><td>Monitor, night mode</td><td><code>monitor --nights</code>: every assigned patient's nights; reference, then band or personal z, then IsolationForest. One flag per (patient, metric, kind, window), so re-runs never duplicate.</td></tr>
+<tr><td>Monitor, live mode</td><td><code>monitor --follow --every 5</code>: polls new samples by <code>created_at</code> with a 5-minute overlap (catches late rows); 10-minute windows; band flags need 2 windows in a row.</td></tr>
+<tr><td>Weekly report</td><td>Patient-local Monday–Sunday. <code>home_bp_category</code> from valid home readings; <code>control_status</code> vs the active care-plan target (default 140/90; insufficient_data under 3 readings); <code>wcls-v1.1</code> probability when ≥ 3 valid readings; ring night summary, flag counts, latest BP estimate, pulse placement (NHANES). A report the doctor already reviewed is never overwritten.</td></tr>
+<tr><td>Band proposal</td><td>Median of the last 28 nights ± max(3 × 1.4826 × MAD, floor). Floors: HR 5 bpm, HRV 5 ms, SpO2 1.5 %, temperature 0.5 °C. Clipped to the reference on the safety side (SpO2 low ≥ 94, or ≥ 88 with COPD; HR high ≤ 100); SpO2 capped at 100. Needs ≥ 14 nights; none for HRV with AF.</td></tr>
+<tr><td>Feedback (review M5)</td><td>Doctor-reviewed flags become labels; ≥ 30 needed; they retune only <code>personal_anomaly</code> thresholds; a retrained model must not lose injected-episode recall (<code>feedback --gate</code>); no automatic deployment.</td></tr>
+</table>
+<h3>Verified on the local copy (30 Oct 2026, all 12 demo patients with a simulated ring)</h3>
+<ul class="small">
+<li><code>monitor --nights</code>: 34 flags. Karim's seeded HR rise is caught on its 2 nights. Karim and Samir (sleep apnea) get low night SpO2 flags. Fatima (COPD, night SpO2 ~92 %) gets <b>no</b> false SpO2 flag thanks to the 88 % limit; before the COPD rule she had 5. Houria (AF) gets no HRV flag.</li>
+<li>Live: <code>stream --scenario spo2_dip</code> + <code>monitor --follow</code> gives Nadia a live SpO2 flag within about 10 seconds.</li>
+<li><code>weekly</code>: 11 reports, 43 band proposals (e.g. Fatima's SpO2 band 89.8–92.8 %, waiting for the doctor). A test approves and edits Karim's HR band through RLS, re-runs the monitor, and checks that the flags now cite <code>band:&lt;id&gt;</code>.</li>
+</ul>
+
+<h2>8. How the jobs run (inference contract)</h2>
+<table class="small">
+<tr><th style="width:12%">Job</th><th style="width:30%">Reads</th><th style="width:25%">Writes</th><th>Rules</th></tr>
+<tr><td><code>predict</code></td><td>Valid readings of actively assigned patients, strictly before the target day in the reading's own time zone</td><td>One row per patient, target day, model version in <code>ml_predictions</code> (upsert)</td><td>Default target = tomorrow (patient-local). Values and intervals null unless <code>ok</code>. <code>trained_on</code> = <code>synthetic:pulse-sim-v2</code>. Unassigned patients (Yacine) get no row.</td></tr>
+<tr><td><code>monitor</code></td><td><code>wearable_samples</code>, active bands, condition codes, confirmed flags</td><td><code>wearable_flags</code> only</td><td>Advisory. Never alerts.</td></tr>
+<tr><td><code>weekly</code></td><td>Readings, care plans, ring nights, flags, predictions, profile + body measurements</td><td><code>weekly_reports</code>, proposed <code>patient_bands</code></td><td>Numbers-only summary; reviewed reports are kept.</td></tr>
+</table>
+<p class="small"><b>Backend mapping:</b> endpoint 24 reads the latest prediction for (patient, date), newest model first; no row → <code>model_unavailable</code>. Still to build by the backend: weekly report endpoint, flag review, band approval through <code>private.approve_band</code>, R-RING-1. All jobs print counts only, never health values.</p>
+
+<h2>9. Tests and quality</h2>
+<table class="small">
+<tr><th style="width:28%">File</th><th class="num" style="width:7%">tests</th><th>What it guards</th></tr>
+<tr><td><code>tests/test_db.py</code></td><td class="num">48</td><td>Validation policy cases; duplicates flagged not dropped; labelling constraints; import dedup and same-file refusal; one active care plan; patient / doctor / admin / logged-out visibility; forbidden writes; doctor notes hidden; ML tables doctor-only; Algerian fields; wearable checks; band approval supersedes and is audited; live REST API enforces access.</td></tr>
+<tr><td><code>tests/test_ingest.py</code></td><td class="num">5</td><td>CSV parsing, row-level rejections, missing columns, unknown time zone, deterministic seed labelled simulated.</td></tr>
+<tr><td><code>tests/test_simulate_stability.py</code></td><td class="num">5</td><td>SHA-256 fingerprints of the BP data (ring and condition changes can't alter BP); ring samples pass the table checks; the cloud refresh deletes only simulated demo-ring samples; chronic conditions shape ring values.</td></tr>
+<tr><td><code>ml/tests/test_ml.py</code></td><td class="num">6</td><td>Home-BP categories; no patient overlap; features only from earlier days; short history → insufficient; deterministic training; the predict job writes only predictions for assigned patients.</td></tr>
+<tr><td><code>ml/tests/test_ring.py</code></td><td class="num">7</td><td>CSV and database give identical nights; conditions change references; baseline uses earlier nights and skips confirmed anomalies; doctor band overrides baseline; live windows; late rows caught; seeded episode flagged.</td></tr>
+<tr><td><code>ml/tests/test_weekly.py</code></td><td class="num">3</td><td>Band maths; regression gate blocks lower recall; full weekly report and doctor band loop through RLS.</td></tr>
+<tr><td><code>ml/tests/test_classify.py</code></td><td class="num">3</td><td>Next-week label with the OR rule; features never see the label; deterministic training; the report gets a probability.</td></tr>
+<tr><td><code>ml/tests/test_real.py</code></td><td class="num">9</td><td>Raw real data is git-ignored; weighted percentiles; NHANES mapping and population; PULSE fields map to the same features; Mendeley parsing; pulse placement band; ODI-4 counts real desaturations.</td></tr>
+</table>
+<p class="small" id="test-result"><b>Latest full run (30 Oct 2026):</b> <b>86 / 86 passed</b> on the local database. The full suite gave 84 passed, 2 skipped (the live-login tests need the demo password in the environment); those 2 then passed when run with the password loaded from <code>.env</code>.</p>
+
+<h2>10. Commands (Windows, repo <code>Desktop\pulse</code>)</h2>
+<table class="small">
+<tr><th style="width:40%">Command</th><th>What it does</th></tr>
+<tr><td><code>npx -y supabase@2.122.0 start</code> / <code>db reset --local</code></td><td>Local database (ports 55321–55323), all migrations + seed</td></tr>
+<tr><td><code>.venv\Scripts\python -m pulse_data.simulate seed</code></td><td>Write the demo seed (password from <code>.env</code>)</td></tr>
+<tr><td><code>.venv\Scripts\python -m pulse_data.simulate csv</code></td><td>ML cohort to <code>data/synthetic/</code> (git-ignored)</td></tr>
+<tr><td><code>cd ml</code> then <code>..\.venv\Scripts\python -m pulse_ml.train</code></td><td>Train + test <code>mbp-v1.1</code> (~70 s)</td></tr>
+<tr><td><code>... -m pulse_ml.ring_train</code> · <code>classify</code> · <code>mbp_v2</code></td><td>Train + test <code>ring-v1.1</code>, <code>wcls-v1.1</code>, <code>mbp-v2.1</code></td></tr>
+<tr><td><code>... -m pulse_ml.real_data fetch all</code></td><td>Download the 3 real datasets (~200 MB) + manifests</td></tr>
+<tr><td><code>... -m pulse_ml.real_bands</code> · <code>wrisk</code> · <code>real_tests all</code></td><td>NHANES bands, <code>wrisk-v1</code>, real-data tests</td></tr>
+<tr><td><code>... -m pulse_ml.predict --all</code> · <code>monitor --nights</code> · <code>weekly</code></td><td>The three jobs (local by default; <code>DATABASE_URL</code> for the cloud)</td></tr>
+<tr><td><code>... -m pulse_data.stream --scenario spo2_dip --minutes 1</code></td><td>Simulated live ring (refuses the cloud without <code>--i-confirmed-cloud</code>)</td></tr>
+<tr><td><code>scripts\cloud_update.ps1</code></td><td>Cloud: pending migrations + ring demo refresh + check (<span class="pill live">DONE</span> 30 Oct)</td></tr>
+<tr><td><code>scripts\run_cloud_jobs.ps1</code></td><td>Cloud: run the 3 jobs (needs <code>DATABASE_URL</code> in <code>.env</code>)</td></tr>
+<tr><td><code>.venv\Scripts\python -m pytest</code></td><td>All tests (local stack running)</td></tr>
+</table>
+
+<h2>11. Safety, ethics and limits</h2>
+<ul class="small">
+<li><b>ML is advisory only.</b> No model creates alerts, decides an emergency, or suggests starting, stopping or changing medication. Symptoms trigger the emergency path on their own.</li>
+<li><b>Patients never see ML output</b> until the backend owner and a clinician decide what a patient should see.</li>
+<li><b>Synthetic is always labelled.</b> Metrics on synthetic data show the pipeline works; they say nothing about real patients.</li>
+<li><b>Not validated for Algeria.</b> NHANES is the US population; Mendeley is one patient; Apnea-ECG is 8 lab nights.</li>
+<li><b>Data terms respected:</b> NHANES statistics only (no re-identification, no linkage); Mendeley non-commercial; PhysioNet attribution.</li>
+<li><b>Before any real use:</b> real, consented daily home readings; retraining and evaluation by patient and over time; clinician review of thresholds, wording and display; drift monitoring.</li>
+</ul>
+
+<h2>12. Next steps</h2>
+<table class="small">
+<tr><th style="width:4%">#</th><th style="width:56%">Step</th><th style="width:18%">Who</th><th>Status</th></tr>
+<tr><td>1</td><td>Add the cloud <code>DATABASE_URL</code> (Session pooler) to <code>.env</code>, then run <code>scripts\run_cloud_jobs.ps1</code> to fill the 4 ML tables; then a read-only "verify cloud"</td><td>You (password), then data/AI</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>2</td><td>Share the demo password privately; send the backend the message in <code>docs/data/CLOUD_STEPS.md</code></td><td>You</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>3</td><td>Backend: alert rules writing to Supabase; weekly report, flag review and band approval endpoints; R-RING-1</td><td>Backend</td><td><span class="pill prop">TO BUILD</span></td></tr>
+<tr><td>4</td><td>Frontend: doctor panels for the BP estimate, ring flags, weekly report, band approval; profile fields</td><td>Frontend</td><td><span class="pill prop">TO BUILD</span></td></tr>
+<tr><td>5</td><td>Clinician review: 180/120, red flags, SpO2 94 / 88 %, band rule, wording</td><td>Medical mentor</td><td><span class="pill verify">TO VERIFY</span></td></tr>
+<tr><td>6</td><td>Confirm the Algerian emergency number (14 or 1021) from an official source</td><td>Team</td><td><span class="pill verify">TO VERIFY</span></td></tr>
+<tr><td>7</td><td>Choose a real device (validated upper-arm cuff recommended) and build its adapter</td><td>Team, then data/AI</td><td><span class="pill none">MISSING</span></td></tr>
+</table>
+
+<h2>13. Sources</h2>
+<ol class="small">
+<li>Moussouni A. et al. Prevalence and risk factors of prehypertension and hypertension in Algeria (STEPS 2016–2017). <i>BMC Public Health</i> 2022. pmc.ncbi.nlm.nih.gov/articles/PMC9386961</li>
+<li>National Center for Health Statistics. NHANES 2017–March 2020 pre-pandemic data files (P_DEMO, P_BPXO, P_BMX, P_SMQ, P_DIQ, P_BPQ, P_TCHOL, P_MCQ, P_KIQ_U). Data user agreement: cdc.gov/nchs/data_access/restrictions.htm</li>
+<li>Dvornik O., Chuiko G., Baganov Y., Shyian I. Trends and seasonality in home blood pressure monitoring. Mendeley Data v1, 2017. doi:10.17632/pjcv33hpp7.1 (CC BY-NC 3.0)</li>
+<li>Penzel T., Moody G.B., Mark R.G., Goldberger A.L., Peter J.H. The Apnea-ECG Database. <i>Computers in Cardiology</i> 2000;27:255–258; Goldberger A.L. et al. PhysioNet. <i>Circulation</i> 2000. (ODC-By 1.0)</li>
+<li>Whelton P.K. et al. 2017 ACC/AHA high blood pressure guideline, Table 11 (corresponding office and home values).</li>
+<li>O'Driscoll B.R. et al. BTS guideline for oxygen use in adults. <i>Thorax</i> 2017;72 Suppl 1.</li>
+<li>Mayo Clinic. Heart rate: what's normal? (adults at rest 60–100 bpm).</li>
+<li>US FDA safety communication: pulse oximeter accuracy and limitations, 19 Feb 2021.</li>
+<li>Quer G. et al. Inter- and intraindividual variability in daily resting heart rate (92,457 wearable users). <i>PLOS ONE</i> 2020.</li>
+<li>Gries R.E., Brooks L.J. Normal oxyhemoglobin saturation during sleep. <i>Chest</i> 1996;110:1489–1492.</li>
+<li>Tageldin M.A. et al. COPD prevalence in the Middle East and North Africa (BREATHE study), 2012.</li>
+<li>HRV in type 2 diabetes: systematic review and meta-analysis. <i>PLoS ONE</i> 2018 (PMC5880391).</li>
+<li>Obstructive sleep apnea and resistant hypertension, multicenter cohort of 284 patients (PMC6513347).</li>
+<li>Perez M.V. et al. Apple Heart Study, ACC 2019 / <i>NEJM</i> 2019.</li>
+<li>PULSE repository, branch <code>AI</code>: <code>ml/MODEL_CARD.md</code>, <code>ml/artifacts/*/metadata.json</code>, <code>docs/data/*.md</code>, <code>supabase/migrations/*</code>.</li>
+</ol>
+<p class="small muted">Thresholds and proposals are prototype choices awaiting clinician review. Study figures are quoted from the sources above.</p>
+
+</body>
+</html>
