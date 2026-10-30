@@ -28,7 +28,8 @@ def _response(description: str) -> dict:
 # Documented on every protected route so the frontend sees the error shape in OpenAPI.
 AUTH_RESPONSES = {401: _response("Missing or invalid token"), 403: _response("Not allowed for this user"),
                   404: _response("Not found"), 409: _response("Conflict"),
-                  422: _response("Invalid request"), 501: _response("Not implemented yet")}
+                  422: _response("Invalid request"), 501: _response("Not implemented yet"),
+                  503: _response("Authentication service or database unavailable")}
 
 
 def _body(code: str, message: str, details=None) -> dict:

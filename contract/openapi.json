@@ -3107,6 +3107,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -3215,6 +3225,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -3311,6 +3331,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "summary": "Log in with email + password (proxied to Supabase Auth)",
@@ -3402,6 +3432,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "summary": "Exchange a refresh token for a new session",
@@ -3526,6 +3566,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -3634,6 +3684,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -3732,6 +3792,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -3849,6 +3919,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -3935,6 +4015,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4025,6 +4115,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4141,6 +4241,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4239,6 +4349,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4345,6 +4465,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4459,6 +4589,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4557,6 +4697,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4659,6 +4809,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4775,6 +4935,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4877,6 +5047,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -4983,6 +5163,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5141,6 +5331,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5247,6 +5447,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5349,6 +5559,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5455,6 +5675,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5553,6 +5783,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5651,6 +5891,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5757,6 +6007,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5855,6 +6115,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -5963,6 +6233,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -6065,6 +6345,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -6171,6 +6461,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -6262,6 +6562,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [
@@ -6368,6 +6678,16 @@
               }
             },
             "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
           }
         },
         "security": [

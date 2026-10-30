@@ -1,10 +1,16 @@
-"""Contract v1: every route exists with its final schema; unbuilt routes answer 501 in the error format."""
+"""Contract v1: every route exists with its final schema; unbuilt routes answer 501 in the error format.
+
+No database here: `client` replaces the current-user dependency with a fake patient so the
+route shapes can be checked; `anon_client` keeps the real dependency for the 401 checks.
+Authentication itself is tested against the test database in test_auth.py.
+"""
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.analysis.rules import RED_FLAG_SYMPTOMS
+from app.auth import CurrentUser, current_user
 from app.config import Settings
 from app.main import create_app
 
@@ -51,9 +57,22 @@ PROTECTED = [
 ]
 
 
+SETTINGS = Settings(demo_mode=True, demo_number="+213 555 12 34 56")
+FAKE_PATIENT = CurrentUser(id=PID, role="patient", full_name="Test", email="t@pulse.test", timezone="Africa/Algiers")
+BUILT = {("GET", "/me")}  # implemented and tested against the database in test_auth.py
+UNBUILT = [p for p in PROTECTED if (p[0], p[1]) not in BUILT]
+
+
 @pytest.fixture
 def client():
-    return TestClient(create_app(Settings(demo_mode=True, demo_number="+213 555 12 34 56")))
+    app = create_app(SETTINGS)
+    app.dependency_overrides[current_user] = lambda: FAKE_PATIENT
+    return TestClient(app)
+
+
+@pytest.fixture
+def anon_client():
+    return TestClient(create_app(SETTINGS))
 
 
 def test_health(client):
@@ -61,23 +80,29 @@ def test_health(client):
 
 
 @pytest.mark.parametrize("method,path,body", PROTECTED)
-def test_protected_routes_require_token(client, method, path, body):
-    r = client.request(method, API + path, json=body)
+def test_protected_routes_require_token(anon_client, method, path, body):
+    r = anon_client.request(method, API + path, json=body)
     assert r.status_code == 401
     assert r.json()["error"]["code"] == "not_authenticated"
 
 
-@pytest.mark.parametrize("method,path,body", PROTECTED)
+@pytest.mark.parametrize("method,path,body", UNBUILT)
 def test_unbuilt_routes_answer_501_in_error_format(client, method, path, body):
     r = client.request(method, API + path, json=body, headers=AUTH)
     assert r.status_code == 501, r.text
     assert r.json() == {"error": {"code": "not_implemented", "message": r.json()["error"]["message"], "details": None}}
 
 
+def test_token_without_database_is_503_not_a_crash(anon_client):
+    r = anon_client.get(f"{API}/me", headers=AUTH)
+    assert r.status_code == 503 and r.json()["error"]["code"] == "database_unavailable"
+
+
 @pytest.mark.parametrize("path", ["/auth/login", "/auth/refresh"])
-def test_auth_routes_are_public_but_not_built(client, path):
+def test_auth_routes_without_supabase_config_answer_503(anon_client, path):
     body = {"email": "a@b.c", "password": "x"} if path.endswith("login") else {"refresh_token": "x"}
-    assert client.post(API + path, json=body).status_code == 501
+    r = anon_client.post(API + path, json=body)
+    assert r.status_code == 503 and r.json()["error"]["code"] == "auth_unavailable"
 
 
 def test_bad_ids_and_bodies_are_rejected_before_handlers(client):

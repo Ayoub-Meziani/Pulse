@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import ValidationError
 
 from ..analysis.rules import RED_FLAG_SYMPTOMS, SEVERE_DIASTOLIC, SEVERE_SYSTOLIC
-from ..auth import require_token
+from ..auth import current_user
 from ..config import DEMO_NUMBER_ID, Settings
 from ..errors import AUTH_RESPONSES, not_implemented
 from ..schemas import (ClientFallback, EmergencyActionsIn, EmergencyCardOut, EmergencyConfigOut,
@@ -24,7 +24,7 @@ DISCLAIMER_FR = ("PULSE n'appelle pas les secours automatiquement et ne prévien
 DISCLAIMER_AR = "تطبيق PULSE لا يتصل بالإسعاف تلقائياً ولا يُبلغ طبيبك فوراً. اضغط على الزر للاتصال بنفسك."
 
 public = APIRouter(tags=["emergency"])
-router = APIRouter(tags=["emergency"], responses=AUTH_RESPONSES, dependencies=[Depends(require_token)])
+router = APIRouter(tags=["emergency"], responses=AUTH_RESPONSES, dependencies=[Depends(current_user)])
 
 
 def build_config(settings: Settings) -> EmergencyConfigOut:

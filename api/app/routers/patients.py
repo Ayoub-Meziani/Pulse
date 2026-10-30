@@ -11,12 +11,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from pydantic import AwareDatetime
 
-from ..auth import require_token
+from ..auth import current_user
 from ..errors import AUTH_RESPONSES, not_implemented
 from ..schemas import (AlertOut, DailyPoint, MeasurementIn, MeasurementOut, MeasurementResult,
                        PatientListItem, PredictionOut, SummaryOut, SymptomReportIn, SymptomResult)
 
-router = APIRouter(tags=["patients"], responses=AUTH_RESPONSES, dependencies=[Depends(require_token)])
+router = APIRouter(tags=["patients"], responses=AUTH_RESPONSES, dependencies=[Depends(current_user)])
 
 
 @router.get("/patients", response_model=list[PatientListItem],

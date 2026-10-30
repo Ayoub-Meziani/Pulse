@@ -31,9 +31,13 @@ def make_session_factory(engine: Engine) -> sessionmaker[Session]:
 
 
 def set_request_claims(db: Session, user_id: UUID, role: str) -> None:
-    """Transaction-local claims so auth.uid() inside triggers returns this user."""
+    """Transaction-local claims so auth.uid() inside triggers returns this user.
+
+    Both the current (`request.jwt.claims`) and the legacy (`request.jwt.claim.sub`) settings are
+    set, so it works with either version of Supabase's auth.uid()."""
     claims = json.dumps({"sub": str(user_id), "role": "authenticated", "app_role": role})
-    db.execute(text("select set_config('request.jwt.claims', :claims, true)"), {"claims": claims})
+    db.execute(text("select set_config('request.jwt.claims', :claims, true), "
+                    "set_config('request.jwt.claim.sub', :sub, true)"), {"claims": claims, "sub": str(user_id)})
 
 
 def get_db(request: Request) -> Iterator[Session | None]:

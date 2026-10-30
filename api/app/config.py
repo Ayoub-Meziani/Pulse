@@ -21,8 +21,9 @@ DEMO_NUMBER_ID = "demo"
 class Settings:
     env: str = "dev"
     database_url: str | None = None
-    supabase_url: str | None = None
-    supabase_anon_key: str | None = None
+    supabase_url: str | None = None          # e.g. https://<ref>.supabase.co ; tokens must have iss <url>/auth/v1
+    supabase_anon_key: str | None = None     # publishable key, used server-side only for the login proxy
+    jwks: dict | None = None                 # tests only: static JWKS instead of fetching <url>/auth/v1/.well-known/jwks.json
     # Demo mode replaces the emergency number with a teammate's phone and shows a DEMO banner.
     demo_mode: bool = True
     demo_number: str | None = None

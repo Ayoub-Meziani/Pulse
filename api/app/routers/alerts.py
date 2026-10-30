@@ -2,11 +2,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from ..auth import require_token
+from ..auth import current_user
 from ..errors import AUTH_RESPONSES, not_implemented
 from ..schemas import AlertDetail, AlertOut, TransitionIn
 
-router = APIRouter(tags=["alerts"], responses=AUTH_RESPONSES, dependencies=[Depends(require_token)])
+router = APIRouter(tags=["alerts"], responses=AUTH_RESPONSES, dependencies=[Depends(current_user)])
 
 
 @router.get("/alerts/{alert_id}", response_model=AlertDetail, summary="Alert with the readings attached to it")

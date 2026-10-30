@@ -101,7 +101,7 @@ class Measurement(Base):
     validation_status: Mapped[str] = _server(Text)
     quality_flags: Mapped[list[str]] = _server(TEXT_ARRAY)
     validation_policy_version: Mapped[str] = _server(Text)
-    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_by: Mapped[uuid.UUID | None] = _server(UUID(as_uuid=True))  # trigger: coalesce(auth.uid(), value)
     created_at: Mapped[datetime] = _server(TS)
 
 

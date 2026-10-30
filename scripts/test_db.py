@@ -29,9 +29,9 @@ def docker(*args: str, input: bytes | None = None, check: bool = True) -> subpro
     return subprocess.run(["docker", *args], input=input, capture_output=True, check=check)
 
 
-def psql(sql: bytes) -> subprocess.CompletedProcess:
-    return docker("exec", "-i", NAME, "psql", "-U", "postgres", "-h", "127.0.0.1", "-v", "ON_ERROR_STOP=1",
-                  "-q", "-f", "-", input=sql, check=False)
+def psql(sql: bytes, user: str = "postgres") -> subprocess.CompletedProcess:
+    return docker("exec", "-i", NAME, "psql", "-U", user, "-d", "postgres", "-h", "127.0.0.1",
+                  "-v", "ON_ERROR_STOP=1", "-q", "-f", "-", input=sql, check=False)
 
 
 def wait_ready(timeout: float = 180) -> None:
@@ -53,6 +53,11 @@ def up() -> None:
     docker("run", "-d", "--name", NAME, "-e", f"POSTGRES_PASSWORD={PASSWORD}",
            "-p", f"127.0.0.1:{PORT}:5432", IMAGE)
     wait_ready()
+    compat = Path(__file__).with_name("test_db_auth_live.sql")  # live auth.uid()/jwt() definitions
+    r = psql(compat.read_bytes(), user="supabase_admin")  # auth schema is not owned by postgres
+    if r.returncode != 0:
+        sys.exit(f"{compat.name} failed:\n{r.stderr.decode(errors='replace')}")
+    print(f"applied {compat.name}")
     for f in files:
         r = psql(f.read_bytes())
         if r.returncode != 0:
