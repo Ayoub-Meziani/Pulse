@@ -74,9 +74,9 @@
   <div class="kpi"><div class="v">14</div><div class="l">demo accounts (1 doctor, 1 admin, 12 patients)</div></div>
   <div class="kpi"><div class="v">730</div><div class="l">blood-pressure readings in the cloud</div></div>
   <div class="kpi"><div class="v">20,832</div><div class="l">simulated ring samples (12 patients × 28 days)</div></div>
-  <div class="kpi"><div class="v">5</div><div class="l">models: 3 in use, 1 experiment, 1 not shown</div></div>
+  <div class="kpi"><div class="v">6</div><div class="l">models: 3 in use, live early warning, 1 experiment, 1 not shown</div></div>
   <div class="kpi"><div class="v">3</div><div class="l">real public datasets (NHANES, Mendeley, PhysioNet)</div></div>
-  <div class="kpi"><div class="v">86</div><div class="l">automated tests (database, data, ML)</div></div>
+  <div class="kpi"><div class="v">95</div><div class="l">automated tests (database, data, ML)</div></div>
 </div>
 
 <p class="small"><b>Status labels:</b>
@@ -101,7 +101,7 @@
 <tr><td>Demo data in the cloud</td><td><span class="pill live">LIVE</span></td><td>14 accounts; 730 readings (727 valid, 2 needs_review, 1 invalid, on purpose); 316 lifestyle logs; 154 dose events; 11 care plans; 24 body measurements; 24 devices; 20,832 ring samples for all 12 patients. All labelled <code>simulated</code>. Password only in the local, git-ignored <code>.env</code>.</td></tr>
 <tr><td>ML outputs in the cloud</td><td><span class="pill live">LIVE</span></td><td>Jobs ran on the cloud on 30 Oct (<code>scripts\run_cloud_jobs.ps1</code>): 10 next-day BP estimates + 1 <code>insufficient_history</code>; 33 ring flags (22 outside reference, 10 personal, 1 multivariate); 11 weekly reports, all with the classifier probability; 43 proposed bands waiting for the doctor.</td></tr>
 <tr><td>Alerts in the cloud</td><td><span class="pill prop">TO BUILD</span></td><td>0 rows. The alert rules live in the backend (FastAPI, teammate), which still runs on SQLite. The tables and the episode logic (M3) are ready.</td></tr>
-<tr><td>5 models (<code>ml/</code>, Python)</td><td><span class="pill built">BUILT</span></td><td><code>mbp-v1.1</code> next-day BP (served), <code>ring-v1.1</code> ring flags, <code>wcls-v1.1</code> weekly classifier, <code>mbp-v2.1</code> (experiment), <code>wrisk-v1</code> on real NHANES people (evaluated, not shown). Section 6.</td></tr>
+<tr><td>6 models (<code>ml/</code>, Python)</td><td><span class="pill built">BUILT</span></td><td><code>mbp-v1.1</code> next-day BP (served), <code>ring-v1.1</code> ring flags, <code>wcls-v1.1</code> weekly classifier, <code>live-v1</code> live early warnings (section 6.10), <code>mbp-v2.1</code> (experiment), <code>wrisk-v1</code> on real NHANES people (evaluated, not shown). Section 6.</td></tr>
 <tr><td>Real public data</td><td><span class="pill built">BUILT</span></td><td>NHANES 2017–2020 (CDC), Mendeley home-BP series, PhysioNet Apnea-ECG. Downloaded to git-ignored <code>data/external/</code> with a manifest, never committed or uploaded. Section 5.6.</td></tr>
 <tr><td>Device (cuff / ring)</td><td><span class="pill none">MISSING</span></td><td>No physical device yet. Tables for cuff readings and ring samples are live; ring data is simulated from published values.</td></tr>
 <tr><td>Real patient data</td><td><span class="pill none">MISSING</span></td><td>None, on purpose. No open multi-patient home-BP dataset exists, so real accuracy needs consented PULSE data later.</td></tr>
@@ -288,6 +288,7 @@
 <tr><td>M6</td><td><code>20261030140000_algerian_factors_wearables</code></td><td>Sex, smoking, condition codes, bread / salt habits, language, fasting logs; tables <code>body_measurements</code> and <code>wearable_samples</code> (unit and plausible range checked per metric).</td><td><span class="pill live">LIVE</span></td></tr>
 <tr><td>M7</td><td><code>20261030150000_ml_monitoring</code></td><td>Tables <code>wearable_flags</code>, <code>patient_bands</code>, <code>weekly_reports</code>; function <code>private.approve_band</code>; audit on all three; index for the live monitor. Built exactly as the backend's ML review asked.</td><td><span class="pill live">LIVE</span></td></tr>
 <tr><td>M8</td><td><code>20261030160000_chronic_conditions</code></td><td>Condition codes add copd, asthma, obstructive_sleep_apnea, atrial_fibrillation, heart_failure, thyroid_disease (they change how ring values are judged). Applied 30 Oct after team approval.</td><td><span class="pill live">LIVE</span></td></tr>
+<tr><td>M9</td><td><code>20261030170000_live_early_warning</code></td><td>Ring flags can be <code>early_warning</code> / <code>forecast</code> (and <code>sleep</code>) for the live engine <code>live-v1</code>: warn the doctor before a limit is crossed. Additive only; applied locally with no row changed.</td><td><span class="pill prop">LOCAL</span> cloud waits for OK</td></tr>
 </table>
 
 <h3>4.2 How the tables relate</h3>
@@ -346,7 +347,7 @@
 <tr><td class="t-name">alerts (20)</td><td>Rule results</td><td>alert_class, rule_code, rule_version, reason, actions, persistent, measurement_id, symptom_report_id, trigger_source, status + timestamps, resolution_note</td><td><span class="who-p">patient</span> acknowledges; <span class="who-d">doctor</span> reviews, resolves</td></tr>
 <tr><td class="t-name">alert_measurements (4)</td><td>Readings of one alert episode</td><td>alert_id, measurement_id, patient_id, attached_at</td><td>read only</td></tr>
 <tr><td class="t-name">ml_predictions (16)</td><td>Next-day BP estimate</td><td>target_date, target, status (ok / insufficient_history), predicted_systolic / diastolic, 4 interval bounds, model_version, trained_on, features_until, n_readings_used</td><td><span class="who-d">doctor</span> reads only</td></tr>
-<tr><td class="t-name">wearable_flags (17)</td><td>Advisory ring flags</td><td>metric (+ multivariate), kind (outside_reference / personal_anomaly / multivariate_anomaly), window_kind (night / live_10min), window_start / end, value, score, reference_basis, band_id, model_version, review_status (open / confirmed / dismissed), reviewed_by / at, review_note</td><td><span class="who-d">doctor</span> updates review fields only</td></tr>
+<tr><td class="t-name">wearable_flags (17)</td><td>Advisory ring flags</td><td>metric (+ multivariate, sleep), kind (outside_reference / personal_anomaly / multivariate_anomaly / early_warning, M9), window_kind (night / live_10min / forecast), window_start / end, value, score, reference_basis, band_id, model_version, review_status (open / confirmed / dismissed), reviewed_by / at, review_note</td><td><span class="who-d">doctor</span> updates review fields only</td></tr>
 <tr><td class="t-name">patient_bands (14)</td><td>Personal ring normal range</td><td>metric, statistic (night_median / night_min / live_10min_median), low, high, basis (reference / model_proposal / doctor), status (proposed → active → superseded, or rejected), proposed_model_version, approved_by / at, effective_from, supersedes_id</td><td><span class="who-d">doctor</span> approves via <code>private.approve_band</code> or rejects</td></tr>
 <tr><td class="t-name">weekly_reports (14)</td><td>Weekly summary per patient</td><td>week_start (local Monday), home_bp_category, control_status, next_week_above_target_prob, model_versions, summary (numbers only, ≤ 16 KB), status ready / reviewed, reviewed_by / at, doctor_comment</td><td><span class="who-d">doctor</span> reviews and comments</td></tr>
 </table>
@@ -777,6 +778,63 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 </table>
 <p class="small">On new real people it is stable (0.60 again) and slightly above age and sex, but still weak, so it stays hidden from reports. The survey renamed two variables in 2021–2023 (exam weight <code>WTMEC2YR</code>; BP medicine <code>BPQ150</code>); the meaning was checked against the CDC codebooks. <b>Not testable on real data:</b> next-day BP and the weekly classifier need daily home BP of many patients, and no open dataset has that. The ring SpO2 rule's real test (8 PhysioNet nights) is in 6.3.</p>
 
+<h3>6.10 Live ring: warn BEFORE a limit is crossed (<code>live-v1</code>, 30 Oct)</h3>
+<div class="box small"><b>What it does:</b> inside <code>monitor --follow</code>, every new minute of ring data is checked within about 44 ms (p95 81 ms) per patient. It uses everything up to that minute, including the reading that arrived a second ago.
+<ul>
+<li><b>Forecast:</b> HR, SpO2 and skin temperature in 10 and 20 minutes.</li>
+<li><b>Early warning:</b> if the value is still inside its limit but the chance of crossing it within 20 minutes is high, the <b>doctor</b> gets a warning (M9 <code>early_warning</code> row). Limits: SpO2 94 % (COPD 88 %), resting HR 100 or the doctor's band, temperature normal + 1 °C.</li>
+<li><b>Night going badly:</b> from 01:00, every 30 minutes, the chance that the night ends restless.</li>
+</ul>
+<b>Tested on:</b> 700 training nights and 700 <b>unseen</b> test nights of simulated situations. Patients see nothing, and the backend safety rules stay in charge.</div>
+<table class="small" style="break-inside: avoid">
+<tr><th style="width:24%">Unseen nights</th><th class="num">nights</th><th class="num">warned before the limit</th><th class="num">warning came (median)</th><th class="num">old "limit crossed now" rule</th></tr>
+<tr><td>oxygen falling</td><td class="num">93</td><td class="num"><b>93.5 %</b></td><td class="num"><b>17 min before</b></td><td class="num">7 min after</td></tr>
+<tr><td>heart rate climbing</td><td class="num">103</td><td class="num"><b>97.1 %</b></td><td class="num"><b>20 min before</b></td><td class="num">9 min after</td></tr>
+<tr><td>fever starting</td><td class="num">73</td><td class="num"><b>94.5 %</b></td><td class="num"><b>17 min before</b></td><td class="num">(no rule)</td></tr>
+</table>
+<p class="small" style="margin-bottom:2px"><b>Nights with nothing planted:</b></p>
+<ul class="small">
+<li>Early warnings per night: normal 0.04 (140 nights), loose ring / bathroom spike 0.03 (73), restless 0.11 (158), sleep apnea 0 (60).</li>
+<li>The low oxygen of sleep apnea is flagged by the old rule on 98 % of those nights.</li>
+</ul>
+<figure>
+<div class="legend"><span class="sw" style="background:#2a78d6;margin-left:0"></span>SpO2 (3-minute median) · vertical lines: decline starts, early warning, true value crosses 94 %, old rule fires</div>
+<svg viewBox="0 0 720 230" role="img" aria-label="One unseen night with falling oxygen: the live engine warned at 02:22, 17 minutes before SpO2 crossed 94 %; the existing rule flagged it at 02:51.">
+<g stroke="#e1e0d9" stroke-width="1"><line x1="46" y1="196.0" x2="700" y2="196.0"/><line x1="46" y1="153.5" x2="700" y2="153.5"/><line x1="46" y1="111.0" x2="700" y2="111.0"/><line x1="46" y1="68.5" x2="700" y2="68.5"/><line x1="46" y1="26.0" x2="700" y2="26.0"/></g>
+<g font-size="9" fill="#898781" text-anchor="end"><text x="40" y="199.0">90</text><text x="40" y="156.5">92</text><text x="40" y="114.0">94</text><text x="40" y="71.5">96</text><text x="40" y="29.0">98</text></g>
+<line x1="46" y1="196" x2="700" y2="196" stroke="#c3c2b7"/>
+<g font-size="9" fill="#898781" text-anchor="middle"><text x="113.2" y="210">01:40</text><text x="235.5" y="210">02:00</text><text x="357.7" y="210">02:20</text><text x="480.0" y="210">02:40</text><text x="602.2" y="210">03:00</text></g>
+<line x1="46" y1="111.0" x2="700" y2="111.0" stroke="#52514e" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="700" y="106.0" font-size="9" fill="#52514e" text-anchor="end">limit 94 %</text>
+<path d="M46.0,55.8 L52.1,55.8 L58.2,60.0 L64.3,60.0 L70.4,60.0 L76.6,57.9 L82.7,47.2 L88.8,47.2 L94.9,47.2 L101.0,49.4 L107.1,55.8 L113.2,55.8 L119.3,45.1 L125.5,45.1 L131.6,53.6 L137.7,53.6 L143.8,51.5 L149.9,47.2 L156.0,47.2 L162.1,51.5 L168.2,51.5 L174.4,55.8 L180.5,55.8 L186.6,64.2 L192.7,64.2 L198.8,47.2 L204.9,47.2 L211.0,47.2 L217.1,45.1 L223.3,45.1 L229.4,57.9 L235.5,60.0 L241.6,57.9 L247.7,51.5 L253.8,51.5 L259.9,62.1 L266.0,62.1 L272.1,55.8 L278.3,51.5 L284.4,51.5 L290.5,49.4 L296.6,49.4 L302.7,49.4 L308.8,53.6 L314.9,57.9 L321.0,57.9 L327.2,62.1 L333.3,66.4 L339.4,70.6 L345.5,70.6 L351.6,70.6 L357.7,68.5 L363.8,79.1 L369.9,68.5 L376.1,79.1 L382.2,72.8 L388.3,83.4 L394.4,79.1 L400.5,79.1 L406.6,79.1 L412.7,79.1 L418.8,85.5 L425.0,85.5 L431.1,85.5 L437.2,85.5 L443.3,87.6 L449.4,94.0 L455.5,98.3 L461.6,98.3 L467.7,98.3 L473.9,98.3 L480.0,87.6 L486.1,87.6 L492.2,87.6 L498.3,104.6 L504.4,104.6 L510.5,104.6 L516.6,100.4 L522.7,113.1 L528.9,113.1 L535.0,115.3 L541.1,115.3 L547.2,123.7 L553.3,123.7 L559.4,123.7 L565.5,123.7 L571.6,108.9 L577.8,138.6 L583.9,138.6 L590.0,138.6 L596.1,132.2 L602.2,132.2 L608.3,138.6 L614.4,138.6 L620.5,138.6 L626.7,121.6 L632.8,121.6 L638.9,138.6 L645.0,140.8 L651.1,142.9 L657.2,159.9 L663.3,162.0 L669.4,172.6 L675.6,172.6 L681.7,166.2 L687.8,166.2 L693.9,128.0 L700.0,128.0" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/>
+<line x1="290.5" y1="20" x2="290.5" y2="196" stroke="#898781" stroke-width="1.5"/>
+<text x="294.5" y="30" font-size="9.5" fill="#0b0b0b">decline starts 02:09</text>
+<line x1="369.9" y1="20" x2="369.9" y2="196" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="373.9" y="42" font-size="9.5" fill="#0b0b0b">EARLY WARNING 02:22</text>
+<line x1="473.9" y1="20" x2="473.9" y2="196" stroke="#d03b3b" stroke-width="1.5"/>
+<text x="477.9" y="54" font-size="9.5" fill="#0b0b0b">true value crosses 02:39</text>
+<line x1="547.2" y1="20" x2="547.2" y2="196" stroke="#eb6834" stroke-width="1.5"/>
+<text x="551.2" y="66" font-size="9.5" fill="#0b0b0b">old rule fires 02:51</text>
+<text x="46" y="14" font-size="9" fill="#898781">SpO2 %, 3-minute median · warned 17 min before the limit, 29 min before the old rule</text>
+</svg>
+<figcaption>Figure 8. One unseen simulated night with falling oxygen, replayed minute by minute. The doctor gets the early warning at 02:22. The true oxygen level crosses 94 % at 02:39, and the old rule reacts only at 02:51.</figcaption>
+</figure>
+<table class="small" style="break-inside: avoid">
+<tr><th>Next-minutes forecast, mean absolute error (unseen nights)</th><th class="num">+10 min</th><th class="num">+20 min</th><th class="num">"same as now" (+20)</th><th class="num">straight-line trend (+20)</th></tr>
+<tr><td>heart rate (bpm)</td><td class="num">2.56</td><td class="num"><b>2.86</b></td><td class="num">3.61</td><td class="num">7.43</td></tr>
+<tr><td>SpO2 (%)</td><td class="num">0.38</td><td class="num"><b>0.39</b></td><td class="num">0.52</td><td class="num">1.05</td></tr>
+<tr><td>skin temperature (°C)</td><td class="num">0.058</td><td class="num"><b>0.064</b></td><td class="num">0.078</td><td class="num">0.171</td></tr>
+</table>
+<p class="small"><b>Restless night:</b> 94.9 % of restless nights were warned, by 01:00 (median), and 1.5 % of other nights were warned. AUROC: 0.966 at 01:00, 0.986 at 03:00.</p>
+<p class="small" style="margin-bottom:2px"><b>How it was built:</b></p>
+<ul class="small">
+<li>A first linear forecast learned that blips come back to normal and never warned.</li>
+<li>Gradient-boosting models learn how a real decline differs from a passing dip, wake-up or loose ring.</li>
+<li>Thresholds were set on held-out training nights (no more than 0.05 false warnings per night): HR 0.35, SpO2 0.45, temperature 0.85.</li>
+<li>Replaying 20 nights one minute at a time gave exactly the same warnings.</li>
+</ul>
+<p class="small"><b>Limits:</b> the situations, slopes and artefacts come from my simulator. These numbers show the mechanism, not real-world accuracy, which needs a real ring and doctor-reviewed flags.</p>
+
 <h2>7. Live ring monitoring and the weekly doctor loop</h2>
 <figure>
 <svg viewBox="0 0 760 215" role="img" aria-label="Weekly doctor loop: ring samples are checked by the monitor, which writes flags; the weekly job writes reports and proposes bands; the doctor reviews flags and approves or edits bands; the active band is then used for the next nights; reviewed flags feed a feedback gate that never deploys automatically.">
@@ -831,16 +889,17 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <h2>9. Tests and quality</h2>
 <table class="small">
 <tr><th style="width:28%">File</th><th class="num" style="width:7%">tests</th><th>What it guards</th></tr>
-<tr><td><code>tests/test_db.py</code></td><td class="num">48</td><td>Validation policy cases; duplicates flagged not dropped; labelling constraints; import dedup and same-file refusal; one active care plan; patient / doctor / admin / logged-out visibility; forbidden writes; doctor notes hidden; ML tables doctor-only; Algerian fields; wearable checks; band approval supersedes and is audited; live REST API enforces access.</td></tr>
+<tr><td><code>tests/test_db.py</code></td><td class="num">49</td><td>Validation policy cases; duplicates flagged not dropped; labelling constraints; import dedup and same-file refusal; one active care plan; patient / doctor / admin / logged-out visibility; forbidden writes; doctor notes hidden; ML tables doctor-only; Algerian fields; wearable checks; band approval supersedes and is audited; live REST API enforces access.</td></tr>
 <tr><td><code>tests/test_ingest.py</code></td><td class="num">5</td><td>CSV parsing, row-level rejections, missing columns, unknown time zone, deterministic seed labelled simulated.</td></tr>
-<tr><td><code>tests/test_simulate_stability.py</code></td><td class="num">5</td><td>SHA-256 fingerprints of the BP data (ring and condition changes can't alter BP); ring samples pass the table checks; the cloud refresh deletes only simulated demo-ring samples; chronic conditions shape ring values.</td></tr>
+<tr><td><code>tests/test_simulate_stability.py</code></td><td class="num">7</td><td>SHA-256 fingerprints of the BP data (ring and condition changes can't alter BP); the 30-day holdout cohort is unseen; ring samples and live situations pass the table checks; the cloud refresh deletes only simulated demo-ring samples; chronic conditions shape ring values.</td></tr>
+<tr><td><code>ml/tests/test_live.py</code></td><td class="num">6</td><td>Falling oxygen and climbing heart rate are warned before the limit; loose ring and bathroom spike are not; whole night = minute by minute; limits follow COPD / AF / bands; 2-minutes-in-a-row and 30-minute quiet rule; the live monitor writes one early warning and nothing else (rolled back).</td></tr>
 <tr><td><code>ml/tests/test_ml.py</code></td><td class="num">6</td><td>Home-BP categories; no patient overlap; features only from earlier days; short history → insufficient; deterministic training; the predict job writes only predictions for assigned patients.</td></tr>
 <tr><td><code>ml/tests/test_ring.py</code></td><td class="num">7</td><td>CSV and database give identical nights; conditions change references; baseline uses earlier nights and skips confirmed anomalies; doctor band overrides baseline; live windows; late rows caught; seeded episode flagged.</td></tr>
 <tr><td><code>ml/tests/test_weekly.py</code></td><td class="num">3</td><td>Band maths; regression gate blocks lower recall; full weekly report and doctor band loop through RLS.</td></tr>
 <tr><td><code>ml/tests/test_classify.py</code></td><td class="num">3</td><td>Next-week label with the OR rule; features never see the label; deterministic training; the report gets a probability.</td></tr>
 <tr><td><code>ml/tests/test_real.py</code></td><td class="num">9</td><td>Raw real data is git-ignored; weighted percentiles; NHANES mapping and population; PULSE fields map to the same features; Mendeley parsing; pulse placement band; ODI-4 counts real desaturations.</td></tr>
 </table>
-<p class="small" id="test-result"><b>Latest full run (30 Oct 2026):</b> <b>86 / 86 passed</b> on the local database. The full suite gave 84 passed, 2 skipped (the live-login tests need the demo password in the environment); those 2 then passed when run with the password loaded from <code>.env</code>.</p>
+<p class="small" id="test-result"><b>Latest full run (30 Oct 2026):</b> <b>95 / 95 passed</b> on the local database (the live-login tests run with the demo password loaded from <code>.env</code>). Every test write is rolled back: the demo data is unchanged.</p>
 
 <h2>10. Commands (Windows, repo <code>Desktop\pulse</code>)</h2>
 <table class="small">
@@ -854,6 +913,8 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <tr><td><code>... -m pulse_ml.real_bands</code> · <code>wrisk</code> · <code>real_tests all</code></td><td>NHANES bands, <code>wrisk-v1</code>, real-data tests</td></tr>
 <tr><td><code>... -m pulse_ml.predict --all</code> · <code>monitor --nights</code> · <code>weekly</code></td><td>The three jobs (local by default; <code>DATABASE_URL</code> for the cloud)</td></tr>
 <tr><td><code>... -m pulse_data.stream --scenario spo2_dip --minutes 1</code></td><td>Simulated live ring (refuses the cloud without <code>--i-confirmed-cloud</code>)</td></tr>
+<tr><td><code>... -m pulse_data.live_sim --out data/live/test --seed 2027</code> · <code>... -m pulse_ml.live_test</code></td><td>Minute-level situations; train + minute-by-minute test of <code>live-v1</code></td></tr>
+<tr><td><code>... -m pulse_ml.monitor --follow</code> + <code>... -m pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6</code></td><td>Live demo: an early warning before the limit (adds simulated samples to the local database)</td></tr>
 <tr><td><code>scripts\cloud_update.ps1</code></td><td>Cloud: pending migrations + ring demo refresh + check (<span class="pill live">DONE</span> 30 Oct)</td></tr>
 <tr><td><code>scripts\run_cloud_jobs.ps1</code></td><td>Cloud: run the 3 jobs (<code>DATABASE_URL</code> from <code>.env</code>, or a temporary login from the linked Supabase CLI) (<span class="pill live">DONE</span> 30 Oct)</td></tr>
 <tr><td><code>.venv\Scripts\python -m pytest</code></td><td>All tests (local stack running)</td></tr>
@@ -874,7 +935,8 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <tr><th style="width:4%">#</th><th style="width:56%">Step</th><th style="width:18%">Who</th><th>Status</th></tr>
 <tr><td>1</td><td>Run the 3 ML jobs on the cloud to fill the 4 ML tables, then a read-only check</td><td>Data/AI</td><td><span class="pill live">DONE</span> 30 Oct</td></tr>
 <tr><td>2</td><td>Share the demo password privately; send the backend the message in <code>docs/data/CLOUD_STEPS.md</code></td><td>You</td><td><span class="pill none">OPEN</span></td></tr>
-<tr><td>3</td><td>Backend: alert rules writing to Supabase; weekly report, flag review and band approval endpoints; R-RING-1</td><td>Backend</td><td><span class="pill prop">TO BUILD</span></td></tr>
+<tr><td>2b</td><td>Push M9 to the cloud and run <code>monitor --follow</code> where the backend hosts its jobs, so early warnings reach the doctor live</td><td>You (OK), then data/AI + backend</td><td><span class="pill none">OPEN</span></td></tr>
+<tr><td>3</td><td>Backend: alert rules writing to Supabase; weekly report, flag review (now including early warnings) and band approval endpoints; R-RING-1</td><td>Backend</td><td><span class="pill prop">TO BUILD</span></td></tr>
 <tr><td>4</td><td>Frontend: doctor panels for the BP estimate, ring flags, weekly report, band approval; profile fields</td><td>Frontend</td><td><span class="pill prop">TO BUILD</span></td></tr>
 <tr><td>5</td><td>Clinician review: 180/120, red flags, SpO2 94 / 88 %, band rule, wording</td><td>Medical mentor</td><td><span class="pill live">DONE</span> 30 Oct</td></tr>
 <tr><td>6</td><td>Algerian emergency number: <b>14</b>. Backend sets <code>dz-14</code> to verified in <code>api/app/config.py</code></td><td>Team, then backend</td><td><span class="pill live">DECIDED</span> 30 Oct</td></tr>

@@ -751,7 +751,7 @@ CREATE TABLE public.patient_profiles (
     CONSTRAINT patient_profiles_adds_salt_at_table_check CHECK ((adds_salt_at_table = ANY (ARRAY['never'::text, 'rarely'::text, 'sometimes'::text, 'often'::text, 'always'::text]))),
     CONSTRAINT patient_profiles_birth_year_check CHECK (((birth_year >= 1900) AND (birth_year <= 2100))),
     CONSTRAINT patient_profiles_bread_portions_per_day_check CHECK (((bread_portions_per_day >= 0) AND (bread_portions_per_day <= 20))),
-    CONSTRAINT patient_profiles_condition_codes_check CHECK ((condition_codes <@ ARRAY['hypertension'::text, 'diabetes'::text, 'dyslipidemia'::text, 'chronic_kidney_disease'::text, 'heart_disease'::text, 'stroke_history'::text, 'pregnancy'::text])),
+    CONSTRAINT patient_profiles_condition_codes_check CHECK ((condition_codes <@ ARRAY['hypertension'::text, 'diabetes'::text, 'dyslipidemia'::text, 'chronic_kidney_disease'::text, 'heart_disease'::text, 'stroke_history'::text, 'pregnancy'::text, 'copd'::text, 'asthma'::text, 'obstructive_sleep_apnea'::text, 'atrial_fibrillation'::text, 'heart_failure'::text, 'thyroid_disease'::text])),
     CONSTRAINT patient_profiles_salty_processed_food_check CHECK ((salty_processed_food = ANY (ARRAY['never'::text, 'rarely'::text, 'sometimes'::text, 'often'::text, 'always'::text]))),
     CONSTRAINT patient_profiles_sex_check CHECK ((sex = ANY (ARRAY['female'::text, 'male'::text]))),
     CONSTRAINT patient_profiles_smoking_status_check CHECK ((smoking_status = ANY (ARRAY['never'::text, 'former'::text, 'current'::text])))
@@ -838,12 +838,14 @@ CREATE TABLE public.wearable_flags (
     CONSTRAINT wearable_flags_check CHECK ((window_end > window_start)),
     CONSTRAINT wearable_flags_check1 CHECK (((kind = 'multivariate_anomaly'::text) = (metric = 'multivariate'::text))),
     CONSTRAINT wearable_flags_check2 CHECK (((review_status = 'open'::text) = (reviewed_at IS NULL))),
-    CONSTRAINT wearable_flags_kind_check CHECK ((kind = ANY (ARRAY['outside_reference'::text, 'personal_anomaly'::text, 'multivariate_anomaly'::text]))),
-    CONSTRAINT wearable_flags_metric_check CHECK ((metric = ANY (ARRAY['heart_rate'::text, 'hrv_rmssd'::text, 'spo2'::text, 'skin_temperature'::text, 'multivariate'::text]))),
+    CONSTRAINT wearable_flags_forecast_check CHECK (((kind = 'early_warning'::text) = (window_kind = 'forecast'::text))),
+    CONSTRAINT wearable_flags_kind_check CHECK ((kind = ANY (ARRAY['outside_reference'::text, 'personal_anomaly'::text, 'multivariate_anomaly'::text, 'early_warning'::text]))),
+    CONSTRAINT wearable_flags_metric_check CHECK ((metric = ANY (ARRAY['heart_rate'::text, 'hrv_rmssd'::text, 'spo2'::text, 'skin_temperature'::text, 'multivariate'::text, 'sleep'::text]))),
     CONSTRAINT wearable_flags_reference_basis_check CHECK ((length(reference_basis) <= 300)),
     CONSTRAINT wearable_flags_review_note_check CHECK ((length(review_note) <= 2000)),
     CONSTRAINT wearable_flags_review_status_check CHECK ((review_status = ANY (ARRAY['open'::text, 'confirmed'::text, 'dismissed'::text]))),
-    CONSTRAINT wearable_flags_window_kind_check CHECK ((window_kind = ANY (ARRAY['live_10min'::text, 'night'::text])))
+    CONSTRAINT wearable_flags_sleep_check CHECK (((metric <> 'sleep'::text) OR (kind = 'early_warning'::text))),
+    CONSTRAINT wearable_flags_window_kind_check CHECK ((window_kind = ANY (ARRAY['live_10min'::text, 'night'::text, 'forecast'::text])))
 );
 
 

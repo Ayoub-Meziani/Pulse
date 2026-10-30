@@ -411,6 +411,23 @@ def test_flag_and_report_review_by_assigned_doctor(db):
     fails(db, Denied, "update public.weekly_reports set summary = '{}' where id = %s", (report,))  # job-only column
 
 
+def test_m9_early_warnings_are_forecast_flags_for_the_doctor_only(db):
+    db.execute("delete from public.wearable_flags")  # local job runs may have left rows
+    q = ("insert into public.wearable_flags (patient_id, metric, kind, window_kind, window_start, window_end, value,"
+         " score, reference_basis, model_version) values (%s, %s, %s, %s, now(), now() + interval '20 minutes', 93.1,"
+         " 0.8, 'forecast:test', 'live-v1')")
+    db.execute(q, (KARIM, "spo2", "early_warning", "forecast"))
+    db.execute(q, (KARIM, "sleep", "early_warning", "forecast"))                       # "this night is going badly"
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, "heart_rate", "early_warning", "live_10min"))
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, "heart_rate", "outside_reference", "forecast"))
+    fails(db, psycopg.errors.CheckViolation, q, (KARIM, "sleep", "personal_anomaly", "night"))
+    as_user(db, KARIM)
+    assert visible_patients(db, "wearable_flags") == set()                             # patients see no ML output (M4)
+    db.execute("reset role")
+    as_user(db, sim.DOCTOR.id)
+    assert visible_patients(db, "wearable_flags") == {KARIM}
+
+
 def test_new_tables_have_no_anon_access(db):
     as_user(db, None, role="anon")
     for table in ("alert_measurements", "ml_predictions", "body_measurements", "wearable_samples"):

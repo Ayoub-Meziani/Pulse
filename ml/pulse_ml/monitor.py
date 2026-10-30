@@ -3,7 +3,8 @@
     cd ml && ..\\.venv\\Scripts\\python -m pulse_ml.monitor --nights [--days 35]
         night windows of actively assigned patients: reference, personal baseline / approved band, IsolationForest
     cd ml && ..\\.venv\\Scripts\\python -m pulse_ml.monitor --follow [--every 5]
-        live 10-minute windows, polling new samples by created_at with a 5-minute overlap [review M6]
+        live 10-minute windows, polling new samples by created_at with a 5-minute overlap [review M6], plus the
+        live-v1 early warnings (pulse_ml.live: forecast of the next 20 minutes, restless night) for the newest minute
 
 Uses DATABASE_URL (default: local stack). Prints counts only, never health values.
 """
@@ -17,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 import joblib
 import pandas as pd
 
-from . import ring
+from . import live, ring
 from .predict import PATIENTS, connect
 from .train import ARTIFACTS
 
@@ -79,9 +80,59 @@ def run_nights(conn, forest=None, days: int = 35) -> int:
                                                conditions=patient_conditions(conn, tz)))
 
 
-def poll_once(conn, watermark: datetime) -> tuple[datetime, int]:
+def load_live():
+    path = ARTIFACTS / live.MODEL_VERSION / "model.joblib"
+    return joblib.load(path) if path.exists() else None
+
+
+def live_warnings(conn, patients: set, tz: dict, bundle) -> list[dict]:
+    """live-v1 early warnings for the newest minute of each patient (advisory, doctor only). Personal normal = the
+    median of the previous nights (14 days); history = the last 6 hours (forecast: last 60 min; sleep: since 00:00)."""
+    now = conn.execute("select now()").fetchone()[0]
+    rows = conn.execute("select patient_id::text, metric, value, measured_at from public.wearable_samples"
+                        " where patient_id = any(%s::uuid[]) and measured_at > %s - interval '14 days'",
+                        (sorted(patients), now)).fetchall()
+    if not rows:
+        return []
+    samples = ring.from_db(rows, tz)
+    conditions, bands = patient_conditions(conn, patients), active_bands(conn)
+    warned = conn.execute("select patient_id::text, metric, max(window_start) from public.wearable_flags"
+                          " where kind = 'early_warning' and window_start > %s - interval '30 minutes'"
+                          " and patient_id = any(%s::uuid[]) group by 1, 2", (now, sorted(patients))).fetchall()
+    out = []
+    for patient, s in samples.groupby("patient"):
+        zone = _zone(tz.get(patient))
+        local_now = pd.Timestamp(now.astimezone(zone)).tz_localize(None)
+        recent = s[s.utc > now - timedelta(hours=6)]
+        if recent.empty or (pd.Timestamp(now) - recent.utc.max()) > pd.Timedelta(minutes=2):
+            continue                                              # nothing measured in the last 2 minutes
+        before = s[s.local < local_now.normalize()]
+        previous = ring.night_table(before) if len(before) else pd.DataFrame()
+        ctx = live.Context(personal={m: float(previous[m].median()) for m in (*live.METRICS, "hrv_rmssd")
+                                     if m in previous and previous[m].notna().any()},
+                           conditions=conditions.get(patient, ()),
+                           bands={m: b for (p, m, st), b in bands.items() if p == patient and st == "live_10min_median"})
+        t = live.table(recent.assign(minute=recent.local.dt.floor("min"))[["minute", "metric", "value"]])
+        last = {m: pd.Timestamp(w.astimezone(zone)).tz_localize(None) for p, m, w in warned if p == patient}
+        out += live.latest_warnings(t.iloc[-live.HISTORY_MINUTES:], ctx, bundle, last, patient, str(zone))
+        minute_of_night = local_now.hour * 60 + local_now.minute
+        if live.SLEEP_FROM <= minute_of_night < 360 and "heart_rate" in t:
+            checkpoint = local_now.normalize() + pd.Timedelta(minutes=minute_of_night // live.SLEEP_EVERY * live.SLEEP_EVERY)
+            night = t[(t.index >= local_now.normalize()) & (t.index <= checkpoint)]
+            if len(night) >= live.SLEEP_FROM and (p := live.sleep_risk(night, ctx, bundle)) >= live.SLEEP_P:
+                start = local_now.normalize().tz_localize(str(zone))
+                out.append(dict(patient_id=patient, metric="sleep", kind="early_warning", window_kind="forecast",
+                                window_start=start, window_end=start + pd.Timedelta(hours=6), value=None,
+                                score=round(p, 3), reference_basis=f"forecast:{live.MODEL_VERSION}:restless_night:"
+                                                                   f"P>={live.SLEEP_P}", band_id=None,
+                                model_version=live.MODEL_VERSION))
+    return out
+
+
+def poll_once(conn, watermark: datetime, live_bundle=None) -> tuple[datetime, int]:
     """Live step: samples created since (watermark - 5 min overlap) mark the 10-minute buckets to re-evaluate;
-    re-reading with overlap + dedup on insert means a late-committed row is not lost [review M6]."""
+    re-reading with overlap + dedup on insert means a late-committed row is not lost [review M6]. With live_bundle,
+    the live-v1 early warnings are added for the patients with new samples."""
     tz = assigned(conn)
     new = conn.execute("select patient_id::text, measured_at, created_at from public.wearable_samples"
                        " where created_at > %s and measured_at > now() - %s and patient_id = any(%s::uuid[])",
@@ -89,11 +140,14 @@ def poll_once(conn, watermark: datetime) -> tuple[datetime, int]:
     if not new:
         return watermark, 0
     start = min(m for _, m, _ in new) - timedelta(minutes=2 * ring.LIVE_MINUTES)
+    patients = {p for p, _, _ in new}
     rows = conn.execute("select patient_id::text, metric, value, measured_at from public.wearable_samples"
                         " where patient_id = any(%s::uuid[]) and measured_at >= %s",
-                        (sorted({p for p, _, _ in new}), start)).fetchall()
+                        (sorted(patients), start)).fetchall()
     flags = ring.live_flags(ring.live_buckets(ring.from_db(rows, tz)), active_bands(conn),
-                            patient_conditions(conn, {p for p, _, _ in new}))
+                            patient_conditions(conn, patients))
+    if live_bundle is not None:
+        flags += live_warnings(conn, patients, tz, live_bundle)
     return max(watermark, max(c for _, _, c in new)), insert_flags(conn, flags)
 
 
@@ -114,10 +168,10 @@ def main() -> None:
         if a.nights:
             print(json.dumps({"mode": "nights", "flags_written": run_nights(conn, load_forest(), a.days)}))
             return
-        watermark = datetime.now(timezone.utc) - timedelta(minutes=1)
-        print(json.dumps({"mode": "follow", "every_s": a.every}), flush=True)
+        watermark, bundle = datetime.now(timezone.utc) - timedelta(minutes=1), load_live()
+        print(json.dumps({"mode": "follow", "every_s": a.every, "early_warnings": bundle is not None}), flush=True)
         while True:
-            watermark, n = poll_once(conn, watermark)
+            watermark, n = poll_once(conn, watermark, bundle)
             if n:
                 print(json.dumps({"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "flags_written": n}),
                       flush=True)

@@ -61,6 +61,22 @@ def test_ring_samples_pass_the_table_checks():
     assert len(simulate.wearable_rows()) == len(simulate.WEARABLE_KEYS) * simulate.SEED_RING_DAYS * 62
 
 
+def test_live_situations_pass_the_table_checks():
+    """Minute-level live nights (pulse_data.live_sim) use the wearable_samples metric/unit pairs and ranges."""
+    import random
+    from pulse_data import live_sim
+    allowed = {"heart_rate": ("bpm", 25, 250), "hrv_rmssd": ("ms", 1, 300), "spo2": ("percent", 50, 100),
+               "skin_temperature": ("celsius", 20, 45)}
+    for situation in live_sim.SITUATIONS:
+        samples, truth = live_sim.night(random.Random(situation), situation)
+        assert truth["situation"] == situation and len(samples) == live_sim.NIGHT_MINUTES * 2 + 72 * 2
+        for metric, value, unit, minute in samples:
+            u, lo, hi = allowed[metric]
+            assert unit == u and lo <= value <= hi and 0 <= minute < live_sim.NIGHT_MINUTES
+        if situation in ("oxygen_falling", "heart_rate_climbing", "fever_starting"):
+            assert truth["onset"] is not None and truth["metric"]
+
+
 def test_cloud_ring_refresh_only_touches_simulated_demo_rings():
     script = simulate.cloud_ring_demo_sql()
     deletes = [line for line in script.splitlines() if line.startswith("delete")]

@@ -89,6 +89,20 @@ Night statistic: the night **median** for every metric. For SpO2 (6 samples per 
 2. **`monitor --follow` + `stream --scenario spo2_dip --minutes 1`** (default patient Nadia): a live `outside_reference` SpO2 flag for Nadia within about 10 s.
 3. **`weekly`:** 11 reports and 43 band proposals; Fatima's proposed SpO2 band is 89.8–92.8 %, waiting for the doctor.
 
+## Live ring engine (`live-v1`): warns the doctor BEFORE a limit is crossed
+Every new minute of ring data is checked by `pulse_ml.live`, inside `monitor --follow` (needs migration M9):
+- **Forecast:** the value in 10 and 20 minutes.
+- **Early warning:** fires when the patient is still inside the limit but P(limit crossed within 20 min) is high, 2 minutes in a row, at most 1 per metric every 30 minutes. The limits are SpO2 94 % (COPD 88 %), resting HR 100 (or the doctor's live band), and temperature personal normal + 1 °C.
+- **Night going badly:** checked every 30 minutes from 01:00.
+
+These warnings are advisory, for the doctor only (the `wearable_flags` rows `early_warning` / `forecast`).
+
+| Command | What |
+|---|---|
+| `..\.venv\Scripts\python -m pulse_data.live_sim --out data/live/train --nights 700 --seed 11` and `... --out data/live/test --nights 700 --seed 2027` (repo root) | minute-level SIMULATED nights: normal, bad sleep, sleep apnea, oxygen falling, heart rate climbing, fever starting, false-alarm traps |
+| `..\.venv\Scripts\python -m pulse_ml.live_test` | trains `live-v1` (seed 11; thresholds on held-out training nights) and tests it minute by minute on the unseen seed-2027 nights → `artifacts/live-v1/` |
+| `..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5` + `..\.venv\Scripts\python -m pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6` (repo root) | live demo on the local stack: an `early_warning` row before the `outside_reference` row (the stream adds simulated samples) |
+
 ## Training commands (all from `ml/`, synthetic data from `python -m pulse_data.simulate csv` at the repo root)
 | Command | Model | Time |
 |---|---|---|

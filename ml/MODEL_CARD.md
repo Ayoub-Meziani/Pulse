@@ -7,6 +7,7 @@
 | `wcls-v1.1` | P(next week's home BP above target) | synthetic `pulse-sim-v2` | in the weekly report |
 | `mbp-v2.1` | mbp-v1.1 + ring features | synthetic | experiment, not served |
 | `wrisk-v1` | P(BP uncontrolled despite treatment) | **real** NHANES (2,309 people) | evaluated, **not shown** (too weak) |
+| `live-v1` | live ring: warn the doctor BEFORE SpO2 / HR / temperature cross a limit; night going badly | synthetic minute-level nights (`live_sim`) | built; flags need M9 |
 
 All models are Python (pandas, numpy, scikit-learn). None of them creates alerts, decides an emergency or touches medication. Sources and data terms: `docs/data/DATA_SOURCES.md`.
 
@@ -114,6 +115,46 @@ The 0.04 mmHg gain is within the noise, and the ring↔BP coupling is invented, 
 **Real population bands (NHANES):** survey-weighted seated pulse and BP percentiles by sex × age in `pulse_ml/reference_nhanes.json`. The weekly report places the patient's seated **cuff** pulse in its band; it's context, not a threshold.
 
 ---
+
+## `live-v1`: live ring, warns BEFORE a limit is crossed (30 Oct 2026)
+- **Use:** in `monitor --follow` the engine checks every new minute; written as M9 `wearable_flags` rows; advisory, doctor only.
+- **Data:** `pulse_data.live_sim`, 700 training nights (seed 11) and 700 **unseen** test nights (seed 2027). There's no real minute-level ring data, so slopes, wake-up bouts and artefacts are assumptions.
+- **Models:**
+  - forecast of the value at +10 / +20 min: gradient boosting on past-only features
+  - early warning: P(limit crossed within 20 min), gradient-boosting classifier. Thresholds were chosen on 140 held-out training nights (≤ 0.05 false warnings per night): HR 0.35, SpO2 0.45, temperature 0.85.
+  - restless night: logistic regression at the 30-minute checkpoints
+- **Why not a linear forecast:** a first ridge version learned "it comes back to normal" (most blips do) and never warned.
+
+| test situation (unseen nights) | nights | warned before the limit was crossed | warning came (median, IQR) | existing "limit crossed now" rule |
+|---|---|---|---|---|
+| oxygen falling | 93 | **93.5 %** | **17 min before** (13–21) | 7 min after |
+| heart rate climbing | 103 | **97.1 %** | **20 min before** (16–24) | 9 min after |
+| fever starting (temperature) | 73 | **94.5 %** | **17 min before** (13–22) | (no rule) |
+
+**Early warnings on nights with nothing planted:**
+
+| night | early warnings per night |
+|---|---|
+| normal | 0.04 |
+| loose ring / bathroom spike | 0.03 |
+| restless (heart-rate wake-ups) | 0.11 |
+| sleep apnea | 0 |
+
+The existing "now" rule flagged low oxygen on 98.3 % of sleep-apnea nights.
+
+**Restless night:**
+- Restless nights were warned in 94.9 % of cases, at a median of **01:00**; 1.5 % of other nights were warned.
+- AUROC: 0.966 at 01:00, 0.979 at 02:00, 0.986 at 03:00.
+
+| forecast error (mean absolute) | +10 min | +20 min | "same as now" (+20) | straight-line trend (+20) |
+|---|---|---|---|---|
+| heart rate (bpm) | 2.56 | 2.86 | 3.61 | 7.43 |
+| SpO2 (%) | 0.38 | 0.39 | 0.52 | 1.05 |
+| skin temperature (°C) | 0.058 | 0.064 | 0.078 | 0.171 |
+
+**Speed:** about **44 ms per new minute** per patient (p95 81 ms). Replaying 20 nights one minute at a time gave exactly the same warnings as scoring each whole night at once.
+
+**Reading:** on these simulated situations the engine warns about 17–20 minutes before the limit, where the existing rule reacts about 7–9 minutes after it, with few false warnings. The situations come from my simulator, so these numbers show the mechanism works. They don't measure real-world accuracy, which needs a real ring and doctor-reviewed flags.
 
 ## 30-day day-by-day test on patients no model has seen (30 Oct 2026)
 `python -m pulse_ml.backtest` → `artifacts/backtest-30d/results.json`.

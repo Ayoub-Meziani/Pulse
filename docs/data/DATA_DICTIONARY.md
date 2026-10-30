@@ -142,11 +142,11 @@ doctor_id, patient_id, note, advice, follow_up_at. Readable by assigned doctors 
 Model estimates, never measurements. `target_date` (patient-local), `target` = morning_mean_bp, `status` ok|insufficient_history (values present iff ok), predicted systolic/diastolic + interval, `model_version`, `trained_on` (e.g. `synthetic:pulse-sim-v1`), `features_until`, `n_readings_used`. Unique per (patient, date, model). **Assigned doctors and admin only**; written by the ML batch job.
 
 ### wearable_flags, patient_bands, weekly_reports (M7, advisory, doctor / admin only)
-- **wearable_flags:** the ring monitor's flags, reviewed by the doctor (confirmed / dismissed). Never alerts, never a safety trigger.
+- **wearable_flags:** the ring monitor's flags, reviewed by the doctor (confirmed / dismissed). Never alerts, never a safety trigger. Since M9 they also include **early warnings** (`kind = early_warning`, `window_kind = forecast`): the live engine `live-v1` expects a limit to be crossed within 20 minutes (`score` = probability, `value` = forecast), or `metric = sleep` (the night is going badly).
 - **patient_bands:** personal ring ranges. The model proposes; only the doctor activates, via `private.approve_band`.
 - **weekly_reports:** the weekly summary for the doctor: home-BP category, control vs the care-plan target, model outputs, and the ring summary.
 
-Field lists and access: [MIGRATIONS.md](MIGRATIONS.md) (M7).
+Field lists and access: [MIGRATIONS.md](MIGRATIONS.md) (M7, M9).
 
 ### trusted_contacts / emergency_events
 Contacts: name, relationship, phone, consented_at, active. Emergency events: trigger_reason, symptoms_snapshot, location only if `location_shared_with_consent`, `actions_attempted` `[{action, at, confirmed}]` (`confirmed` only when actually verified), reported_outcome, started/ended.

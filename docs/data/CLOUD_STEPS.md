@@ -51,5 +51,11 @@ Read-only checks: counts, access rules, ML outputs; the docs were updated.
 - **Clinician review:** done 30 Oct 2026 by the team's medical mentor (alert thresholds 180/120, red-flag symptoms, SpO2 94 % / COPD 88 %, band rule, patient wording).
 - **Emergency number for Algeria:** decided 30 Oct 2026: **14** (Protection civile). Never dial it in tests or the demo; demo mode uses a teammate's phone.
 
+## Live early warnings (M9, `live-v1`): local only for now
+- **Local:** M9 is applied (no row changed). The live engine runs inside `monitor --follow`.
+- **Cloud:** M9 is **not** pushed yet; it waits for the user's OK.
+- **When approved:** `npx -y supabase@2.122.0 db push --linked` (only M9 pending; additive). Then run `monitor --follow` where the backend hosts its jobs, so early warnings reach the doctor live.
+- **Local demo:** `monitor --follow` + `pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6`. The stream adds simulated samples to the local database.
+
 ## Claude may run the cloud steps (team approved, 30 Oct 2026)
 `db push --linked`, `db query --linked` and `scripts\run_cloud_jobs.ps1` (temporary CLI login, no stored password).
