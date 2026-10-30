@@ -50,6 +50,33 @@ export const ALERT_LEVEL = {
   emergency: { title: "Urgence", variant: "critical" },
 };
 
+// EvaluationOut.level -> heading on the result card. Presentation only: the level is the server's.
+export const EVALUATION_LEVEL = {
+  none: { title: "Mesure enregistrée", variant: "info" },
+  notice: { title: "Au-dessus de l'objectif", variant: "warning" },
+  trend: { title: "Tendance à surveiller", variant: "warning" },
+  severe: { title: "Tension très élevée", variant: "critical" },
+  emergency: { title: "Urgence", variant: "critical" },
+};
+
+// Symptom codes of the contract (schemas.Symptom), in the server's order. Which ones are red flags
+// is decided by the server, never here.
+export const SYMPTOMS = [
+  ["chest_pain", "Douleur dans la poitrine"],
+  ["shortness_of_breath", "Essoufflement"],
+  ["back_pain", "Douleur dans le dos"],
+  ["weakness", "Faiblesse"],
+  ["numbness", "Engourdissement"],
+  ["vision_change", "Trouble de la vision"],
+  ["difficulty_speaking", "Difficulté à parler"],
+  ["severe_headache", "Mal de tête intense"],
+  ["confusion", "Confusion"],
+  ["dizziness", "Vertiges"],
+  ["nausea", "Nausées"],
+  ["palpitations", "Palpitations"],
+  ["other", "Autre symptôme"],
+];
+
 export const ALERT_STATUS = {
   open: "ouverte",
   acknowledged: "prise en compte",

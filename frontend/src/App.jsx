@@ -3,6 +3,8 @@ import AlertsPage from "./pages/alerts/AlertsPage";
 import AppLayout from "./components/layout/AppLayout";
 import PatientDetails from "./pages/doctor/PatientDetails";
 import PatientDashboard from "./pages/patient/PatientDashboard";
+import AddReading from "./pages/patient/AddReading";
+import EmergencyScreen from "./pages/patient/EmergencyScreen";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import ProfilePage from "./pages/profile/ProfilePage";
 import RequireRole from "./auth/RequireRole";
@@ -32,6 +34,8 @@ export default function App() {
               path="/patient"
               element={<PatientDashboard />}
             />
+            <Route path="/patient/mesure" element={<AddReading />} />
+            <Route path="/patient/urgence" element={<EmergencyScreen />} />
           </Route>
 
           <Route element={<RequireRole roles={["doctor"]} />}>

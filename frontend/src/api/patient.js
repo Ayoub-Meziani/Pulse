@@ -1,4 +1,4 @@
-// Read endpoints of the patient dashboard (contract/openapi.json). Shapes are the server's.
+// Patient endpoints (contract/openapi.json). Shapes are the server's.
 import { request } from "./client";
 
 export function listMeasurements(patientId, { limit = 100, signal } = {}) {
@@ -11,4 +11,18 @@ export function getSummary(patientId, { signal } = {}) {
 
 export function listActiveAlerts(patientId, { signal } = {}) {
   return request(`/patients/${patientId}/alerts`, { query: { status: "active" }, signal });
+}
+
+// Reading flow. Each answer carries the server's deterministic evaluation (EvaluationOut).
+export function addMeasurement(patientId, body) {
+  return request(`/patients/${patientId}/measurements`, { method: "POST", body });
+}
+
+export function addSymptomReport(patientId, body) {
+  return request(`/patients/${patientId}/symptom-reports`, { method: "POST", body });
+}
+
+/** Public: numbers, disclaimer and the offline fallback values (EmergencyConfigOut). */
+export function getEmergencyConfig({ signal } = {}) {
+  return request("/config/emergency", { signal });
 }

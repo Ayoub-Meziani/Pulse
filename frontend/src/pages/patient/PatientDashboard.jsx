@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { getSummary, listActiveAlerts, listMeasurements } from "../../api/patient";
 import AlertCard from "../../components/alerts/AlertCard";
@@ -79,6 +80,20 @@ export default function PatientDashboard() {
       <section>
         <p className="text-sm font-medium text-blue-700">ESPACE PATIENT</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Bonjour, {user.full_name}</h1>
+        <p className="mt-2 text-slate-600">
+          Votre suivi repose sur les mesures et les symptômes que vous saisissez. Un bracelet connecté est facultatif.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link to="/patient/mesure" className="rounded-lg bg-blue-700 px-5 py-2.5 font-semibold text-white">
+            Nouvelle mesure
+          </Link>
+          <Link to="/patient/mesure?mode=symptomes" className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 font-semibold text-slate-800">
+            Signaler des symptômes
+          </Link>
+          <Link to="/patient/urgence" className="rounded-lg bg-red-600 px-5 py-2.5 font-semibold text-white">
+            Urgence
+          </Link>
+        </div>
       </section>
 
       <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3" aria-label="Résumé">
