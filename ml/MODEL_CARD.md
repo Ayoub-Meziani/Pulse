@@ -126,6 +126,46 @@ Same examples and same split as mbp-v1. Ring features: last night and 7-night me
   - The simulator's ring↔BP coupling is invented, so any gain is by construction.
 - **Decision:** mbp-v1 stays served (contract §4); switching needs a real win and the backend's agreement.
 
+---
+
+# Real-data results (30 Oct 2026; sources and terms in `docs/data/DATA_SOURCES.md`)
+
+## `wrisk-v1`: trained on REAL people (NHANES), NOT used in reports
+- **Question:** is a treated adult's BP uncontrolled (mean exam BP ≥ 140/90, systolic OR diastolic)?
+- **Features:** only ones PULSE stores (age, sex, BMI, waist, smoking, diabetes, high cholesterol, kidney disease, COPD, heart failure, stroke).
+- **Data:** 2,309 US adults taking BP medicine; person split 1,616 / 346 / 347; survey weights used. 31 % uncontrolled (weighted, test set).
+- **Selection:** logistic regression chosen on validation (weighted AUROC 0.568 vs 0.511 for gradient boosting).
+
+| test (347 real people) | AUROC | weighted AUROC | balanced accuracy | Brier |
+|---|---|---|---|---|
+| wrisk-v1 | 0.601 (0.540–0.664) | 0.623 | 0.528 | 0.225 |
+| baseline: age + sex only | 0.622 | 0.611 | – | 0.227 |
+
+**Reading:**
+- On real data these risk factors **cannot** tell whose BP will be controlled under treatment; the model is no better than age and sex.
+- Sensitivity analysis with 130/80: weighted AUROC 0.624.
+- Because an almost random score would mislead a doctor, it is **not** shown in weekly reports.
+- Its value is the finding itself: control has to be **measured** (PULSE's readings), not guessed from a profile.
+
+## `mbp-v1` on real home readings (Mendeley, 1 patient)
+- **Not applicable:** mbp-v1 needs ≥ 6 readings on ≥ 4 days in 7, and this series has 1 measurement every 3 days and no clock times.
+- **Realism check:** systolic change between measurements 3 days apart is 10.0 mmHg in the real patient against 6.5 in synthetic treated patients sampled the same way (SD 11.7 vs 6.7; lag-1 correlation 0.40 vs 0.24).
+- **Conclusion:** the simulator is too smooth, and real errors will likely exceed the synthetic 5.2 mmHg.
+- **Next step (proposed, not done):** a `pulse-sim-v2` with real-sized noise, then retrain mbp-v1 (needs a deliberate fingerprint update).
+
+## `ring-v1` SpO2 rules on real overnight recordings (PhysioNet Apnea-ECG)
+| group | recordings | night median SpO2 | ODI-4 / hour | time < 90 % | ring rule flagged (median of 6 samples < 94 %) |
+|---|---|---|---|---|---|
+| apnea | 4 | 86–92 % | 61 | 48 % | **4 / 4** |
+| borderline | 1 | 96 % | 1.5 | 0.5 % | 0 / 1 |
+| control | 3 | 95–96 % | 0.9 | 0.2 % | **0 / 3** |
+
+**Reading:**
+- The ring-cadence night-median rule separated apnea from non-apnea nights perfectly.
+- The night **minimum** would not: controls reach 57–69 % from sensor artefacts.
+- The simulator's sleep apnea is milder than these real severe cases.
+- It's a sleep-lab oximeter, not a ring, and only 8 nights: a sanity check, not a validation.
+
 ## Before any real use
 - Real, consented home readings: no open multi-patient home-BP dataset was found (`docs/data/DATA_SOURCES.md`).
 - Retraining and evaluation on real data, by patient and over time.

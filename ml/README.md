@@ -96,6 +96,16 @@ Night statistic: the night **median** for every metric. For SpO2 (6 samples per 
 | `..\.venv\Scripts\python -m pulse_ml.mbp_v2` | `mbp-v2` experiment vs v1 (**not served**) | ~80 s |
 Metrics and their honest reading: [MODEL_CARD.md](MODEL_CARD.md).
 
+## Real public data (NHANES, Mendeley home BP, PhysioNet Apnea-ECG)
+| Command (from `ml/`) | What |
+|---|---|
+| `..\.venv\Scripts\python -m pulse_ml.real_data fetch all` | downloads into git-ignored `data/external/<source>/` + `MANIFEST.json` (~200 MB, mostly PhysioNet); safe to re-run |
+| `..\.venv\Scripts\python -m pulse_ml.real_bands` | real population pulse / BP bands → `pulse_ml/reference_nhanes.json` (aggregated, committed) |
+| `..\.venv\Scripts\python -m pulse_ml.wrisk` | `wrisk-v1` on real NHANES people (evaluated; not used in reports, see MODEL_CARD) |
+| `..\.venv\Scripts\python -m pulse_ml.real_tests all` | realism check on real home BP + ring SpO2 rules on real overnight SpO2 → `real_tests` in the metadata |
+
+The weekly report adds `summary.pulse_vs_population`: the week's mean **seated cuff** pulse as a percentile among US adults of the same sex and age (NHANES). It's context, not a threshold, and it is never applied to ring night heart rate. Terms: NHANES statistics only, no re-identification; Mendeley non-commercial; PhysioNet attribution.
+
 ## Weekly doctor loop
 | Command (from `ml/`) | What |
 |---|---|

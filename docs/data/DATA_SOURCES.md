@@ -64,6 +64,22 @@ Ring values come from a separate random generator per patient, so the BP files a
 | SpO2 accuracy limits (darker skin pigmentation, circulation, nail polish) | FDA safety communication, 19 Feb 2021 ([summary](https://www.hpnonline.com/surgical-critical-care/med-surg-equipment/article/21211195/fda-safety-communication-pulse-oximeter-accuracy-and-limitations)) |
 | HRV, skin temperature | no population reference used; personal baseline only |
 
+### REAL datasets used (30 Oct 2026, `ml/pulse_ml/real_data.py`)
+All raw files stay in git-ignored `data/external/<source>/`, with a `MANIFEST.json` (URL, sha256, date). They are never committed or uploaded. Only aggregated statistics and trained models are committed, labelled `real:<source>`. Kaggle was **not** used: it needs an account token, and the popular BP / cardio sets have unclear licences or origins.
+
+| Source | What it is | Terms | Used for | Limits |
+|---|---|---|---|---|
+| [NHANES 2017–March 2020 pre-pandemic](https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/overviewbrief.aspx?Cycle=2017-2020) (CDC / NCHS) | Real exam data: 3 oscillometric BP and pulse readings (Omron HEM-907XL, 5-min seated rest), BMI, waist, smoking, diabetes, cholesterol, kidney, COPD, heart failure, stroke; survey weights | [NCHS data user agreement](https://www.cdc.gov/nchs/data_access/restrictions.htm): statistics only, no re-identification, no linkage | (1) **Real population bands** (`ml/pulse_ml/reference_nhanes.json`): weighted pulse and BP percentiles by sex × age. (2) **`wrisk-v1`** classifier (2,309 treated adults) | US population, not Algerian; exam (office-type) BP, not home BP; self-reported diagnoses; one visit |
+| [Mendeley pjcv33hpp7](https://data.mendeley.com/datasets/pjcv33hpp7/1) (Dvornik, Chuiko, Baganov, Shyian 2017) | 128 real home measurements (mean of 3 trials, Microlife BP 3AG1) of 1 treated 67-year-old man, every 3 days over 384 days | CC BY-NC 3.0 (non-commercial, credit) | Realism check of our simulator (BP variation between measurements) | 1 patient; no dates; mbp-v1 cannot run on a 3-day cadence |
+| [PhysioNet Apnea-ECG 1.0.0](https://physionet.org/content/apnea-ecg/1.0.0/) (Penzel et al. 2000) | 8 real overnight recordings with SpO2 (4 apnea, 1 borderline, 3 control) | Open Data Commons Attribution 1.0 | Real test of the ring SpO2 rules (night median vs 94 %, dips), ODI-4 | 8 nights; clinical sleep-lab oximeter, not a ring |
+
+**What the real data showed:**
+- **Safety band (pulse):** among US adults, the middle 95 % of seated pulse is about 50–97 bpm (e.g. men 45–59: 49.7–96.8). A pulse under 60 is common, which supports flagging only a **high** resting heart rate.
+- **Ring SpO2 rule:** the night median below 94 % at ring cadence (6 samples) flagged **4 / 4** apnea nights and **0 / 4** borderline / control nights. The night minimum would be useless, because even controls reach 57–69 % from sensor artefacts.
+- **The simulator is too smooth:** this real patient's systolic BP moves 10.0 mmHg between measurements 3 days apart (SD 11.7), against 6.5 (SD 6.7) for our synthetic treated patients sampled the same way. Real mbp-v1 errors will likely be larger than the synthetic 5.2 mmHg.
+- **The simulator's sleep apnea is milder than the real severe cases:** real night medians are 86–92 %, about 60 desaturations per hour.
+- **Risk factors alone barely predict BP control** under treatment: `wrisk-v1` AUROC 0.60 (0.54–0.66), no better than age and sex (0.62). It is **not** shown in doctor reports.
+
 ### Real wearable dataset considered (not downloaded)
 [PPG-DaLiA](https://archive.ics.uci.edu/dataset/495/ppg+dalia) (UCI, CC BY 4.0): 15 people, wrist PPG with ECG heart-rate ground truth, during daily activities (not rest or night). It is optional: only usable as a real heart-rate series to sanity-check false flags. Credit is required if it is used.
 
