@@ -14,6 +14,8 @@ Cloud project: `pulse` (ref `nfmfdhpxipdndggxtqho`).
 | M5 | `20261030130000_patient_birth_year.sql` | `patient_profiles.birth_year` | applied | applied 30 Oct (with M6, on the data/AI owner's decision; see below) | profile schemas may expose `birth_year` |
 | M6 | `20261030140000_algerian_factors_wearables.sql` | Algerian risk-factor fields, fasting logs, `body_measurements`, `wearable_samples` | applied | applied 30 Oct (same) | new optional fields and two read-only tables; nothing existing changes |
 
+| M7 | `20261030150000_ml_monitoring.sql` | `wearable_flags`, `patient_bands` (+ `private.approve_band`), `weekly_reports`, `wearable_samples(created_at)` index | applied | **NOT applied: needs backend review + the user's confirmation** (review M9) | endpoints for weekly reports, band approval, flag review (see ml/README.md) |
+
 **Note for the backend:** the data/AI owner chose to apply M5 and M6 to the cloud before your review, so the demo data could include them. Every change is additive (new nullable columns, a widened category list, two new tables). No existing column, constraint meaning or policy changed for current API behaviour. If you want something reverted, it will be a new migration (M7), never an edit.
 
 Check any environment with `npx supabase@2.122.0 migration list --linked` (cloud) or `--local`.
@@ -70,6 +72,21 @@ Still outside the database (by design): the emergency number (backend config), p
 
 **Access:** `body_measurements`: read by self, assigned doctor or admin; insert by the patient (`patient_reported`) or an assigned doctor (`clinician`); no update or delete. `wearable_samples`: read the same way; no client writes. Both revoke `anon`.
 BMI is computed when read (`weight_kg / (height_cm/100)^2`, using the latest height). Abdominal obesity uses the STEPS cut-offs: waist > 94 cm for men, > 80 cm for women.
+
+## M7 `ml_monitoring` (built as required by PULSE_ML_phase2_review.pdf)
+Everything in M7 is **advisory**: no safety rule reads these tables (review H6). The proposed ring safety rule R-RING-1 is evaluated by the backend directly on `wearable_samples` (spec in `ml/pulse_ml/reference.py`).
+
+| Object | What | Access |
+|---|---|---|
+| `wearable_flags` | Ring flags. `metric`: heart_rate, hrv_rmssd, spo2, skin_temperature, multivariate. `kind`: outside_reference, personal_anomaly, multivariate_anomaly (multivariate ⇔ multivariate_anomaly). `window_kind`: live_10min, night. One flag per (patient, metric, kind, window_start) | assigned doctor / admin read; doctor updates `review_status`, `reviewed_by` (must be the caller), `reviewed_at`, `review_note` only; job writes |
+| `patient_bands` | Personal ring bands (no BP bands: BP targets stay in `care_plans`, review H5). `statistic`: night_median, night_min, live_10min_median. `status` proposed → active → superseded, or rejected; one active per (patient, metric, statistic) | assigned doctor / admin read; doctor approves via `private.approve_band` or rejects (update with `approved_by` = caller) |
+| `private.approve_band(band_id, doctor_id, low, high)` | One transaction: supersede the active band, activate the proposed one. If the doctor changes low/high, `basis = doctor`. Checks that `doctor_id` is actively assigned, and equals `auth.uid()` when one is set | security invoker; execute granted to `authenticated`; private schema, so not an API endpoint |
+| `weekly_reports` | Weekly report per patient: `week_start` (patient-local Monday), `home_bp_category`, `control_status`, `next_week_above_target_prob`, `model_versions`, `summary` (numbers only) | assigned doctor / admin read; doctor updates `status`, `reviewed_by` (caller), `reviewed_at`, `doctor_comment` only |
+| audit | `private.audit()` on all three tables (review M3) | admin reads `audit_log` |
+| index | `wearable_samples (created_at)` for the monitor's watermark poll (review M6) | – |
+
+**Visibility decision (review M4):** patients do **not** see bands, flags or reports until the backend owner and a clinician decide what a patient should see. Recorded 30 Oct 2026.
+**Cloud gate (review M9):** M7 and any cloud write (ring re-seed, live stream) need backend review **and** the user's confirmation.
 
 ## How to add a migration
 1. New file `supabase/migrations/<UTC timestamp>_<name>.sql`. Never edit an applied one.

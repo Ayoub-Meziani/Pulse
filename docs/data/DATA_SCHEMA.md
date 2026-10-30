@@ -1,9 +1,10 @@
 # PULSE database schema (actual)
 
 **Scope:**
-- Source of truth: the 6 files in `supabase/migrations/` (M1–M6). History, cloud status and per-migration notes: [MIGRATIONS.md](MIGRATIONS.md).
-- Everything below was read from the local catalog (Postgres 17.11, port 55322) on 30 Oct 2026, with M1–M6 applied.
-- **Cloud project `pulse`:** M1–M6 applied. Demo data loaded (30 Oct).
+- Source of truth: the 7 files in `supabase/migrations/` (M1–M7). History, cloud status and per-migration notes: [MIGRATIONS.md](MIGRATIONS.md).
+- Everything below was read from the local catalog (Postgres 17.11, port 55322) on 30 Oct 2026, with M1–M7 applied.
+- **Cloud project `pulse`:** M1–M6 applied, demo data loaded (30 Oct). **M7 is local only** until backend review + the user's confirmation.
+- **M7 totals:** 24 tables, 49 foreign keys, 59 indexes, 131 CHECK constraints, 52 policies. M7 tables are described in [MIGRATIONS.md](MIGRATIONS.md#m7-ml_monitoring-built-as-required-by-pulse_ml_phase2_reviewpdf); the counts below are for M1–M6.
 - Field meanings, units and the validation policy are in [DATA_DICTIONARY.md](DATA_DICTIONARY.md). The per-role permissions matrix is in [API_CONTRACT.md](API_CONTRACT.md). Note: the team decided that the frontend calls FastAPI only; the matrix describes what the database itself allows.
 
 ## 1. ER diagram

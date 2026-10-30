@@ -46,6 +46,42 @@ COMMENT ON SCHEMA public IS 'standard public schema';
 
 
 --
+-- Name: approve_band(uuid, uuid, numeric, numeric); Type: FUNCTION; Schema: private; Owner: -
+--
+
+CREATE FUNCTION private.approve_band(p_band_id uuid, p_doctor_id uuid, p_low numeric DEFAULT NULL::numeric, p_high numeric DEFAULT NULL::numeric) RETURNS uuid
+    LANGUAGE plpgsql
+    SET search_path TO ''
+    AS $$
+declare
+  b public.patient_bands;
+  previous uuid;
+begin
+  select * into b from public.patient_bands where id = p_band_id for update;
+  if not found or b.status <> 'proposed' then
+    raise exception 'band % is not a visible proposed band', p_band_id using errcode = '23514';
+  end if;
+  if auth.uid() is not null and auth.uid() <> p_doctor_id then
+    raise exception 'the approving doctor must be the signed-in user' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.doctor_patient_assignments a
+                 where a.doctor_id = p_doctor_id and a.patient_id = b.patient_id and a.status = 'active') then
+    raise exception 'doctor is not actively assigned to this patient' using errcode = '42501';
+  end if;
+  update public.patient_bands set status = 'superseded'
+   where patient_id = b.patient_id and metric = b.metric and statistic = b.statistic and status = 'active'
+  returning id into previous;
+  update public.patient_bands
+     set status = 'active', approved_by = p_doctor_id, approved_at = now(), effective_from = current_date,
+         low = coalesce(p_low, b.low), high = coalesce(p_high, b.high), supersedes_id = previous,
+         basis = case when coalesce(p_low, b.low) <> b.low or coalesce(p_high, b.high) <> b.high
+                      then 'doctor' else b.basis end
+   where id = p_band_id;
+  return p_band_id;
+end $$;
+
+
+--
 -- Name: audit(); Type: FUNCTION; Schema: private; Owner: -
 --
 
@@ -662,6 +698,34 @@ CREATE TABLE public.ml_predictions (
 
 
 --
+-- Name: patient_bands; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.patient_bands (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    patient_id uuid NOT NULL,
+    metric text NOT NULL,
+    statistic text NOT NULL,
+    low numeric(6,2) NOT NULL,
+    high numeric(6,2) NOT NULL,
+    basis text NOT NULL,
+    status text DEFAULT 'proposed'::text NOT NULL,
+    proposed_model_version text,
+    approved_by uuid,
+    approved_at timestamp with time zone,
+    effective_from date,
+    supersedes_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT patient_bands_basis_check CHECK ((basis = ANY (ARRAY['reference'::text, 'model_proposal'::text, 'doctor'::text]))),
+    CONSTRAINT patient_bands_check CHECK ((low < high)),
+    CONSTRAINT patient_bands_check1 CHECK (((status <> 'active'::text) OR ((approved_by IS NOT NULL) AND (approved_at IS NOT NULL) AND (effective_from IS NOT NULL)))),
+    CONSTRAINT patient_bands_metric_check CHECK ((metric = ANY (ARRAY['heart_rate'::text, 'hrv_rmssd'::text, 'spo2'::text, 'skin_temperature'::text]))),
+    CONSTRAINT patient_bands_statistic_check CHECK ((statistic = ANY (ARRAY['night_median'::text, 'night_min'::text, 'live_10min_median'::text]))),
+    CONSTRAINT patient_bands_status_check CHECK ((status = ANY (ARRAY['proposed'::text, 'active'::text, 'superseded'::text, 'rejected'::text])))
+);
+
+
+--
 -- Name: patient_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -750,6 +814,40 @@ CREATE TABLE public.trusted_contacts (
 
 
 --
+-- Name: wearable_flags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.wearable_flags (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    patient_id uuid NOT NULL,
+    metric text NOT NULL,
+    kind text NOT NULL,
+    window_kind text NOT NULL,
+    window_start timestamp with time zone NOT NULL,
+    window_end timestamp with time zone NOT NULL,
+    value numeric(7,2),
+    score numeric(8,3),
+    reference_basis text NOT NULL,
+    band_id uuid,
+    model_version text NOT NULL,
+    review_status text DEFAULT 'open'::text NOT NULL,
+    reviewed_by uuid,
+    reviewed_at timestamp with time zone,
+    review_note text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT wearable_flags_check CHECK ((window_end > window_start)),
+    CONSTRAINT wearable_flags_check1 CHECK (((kind = 'multivariate_anomaly'::text) = (metric = 'multivariate'::text))),
+    CONSTRAINT wearable_flags_check2 CHECK (((review_status = 'open'::text) = (reviewed_at IS NULL))),
+    CONSTRAINT wearable_flags_kind_check CHECK ((kind = ANY (ARRAY['outside_reference'::text, 'personal_anomaly'::text, 'multivariate_anomaly'::text]))),
+    CONSTRAINT wearable_flags_metric_check CHECK ((metric = ANY (ARRAY['heart_rate'::text, 'hrv_rmssd'::text, 'spo2'::text, 'skin_temperature'::text, 'multivariate'::text]))),
+    CONSTRAINT wearable_flags_reference_basis_check CHECK ((length(reference_basis) <= 300)),
+    CONSTRAINT wearable_flags_review_note_check CHECK ((length(review_note) <= 2000)),
+    CONSTRAINT wearable_flags_review_status_check CHECK ((review_status = ANY (ARRAY['open'::text, 'confirmed'::text, 'dismissed'::text]))),
+    CONSTRAINT wearable_flags_window_kind_check CHECK ((window_kind = ANY (ARRAY['live_10min'::text, 'night'::text])))
+);
+
+
+--
 -- Name: wearable_samples; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -774,6 +872,36 @@ CASE metric
     WHEN 'skin_temperature'::text THEN ((value >= (20)::numeric) AND (value <= (45)::numeric))
     ELSE NULL::boolean
 END)
+);
+
+
+--
+-- Name: weekly_reports; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.weekly_reports (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    patient_id uuid NOT NULL,
+    week_start date NOT NULL,
+    home_bp_category text,
+    control_status text NOT NULL,
+    next_week_above_target_prob numeric(4,3),
+    model_versions jsonb DEFAULT '{}'::jsonb NOT NULL,
+    summary jsonb DEFAULT '{}'::jsonb NOT NULL,
+    status text DEFAULT 'ready'::text NOT NULL,
+    reviewed_by uuid,
+    reviewed_at timestamp with time zone,
+    doctor_comment text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT weekly_reports_check CHECK (((status = 'reviewed'::text) = (reviewed_at IS NOT NULL))),
+    CONSTRAINT weekly_reports_control_status_check CHECK ((control_status = ANY (ARRAY['at_or_below_target'::text, 'above_target'::text, 'insufficient_data'::text]))),
+    CONSTRAINT weekly_reports_doctor_comment_check CHECK ((length(doctor_comment) <= 4000)),
+    CONSTRAINT weekly_reports_home_bp_category_check CHECK ((home_bp_category = ANY (ARRAY['normal'::text, 'elevated'::text, 'stage_1_range'::text, 'stage_2_range'::text]))),
+    CONSTRAINT weekly_reports_next_week_above_target_prob_check CHECK (((next_week_above_target_prob >= (0)::numeric) AND (next_week_above_target_prob <= (1)::numeric))),
+    CONSTRAINT weekly_reports_status_check CHECK ((status = ANY (ARRAY['ready'::text, 'reviewed'::text]))),
+    CONSTRAINT weekly_reports_summary_check CHECK ((pg_column_size(summary) <= 16384)),
+    CONSTRAINT weekly_reports_week_start_check CHECK ((EXTRACT(isodow FROM week_start) = (1)::numeric))
 );
 
 
@@ -954,6 +1082,22 @@ ALTER TABLE ONLY public.ml_predictions
 
 
 --
+-- Name: patient_bands patient_bands_id_patient_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.patient_bands
+    ADD CONSTRAINT patient_bands_id_patient_id_key UNIQUE (id, patient_id);
+
+
+--
+-- Name: patient_bands patient_bands_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.patient_bands
+    ADD CONSTRAINT patient_bands_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: patient_profiles patient_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -994,11 +1138,35 @@ ALTER TABLE ONLY public.trusted_contacts
 
 
 --
+-- Name: wearable_flags wearable_flags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wearable_flags
+    ADD CONSTRAINT wearable_flags_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: wearable_samples wearable_samples_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.wearable_samples
     ADD CONSTRAINT wearable_samples_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: weekly_reports weekly_reports_patient_id_week_start_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_reports
+    ADD CONSTRAINT weekly_reports_patient_id_week_start_key UNIQUE (patient_id, week_start);
+
+
+--
+-- Name: weekly_reports weekly_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_reports
+    ADD CONSTRAINT weekly_reports_pkey PRIMARY KEY (id);
 
 
 --
@@ -1135,10 +1303,38 @@ CREATE INDEX ml_predictions_patient_date ON public.ml_predictions USING btree (p
 
 
 --
+-- Name: patient_bands_one_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX patient_bands_one_active ON public.patient_bands USING btree (patient_id, metric, statistic) WHERE (status = 'active'::text);
+
+
+--
 -- Name: symptoms_patient_time; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX symptoms_patient_time ON public.symptom_reports USING btree (patient_id, reported_at DESC);
+
+
+--
+-- Name: wearable_flags_once; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX wearable_flags_once ON public.wearable_flags USING btree (patient_id, metric, kind, window_start);
+
+
+--
+-- Name: wearable_flags_patient_time; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX wearable_flags_patient_time ON public.wearable_flags USING btree (patient_id, window_start DESC);
+
+
+--
+-- Name: wearable_samples_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX wearable_samples_created_at ON public.wearable_samples USING btree (created_at);
 
 
 --
@@ -1261,6 +1457,20 @@ CREATE TRIGGER medications_touch BEFORE UPDATE ON public.medications FOR EACH RO
 
 
 --
+-- Name: patient_bands patient_bands_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER patient_bands_audit AFTER INSERT OR DELETE OR UPDATE ON public.patient_bands FOR EACH ROW EXECUTE FUNCTION private.audit();
+
+
+--
+-- Name: patient_bands patient_bands_roles; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER patient_bands_roles BEFORE INSERT OR UPDATE ON public.patient_bands FOR EACH ROW EXECUTE FUNCTION private.enforce_roles('approved_by', 'doctor', 'patient_id', 'patient');
+
+
+--
 -- Name: patient_profiles patient_profiles_roles; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1286,6 +1496,41 @@ CREATE TRIGGER profiles_audit AFTER INSERT OR DELETE OR UPDATE ON public.profile
 --
 
 CREATE TRIGGER profiles_touch BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION private.touch_updated_at();
+
+
+--
+-- Name: wearable_flags wearable_flags_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER wearable_flags_audit AFTER INSERT OR DELETE OR UPDATE ON public.wearable_flags FOR EACH ROW EXECUTE FUNCTION private.audit();
+
+
+--
+-- Name: wearable_flags wearable_flags_roles; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER wearable_flags_roles BEFORE INSERT OR UPDATE ON public.wearable_flags FOR EACH ROW EXECUTE FUNCTION private.enforce_roles('reviewed_by', 'doctor', 'patient_id', 'patient');
+
+
+--
+-- Name: weekly_reports weekly_reports_audit; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER weekly_reports_audit AFTER INSERT OR DELETE OR UPDATE ON public.weekly_reports FOR EACH ROW EXECUTE FUNCTION private.audit();
+
+
+--
+-- Name: weekly_reports weekly_reports_roles; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER weekly_reports_roles BEFORE INSERT OR UPDATE ON public.weekly_reports FOR EACH ROW EXECUTE FUNCTION private.enforce_roles('reviewed_by', 'doctor', 'patient_id', 'patient');
+
+
+--
+-- Name: weekly_reports weekly_reports_touch; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER weekly_reports_touch BEFORE UPDATE ON public.weekly_reports FOR EACH ROW EXECUTE FUNCTION private.touch_updated_at();
 
 
 --
@@ -1561,6 +1806,30 @@ ALTER TABLE ONLY public.ml_predictions
 
 
 --
+-- Name: patient_bands patient_bands_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.patient_bands
+    ADD CONSTRAINT patient_bands_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
+-- Name: patient_bands patient_bands_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.patient_bands
+    ADD CONSTRAINT patient_bands_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: patient_bands patient_bands_supersedes_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.patient_bands
+    ADD CONSTRAINT patient_bands_supersedes_id_fkey FOREIGN KEY (supersedes_id) REFERENCES public.patient_bands(id) ON DELETE SET NULL;
+
+
+--
 -- Name: patient_profiles patient_profiles_regular_doctor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1601,6 +1870,30 @@ ALTER TABLE ONLY public.trusted_contacts
 
 
 --
+-- Name: wearable_flags wearable_flags_band_id_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wearable_flags
+    ADD CONSTRAINT wearable_flags_band_id_patient_id_fkey FOREIGN KEY (band_id, patient_id) REFERENCES public.patient_bands(id, patient_id);
+
+
+--
+-- Name: wearable_flags wearable_flags_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wearable_flags
+    ADD CONSTRAINT wearable_flags_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: wearable_flags wearable_flags_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.wearable_flags
+    ADD CONSTRAINT wearable_flags_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+
+--
 -- Name: wearable_samples wearable_samples_device_id_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1614,6 +1907,22 @@ ALTER TABLE ONLY public.wearable_samples
 
 ALTER TABLE ONLY public.wearable_samples
     ADD CONSTRAINT wearable_samples_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: weekly_reports weekly_reports_patient_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_reports
+    ADD CONSTRAINT weekly_reports_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: weekly_reports weekly_reports_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_reports
+    ADD CONSTRAINT weekly_reports_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.profiles(id) ON DELETE SET NULL;
 
 
 --
@@ -1972,6 +2281,26 @@ CREATE POLICY ml_predictions_read ON public.ml_predictions FOR SELECT TO authent
 
 
 --
+-- Name: patient_bands; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.patient_bands ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: patient_bands patient_bands_doctor_update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY patient_bands_doctor_update ON public.patient_bands FOR UPDATE TO authenticated USING (private.is_assigned_doctor(patient_id)) WITH CHECK ((private.is_assigned_doctor(patient_id) AND ((approved_by IS NULL) OR (approved_by = ( SELECT auth.uid() AS uid)))));
+
+
+--
+-- Name: patient_bands patient_bands_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY patient_bands_read ON public.patient_bands FOR SELECT TO authenticated USING ((private.is_assigned_doctor(patient_id) OR (private.current_app_role() = 'admin'::text)));
+
+
+--
 -- Name: patient_profiles; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -2052,6 +2381,26 @@ CREATE POLICY trusted_contacts_read ON public.trusted_contacts FOR SELECT TO aut
 
 
 --
+-- Name: wearable_flags; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.wearable_flags ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: wearable_flags wearable_flags_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wearable_flags_read ON public.wearable_flags FOR SELECT TO authenticated USING ((private.is_assigned_doctor(patient_id) OR (private.current_app_role() = 'admin'::text)));
+
+
+--
+-- Name: wearable_flags wearable_flags_review; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY wearable_flags_review ON public.wearable_flags FOR UPDATE TO authenticated USING (private.is_assigned_doctor(patient_id)) WITH CHECK ((private.is_assigned_doctor(patient_id) AND ((review_status = 'open'::text) OR (reviewed_by = ( SELECT auth.uid() AS uid)))));
+
+
+--
 -- Name: wearable_samples; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -2062,6 +2411,26 @@ ALTER TABLE public.wearable_samples ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY wearable_samples_read ON public.wearable_samples FOR SELECT TO authenticated USING (private.can_read_patient(patient_id));
+
+
+--
+-- Name: weekly_reports; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.weekly_reports ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: weekly_reports weekly_reports_read; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY weekly_reports_read ON public.weekly_reports FOR SELECT TO authenticated USING ((private.is_assigned_doctor(patient_id) OR (private.current_app_role() = 'admin'::text)));
+
+
+--
+-- Name: weekly_reports weekly_reports_review; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY weekly_reports_review ON public.weekly_reports FOR UPDATE TO authenticated USING (private.is_assigned_doctor(patient_id)) WITH CHECK ((private.is_assigned_doctor(patient_id) AND ((status = 'ready'::text) OR (reviewed_by = ( SELECT auth.uid() AS uid)))));
 
 
 --
@@ -2079,6 +2448,14 @@ GRANT USAGE ON SCHEMA public TO postgres;
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT USAGE ON SCHEMA public TO service_role;
+
+
+--
+-- Name: FUNCTION approve_band(p_band_id uuid, p_doctor_id uuid, p_low numeric, p_high numeric); Type: ACL; Schema: private; Owner: -
+--
+
+REVOKE ALL ON FUNCTION private.approve_band(p_band_id uuid, p_doctor_id uuid, p_low numeric, p_high numeric) FROM PUBLIC;
+GRANT ALL ON FUNCTION private.approve_band(p_band_id uuid, p_doctor_id uuid, p_low numeric, p_high numeric) TO authenticated;
 
 
 --
@@ -2310,6 +2687,70 @@ GRANT SELECT ON TABLE public.ml_predictions TO authenticated;
 
 
 --
+-- Name: TABLE patient_bands; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.patient_bands TO service_role;
+GRANT SELECT ON TABLE public.patient_bands TO authenticated;
+
+
+--
+-- Name: COLUMN patient_bands.low; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(low) ON TABLE public.patient_bands TO authenticated;
+
+
+--
+-- Name: COLUMN patient_bands.high; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(high) ON TABLE public.patient_bands TO authenticated;
+
+
+--
+-- Name: COLUMN patient_bands.basis; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(basis) ON TABLE public.patient_bands TO authenticated;
+
+
+--
+-- Name: COLUMN patient_bands.status; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(status) ON TABLE public.patient_bands TO authenticated;
+
+
+--
+-- Name: COLUMN patient_bands.approved_by; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(approved_by) ON TABLE public.patient_bands TO authenticated;
+
+
+--
+-- Name: COLUMN patient_bands.approved_at; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(approved_at) ON TABLE public.patient_bands TO authenticated;
+
+
+--
+-- Name: COLUMN patient_bands.effective_from; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(effective_from) ON TABLE public.patient_bands TO authenticated;
+
+
+--
+-- Name: COLUMN patient_bands.supersedes_id; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(supersedes_id) ON TABLE public.patient_bands TO authenticated;
+
+
+--
 -- Name: TABLE patient_profiles; Type: ACL; Schema: public; Owner: -
 --
 
@@ -2363,11 +2804,83 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.trusted_contacts TO authentica
 
 
 --
+-- Name: TABLE wearable_flags; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.wearable_flags TO service_role;
+GRANT SELECT ON TABLE public.wearable_flags TO authenticated;
+
+
+--
+-- Name: COLUMN wearable_flags.review_status; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(review_status) ON TABLE public.wearable_flags TO authenticated;
+
+
+--
+-- Name: COLUMN wearable_flags.reviewed_by; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(reviewed_by) ON TABLE public.wearable_flags TO authenticated;
+
+
+--
+-- Name: COLUMN wearable_flags.reviewed_at; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(reviewed_at) ON TABLE public.wearable_flags TO authenticated;
+
+
+--
+-- Name: COLUMN wearable_flags.review_note; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(review_note) ON TABLE public.wearable_flags TO authenticated;
+
+
+--
 -- Name: TABLE wearable_samples; Type: ACL; Schema: public; Owner: -
 --
 
 GRANT ALL ON TABLE public.wearable_samples TO service_role;
 GRANT SELECT ON TABLE public.wearable_samples TO authenticated;
+
+
+--
+-- Name: TABLE weekly_reports; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON TABLE public.weekly_reports TO service_role;
+GRANT SELECT ON TABLE public.weekly_reports TO authenticated;
+
+
+--
+-- Name: COLUMN weekly_reports.status; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(status) ON TABLE public.weekly_reports TO authenticated;
+
+
+--
+-- Name: COLUMN weekly_reports.reviewed_by; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(reviewed_by) ON TABLE public.weekly_reports TO authenticated;
+
+
+--
+-- Name: COLUMN weekly_reports.reviewed_at; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(reviewed_at) ON TABLE public.weekly_reports TO authenticated;
+
+
+--
+-- Name: COLUMN weekly_reports.doctor_comment; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT UPDATE(doctor_comment) ON TABLE public.weekly_reports TO authenticated;
 
 
 --
