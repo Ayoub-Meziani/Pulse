@@ -14,7 +14,7 @@ Cloud project: `pulse` (ref `nfmfdhpxipdndggxtqho`).
 | M5 | `20261030130000_patient_birth_year.sql` | `patient_profiles.birth_year` | applied | applied 30 Oct (with M6, on the data/AI owner's decision; see below) | profile schemas may expose `birth_year` |
 | M6 | `20261030140000_algerian_factors_wearables.sql` | Algerian risk-factor fields, fasting logs, `body_measurements`, `wearable_samples` | applied | applied 30 Oct (same) | new optional fields and two read-only tables; nothing existing changes |
 
-| M7 | `20261030150000_ml_monitoring.sql` | `wearable_flags`, `patient_bands` (+ `private.approve_band`), `weekly_reports`, `wearable_samples(created_at)` index | applied | **NOT applied: needs backend review + the user's confirmation** (review M9) | endpoints for weekly reports, band approval, flag review (see ml/README.md) |
+| M7 | `20261030150000_ml_monitoring.sql` | `wearable_flags`, `patient_bands` (+ `private.approve_band`), `weekly_reports`, `wearable_samples(created_at)` index | applied | applied 30 Oct after approval (review M9 gate). Verified: 24 tables, RLS on all, 52 policies, 0 anon grants, `approve_band` + 3 audit triggers present, logged-out REST refused (42501) | endpoints for weekly reports, band approval, flag review (see ml/README.md) |
 
 **Note for the backend:** the data/AI owner chose to apply M5 and M6 to the cloud before your review, so the demo data could include them. Every change is additive (new nullable columns, a widened category list, two new tables). No existing column, constraint meaning or policy changed for current API behaviour. If you want something reverted, it will be a new migration (M7), never an edit.
 

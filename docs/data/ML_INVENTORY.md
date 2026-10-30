@@ -20,7 +20,7 @@
 | `wcls-v1` weekly classifier → `weekly_reports` | built, local | AUROC 0.977 vs 0.907 for "status persists", but no skill on weeks where the status changes |
 | `mbp-v2` (with ring features) | experiment, **not served** | 5.20 vs 5.23 mmHg; no real gain |
 | weekly doctor loop (reports, band proposals, `approve_band`, feedback gate) | built, local | verified end to end in tests |
-| migration M7 | local + branch only | waits for backend review and the user's confirmation |
+| migration M7 | **live in the cloud** (30 Oct, after approval) | tables are empty until the jobs run on the cloud (needs `DATABASE_URL`) |
 
 Sections 2–5 below are the original plan; the implementation follows it. Differences: lifestyle features are left out of the MVP (team contract §4), and the interval is split-conformal.
 
