@@ -183,3 +183,17 @@ export function createAlertSound({ audio = webAudio, store = sessionStore(), set
 
 /** The page-wide instance: one loop for the whole app. */
 export const alertSound = createAlertSound();
+
+/** The sound bar's sentence for a getState() snapshot. canMute=false: the patient (stops with the password). */
+export function soundText(state, canMute = true) {
+  if (state.status === "unsupported" || state.status === "blocked") {
+    return "Ce navigateur ne permet pas de jouer le son. Les alertes restent affichées à l'écran.";
+  }
+  if (state.muted) return "Son des alertes coupé pour cette session.";
+  if (state.status === "locked") return "Son des alertes inactif : le navigateur demande d'abord un clic.";
+  if (state.playing) {
+    return `Alerte sonore en cours (${state.playing === "emergency" ? "urgence" : "tension très élevée"}).${
+      canMute ? "" : " Elle s'arrête quand vous confirmez l'alerte avec votre mot de passe."}`;
+  }
+  return "Son des alertes activé.";
+}

@@ -15,6 +15,36 @@ export function declaresSimulated(text) {
   return first.startsWith("# simulated") || first.startsWith("# synthetic");
 }
 
+/**
+ * "cuff" (systolic and diastolic columns), "ring" (metric and value) or null, from the header: the first line that is
+ * not empty and not a "#" comment, as the server reads it. Lets each import panel say where a file belongs.
+ */
+export function csvKind(text) {
+  const header = text.replace(/^\uFEFF/, "").split(/\r\n|\r|\n/).find((l) => l.trim() && !l.trimStart().startsWith("#"));
+  if (!header) return null;
+  const cols = header.split(",").map((c) => c.trim().replace(/^"|"$/g, "").toLowerCase());
+  const cuff = cols.includes("systolic") && cols.includes("diastolic");
+  const ring = cols.includes("metric") && cols.includes("value");
+  return cuff === ring ? null : cuff ? "cuff" : "ring";
+}
+
+// The server's invalid_file codes (api imports.py, csv_import.py), in French.
+const FILE_ERRORS = {
+  empty_file: "le fichier est vide.",
+  unreadable: "ce n'est pas un fichier CSV lisible.",
+  file_is_simulated: "sa première ligne le déclare simulé : importez-le comme données simulées.",
+  simulated_not_allowed: "les données simulées ne peuvent être importées que sur un serveur de démonstration.",
+  invalid_timezone: "le fuseau horaire de votre profil n'est pas reconnu : corrigez-le dans Mon profil.",
+};
+
+function fileErrorText(detail) {
+  if (detail?.code === "missing_column") {
+    const cols = /:\s*(.+?)\.?$/.exec(detail.message ?? "")?.[1];
+    if (cols) return `colonne(s) obligatoire(s) manquante(s) : ${cols}.`;
+  }
+  return FILE_ERRORS[detail?.code] ?? null;
+}
+
 // RejectedRow.reasons codes (api csv_import.py). Unknown codes are shown as sent.
 const REASONS = {
   missing_measured_at: "date et heure manquantes",
@@ -58,7 +88,10 @@ export function importErrorText(error) {
     return "La réponse du serveur n'est pas arrivée : le fichier a peut-être été importé, ou non. Renvoyez-le dans un instant ; s'il était déjà arrivé, il ne sera pas importé deux fois.";
   }
   const details = Array.isArray(error.details) ? error.details.map((d) => d.message).filter(Boolean) : [];
-  if (error.code === "invalid_file") return `Fichier refusé : ${details[0] ?? error.message}`;
+  if (error.code === "invalid_file") {
+    const known = Array.isArray(error.details) ? fileErrorText(error.details[0]) : null;
+    return `Fichier refusé : ${known ?? details[0] ?? error.message}`;
+  }
   if (error.status === 422) return `Valeurs refusées : ${details.join(" ; ") || error.message}`;
   if (error.status === 403) return "Vous ne pouvez pas importer de fichier pour ce compte.";
   return error.message || "Erreur inattendue. Réessayez.";

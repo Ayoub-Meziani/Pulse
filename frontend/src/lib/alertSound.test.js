@@ -173,3 +173,15 @@ describe("alert sound, browser suspends the audio", () => {
     expect(s.getState()).toMatchObject({ status: "ready", playing: "severe" });
   });
 });
+
+describe("soundText", () => {
+  it("says what the browser allows, and how the patient's alarm stops", async () => {
+    const { soundText } = await import("./alertSound");
+    expect(soundText({ status: "blocked" })).toMatch(/ne permet pas/);
+    expect(soundText({ status: "ready", muted: true })).toMatch(/coupé/);
+    expect(soundText({ status: "locked" })).toMatch(/demande d'abord un clic/);
+    expect(soundText({ status: "ready", playing: "emergency" })).toBe("Alerte sonore en cours (urgence).");
+    expect(soundText({ status: "ready", playing: "severe" }, false)).toMatch(/tension très élevée.*mot de passe/);
+    expect(soundText({ status: "ready", playing: null })).toBe("Son des alertes activé.");
+  });
+});
