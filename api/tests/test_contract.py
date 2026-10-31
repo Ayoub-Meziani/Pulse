@@ -16,7 +16,7 @@ from app.db import require_session
 from app.main import create_app
 
 API = "/api/v1"
-PID, AID, EID, CID, JID = (uuid4() for _ in range(5))
+PID, AID, EID, CID, JID, SID, NID = (uuid4() for _ in range(7))
 AUTH = {"Authorization": "Bearer test-token"}
 
 # (method, path, json body) for every protected route in contract v1.
@@ -54,6 +54,16 @@ PROTECTED = [
      {"actions": [{"client_action_id": str(uuid4()), "action": "emergency_call_tapped", "at": "2026-10-30T10:00:05+01:00"}]}),
     ("PATCH", f"/emergency-events/{EID}", {"reported_outcome": "felt better"}),
     ("GET", f"/emergency-events/{EID}/report", None),
+    ("GET", f"/emergency-events/{EID}/escalation", None),
+    ("GET", f"/emergency-events/{EID}/timeline", None),
+    ("POST", f"/emergency-events/{EID}/patient-response", {"response": "ok"}),
+    ("POST", f"/emergency-events/{EID}/cancel", {"reason": "false_alarm"}),
+    ("POST", f"/emergency-events/{EID}/resolve", {"outcome": "Went to hospital."}),
+    ("GET", "/doctor/escalations", None),
+    ("POST", f"/escalation-steps/{SID}/delivered", None),
+    ("POST", f"/escalation-steps/{SID}/acknowledge", None),
+    ("GET", "/me/notifications", None),
+    ("POST", f"/notifications/{NID}/read", None),
     ("GET", f"/patients/{PID}/notes", None),
     ("POST", f"/patients/{PID}/notes", {"note": "x"}),
     ("GET", f"/patients/{PID}/journal", None),
@@ -78,6 +88,11 @@ BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/p
          ("POST", f"/patients/{PID}/emergency-events"), ("GET", f"/patients/{PID}/emergency-events"),
          ("POST", f"/emergency-events/{EID}/actions"), ("PATCH", f"/emergency-events/{EID}"),
          ("GET", f"/emergency-events/{EID}/report"),  # test_emergency_events.py
+         ("GET", f"/emergency-events/{EID}/escalation"), ("GET", f"/emergency-events/{EID}/timeline"),
+         ("POST", f"/emergency-events/{EID}/patient-response"), ("POST", f"/emergency-events/{EID}/cancel"),
+         ("POST", f"/emergency-events/{EID}/resolve"), ("GET", "/doctor/escalations"),
+         ("POST", f"/escalation-steps/{SID}/delivered"), ("POST", f"/escalation-steps/{SID}/acknowledge"),
+         ("GET", "/me/notifications"), ("POST", f"/notifications/{NID}/read"),  # test_escalation.py
          ("GET", f"/patients/{PID}/notes"), ("POST", f"/patients/{PID}/notes"),  # test_notes.py
          ("GET", f"/patients/{PID}/symptom-reports"), ("GET", f"/patients/{PID}/devices"),
          ("GET", f"/patients/{PID}/wearable-samples"),  # test_patient_records.py
@@ -161,7 +176,8 @@ def test_every_contract_route_is_covered_by_these_tests(client):
     routes = {(m.upper(), p.removeprefix(API)) for p, ops in spec["paths"].items() for m in ops}
     routes -= {("GET", "/health"), ("GET", "/config/emergency"), ("POST", "/auth/login"), ("POST", "/auth/refresh")}
     covered = {(m, p.replace(str(PID), "{patient_id}").replace(str(AID), "{alert_id}")
-                .replace(str(EID), "{event_id}").replace(str(CID), "{contact_id}").replace(str(JID), "{entry_id}"))
+                .replace(str(EID), "{event_id}").replace(str(CID), "{contact_id}").replace(str(JID), "{entry_id}")
+                .replace(str(SID), "{step_id}").replace(str(NID), "{notification_id}"))
                for m, p, _ in PROTECTED}
     assert routes == covered
 

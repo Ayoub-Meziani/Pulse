@@ -1,8 +1,9 @@
 """Emergency configuration, emergency card and emergency events (incident records).
 
 PULSE never claims a call or share succeeded: actions are stored as "tapped"/"opened" with
-confirmed=false. The doctor reviews incidents later; nobody is notified in real time. Events never
-change alerts, and the card and events never include doctor notes.
+confirmed=false. Unless escalation is enabled (routers/escalation.py, clinically approved), the doctor
+reviews incidents later and nobody is notified in real time. Events never change alerts, and the card
+and events never include doctor notes.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from ..db import require_session
 from ..errors import AUTH_RESPONSES
 from ..models import EmergencyEvent
 from ..permissions import require_patient_access
-from ..services import emergency_events as events, patient_data
+from ..services import emergency_events as events, escalation, patient_data
 from ..services.measurements import list_readings
 from ..schemas import (ClientFallback, EmergencyActionsIn, EmergencyCardOut, EmergencyConfigOut,
                        EmergencyEventIn, EmergencyEventOut, EmergencyEventPatch, EmergencyNumber,
@@ -31,6 +32,12 @@ CONFIG_VERSION = "1"
 DISCLAIMER_FR = ("PULSE n'appelle pas les secours automatiquement et ne prévient pas votre médecin en temps réel. "
                  "Appuyez sur le bouton pour appeler vous-même.")
 DISCLAIMER_AR = "تطبيق PULSE لا يتصل بالإسعاف تلقائياً ولا يُبلغ طبيبك فوراً. اضغط على الزر للاتصال بنفسك."
+# With escalation on (clinically approved), the doctor gets an in-app notification; nothing else changes.
+ESCALATION_DISCLAIMER_FR = ("PULSE n'appelle pas les secours et ne prévient pas vos proches automatiquement. "
+                            "Votre médecin reçoit une notification dans l'application, sans garantie qu'il la voie "
+                            "à temps. Appuyez sur le bouton pour appeler vous-même.")
+ESCALATION_DISCLAIMER_AR = ("تطبيق PULSE لا يتصل بالإسعاف ولا يُبلغ أقاربك تلقائياً. يتلقى طبيبك إشعاراً داخل التطبيق "
+                            "دون ضمان أن يراه في الوقت المناسب. اضغط على الزر للاتصال بنفسك.")
 
 public = APIRouter(tags=["emergency"])
 router = APIRouter(tags=["emergency"], responses=AUTH_RESPONSES, dependencies=[Depends(current_user)])
@@ -63,7 +70,9 @@ def build_config(settings: Settings) -> EmergencyConfigOut:
         raise RuntimeError(f"Primary emergency number {primary!r} has no number.")
     return EmergencyConfigOut(
         version=CONFIG_VERSION, demo_mode=settings.demo_mode, numbers=numbers, primary_number_id=primary,
-        disclaimer_fr=DISCLAIMER_FR, disclaimer_ar=DISCLAIMER_AR,
+        disclaimer_fr=ESCALATION_DISCLAIMER_FR if settings.escalation_enabled else DISCLAIMER_FR,
+        disclaimer_ar=ESCALATION_DISCLAIMER_AR if settings.escalation_enabled else DISCLAIMER_AR,
+        escalation_enabled=settings.escalation_enabled,
         client_fallback=ClientFallback(severe_systolic=SEVERE_SYSTOLIC, severe_diastolic=SEVERE_DIASTOLIC,
                                        red_flag_symptoms=sorted(RED_FLAG_SYMPTOMS)))
 
@@ -91,8 +100,11 @@ def emergency_card(patient_id: UUID, request: Request, user: CurrentUser = Depen
 def create_event(patient_id: UUID, body: EmergencyEventIn, request: Request, response: Response,
                  user: CurrentUser = Depends(current_user), db: Session = Depends(require_session)):
     require_patient_access(db, user, patient_id, write=True)
-    event, created = events.create_event(db, user, body, request.app.state.clock())
-    if not created:
+    now = request.app.state.clock()
+    event, created = events.create_event(db, user, body, now)
+    if created:  # the escalation decision is made once, on the server, from stored evidence
+        event = escalation.start(db, event, request.app.state.settings.escalation_enabled, now)
+    else:
         response.status_code = 200
     return events.event_out(event)
 

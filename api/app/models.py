@@ -10,7 +10,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import (ARRAY, Boolean, Date, DateTime, FetchedValue, Float, ForeignKey, Numeric,
+from sqlalchemy import (ARRAY, Boolean, Date, DateTime, FetchedValue, Float, ForeignKey, Integer, Numeric,
                         SmallInteger, Text)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -175,6 +175,9 @@ class TrustedContact(Base):
     phone: Mapped[str] = mapped_column(Text)
     consented_at: Mapped[datetime] = _server(TS)
     active: Mapped[bool] = _server(Boolean)
+    priority: Mapped[int] = _server(SmallInteger)  # migration M11: 1 = called first
+    phone_verified_at: Mapped[datetime | None] = mapped_column(TS)
+    contact_consented_at: Mapped[datetime | None] = mapped_column(TS)
 
 
 class EmergencyEvent(Base):
@@ -191,6 +194,100 @@ class EmergencyEvent(Base):
     reported_outcome: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime] = _server(TS)
     ended_at: Mapped[datetime | None] = mapped_column(TS)
+    # migration M11: escalation (docs/EMERGENCY_ESCALATION_DESIGN.md)
+    severity: Mapped[str | None] = mapped_column(Text)
+    evidence_provenance: Mapped[str | None] = mapped_column(Text)
+    escalation_eligible: Mapped[bool] = _server(Boolean)
+    escalation_status: Mapped[str | None] = mapped_column(Text)
+    escalation_policy: Mapped[str | None] = mapped_column(Text)
+    patient_response: Mapped[str | None] = mapped_column(Text)
+    patient_responded_at: Mapped[datetime | None] = mapped_column(TS)
+    cancelled_at: Mapped[datetime | None] = mapped_column(TS)
+    cancel_reason: Mapped[str | None] = mapped_column(Text)
+    resolved_at: Mapped[datetime | None] = mapped_column(TS)
+    resolution_outcome: Mapped[str | None] = mapped_column(Text)
+    location_captured_at: Mapped[datetime | None] = mapped_column(TS)
+    location_accuracy_m: Mapped[float | None] = mapped_column(Float)
+
+
+class CareFacility(Base):  # migration M11; contacted only with a verified number and an active agreement
+    __tablename__ = "care_facilities"
+    id: Mapped[uuid.UUID] = _id()
+    name: Mapped[str] = mapped_column(Text)
+    wilaya: Mapped[str | None] = mapped_column(Text)
+    oncall_phone: Mapped[str | None] = mapped_column(Text)
+    verified_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    verified_at: Mapped[datetime | None] = mapped_column(TS)
+    verification_source: Mapped[str | None] = mapped_column(Text)
+    agreement_status: Mapped[str] = _server(Text)
+    agreement_ref: Mapped[str | None] = mapped_column(Text)
+    active: Mapped[bool] = _server(Boolean)
+
+
+class DoctorFacilityAffiliation(Base):  # migration M11
+    __tablename__ = "doctor_facility_affiliations"
+    doctor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    facility_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    active: Mapped[bool] = _server(Boolean)
+
+
+class EscalationStep(Base):  # migration M11: one target x channel attempt; also the worker's queue
+    __tablename__ = "escalation_steps"
+    __mapper_args__ = {"eager_defaults": True}
+    id: Mapped[uuid.UUID] = _id()
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    stage: Mapped[str] = mapped_column(Text)
+    target_kind: Mapped[str] = mapped_column(Text)
+    target_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    channel: Mapped[str] = mapped_column(Text)
+    sequence: Mapped[int] = mapped_column(SmallInteger, default=1)
+    status: Mapped[str] = mapped_column(Text, default="scheduled")
+    skip_reason: Mapped[str | None] = mapped_column(Text)
+    due_at: Mapped[datetime] = mapped_column(TS)
+    ack_window_seconds: Mapped[int | None] = mapped_column(Integer)
+    ack_deadline: Mapped[datetime | None] = mapped_column(TS)
+    attempts: Mapped[int] = mapped_column(SmallInteger, default=0)
+    max_attempts: Mapped[int] = mapped_column(SmallInteger, default=3)
+    idempotency_key: Mapped[str] = mapped_column(Text)
+    provider: Mapped[str | None] = mapped_column(Text)
+    provider_message_id: Mapped[str | None] = mapped_column(Text)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    sent_at: Mapped[datetime | None] = mapped_column(TS)
+    delivered_at: Mapped[datetime | None] = mapped_column(TS)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(TS)
+    acknowledged_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = _server(TS)
+    updated_at: Mapped[datetime] = _server(TS)
+
+
+class EscalationTimeline(Base):  # migration M11; append-only (database trigger)
+    __tablename__ = "escalation_timeline"
+    __mapper_args__ = {"eager_defaults": True}
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    step_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    at: Mapped[datetime] = _server(TS)
+    kind: Mapped[str] = mapped_column(Text)
+    actor_kind: Mapped[str] = mapped_column(Text)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class Notification(Base):  # migration M11: in-app inbox (patients and doctors)
+    __tablename__ = "notifications"
+    __mapper_args__ = {"eager_defaults": True}
+    id: Mapped[uuid.UUID] = _id()
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    patient_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    kind: Mapped[str] = mapped_column(Text)
+    alert_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    event_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    step_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    urgent: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = _server(TS)
+    read_at: Mapped[datetime | None] = mapped_column(TS)
 
 
 class DoctorNote(Base):

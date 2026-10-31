@@ -31,6 +31,9 @@ class Settings:
     primary_number_id: str = "dz-14"
     # Only ml_predictions rows of this model version are served (approved: mbp-v1, PULSE_ML_REVIEW.md).
     ml_model_version: str = "mbp-v1"
+    # Real escalation (doctor notifications, ladder) stays off until the triggers, delays and wording are
+    # clinically approved (docs/EMERGENCY_ESCALATION_DESIGN.md §10). Off: events record why nothing was escalated.
+    escalation_enabled: bool = False
 
 
 def _bool(value: str | None, default: bool) -> bool:
@@ -57,6 +60,7 @@ def load_settings() -> Settings:
         emergency_numbers=tuple(parsed) if numbers else DEFAULT_EMERGENCY_NUMBERS,
         primary_number_id=os.getenv("PULSE_PRIMARY_NUMBER_ID", "dz-14"),
         ml_model_version=os.getenv("PULSE_ML_MODEL_VERSION", "mbp-v1"),
+        escalation_enabled=_bool(os.getenv("PULSE_ESCALATION_ENABLED"), False),
     )
     if env != "dev" and settings.demo_mode and not settings.demo_number:
         raise RuntimeError("Set PULSE_DEMO_NUMBER (a teammate's phone) when PULSE_DEMO_MODE is on.")

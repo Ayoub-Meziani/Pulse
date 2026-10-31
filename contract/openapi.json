@@ -912,6 +912,110 @@
         "title": "DeviceOut",
         "type": "object"
       },
+      "DoctorEscalationOut": {
+        "properties": {
+          "ack_deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ack Deadline"
+          },
+          "event_id": {
+            "format": "uuid",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "location_shared": {
+            "title": "Location Shared",
+            "type": "boolean"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "patient_name": {
+            "title": "Patient Name",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "urgent",
+              "emergency"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "created",
+              "notification_attempted",
+              "delivered",
+              "acknowledged",
+              "escalated",
+              "resolved",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "step_id": {
+            "format": "uuid",
+            "title": "Step Id",
+            "type": "string"
+          },
+          "step_status": {
+            "enum": [
+              "scheduled",
+              "sending",
+              "sent",
+              "delivered",
+              "acknowledged",
+              "failed",
+              "expired",
+              "cancelled",
+              "skipped"
+            ],
+            "title": "Step Status",
+            "type": "string"
+          },
+          "trigger_reason": {
+            "enum": [
+              "symptom",
+              "severe_reading",
+              "manual"
+            ],
+            "title": "Trigger Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "patient_id",
+          "patient_name",
+          "severity",
+          "status",
+          "trigger_reason",
+          "started_at",
+          "step_id",
+          "step_status",
+          "ack_deadline",
+          "location_shared"
+        ],
+        "title": "DoctorEscalationOut",
+        "type": "object"
+      },
       "EmergencyActionIn": {
         "properties": {
           "action": {
@@ -1167,6 +1271,12 @@
             "title": "Disclaimer Fr",
             "type": "string"
           },
+          "escalation_enabled": {
+            "default": false,
+            "description": "True: the assigned doctor is notified in PULSE (in-app) and can acknowledge. Emergency services and relatives are never contacted automatically: the patient or a bystander calls them.",
+            "title": "Escalation Enabled",
+            "type": "boolean"
+          },
           "numbers": {
             "items": {
               "$ref": "#/components/schemas/EmergencyNumber"
@@ -1294,6 +1404,48 @@
             ],
             "title": "Ended At"
           },
+          "escalation_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "created",
+                  "notification_attempted",
+                  "delivered",
+                  "acknowledged",
+                  "escalated",
+                  "resolved",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null: nothing was escalated (see GET .../escalation).",
+            "title": "Escalation Status"
+          },
+          "evidence_provenance": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manual",
+                  "device",
+                  "patient_reported",
+                  "mixed",
+                  "simulated",
+                  "imported",
+                  "estimated",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Provenance"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -1308,6 +1460,29 @@
                 "type": "null"
               }
             ]
+          },
+          "location_accuracy_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Accuracy M"
+          },
+          "location_captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Captured At"
           },
           "patient_id": {
             "format": "uuid",
@@ -1324,6 +1499,22 @@
               }
             ],
             "title": "Reported Outcome"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "urgent",
+                  "emergency"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Computed by the server from deterministic evidence only.",
+            "title": "Severity"
           },
           "started_at": {
             "format": "date-time",
@@ -1400,6 +1591,33 @@
                 "type": "null"
               }
             ]
+          },
+          "location_accuracy_m": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Accuracy radius in metres, as reported by the phone.",
+            "title": "Location Accuracy M"
+          },
+          "location_captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the phone measured the position (GeolocationPosition.timestamp). Older than 15 minutes: 422 stale_location.",
+            "title": "Location Captured At"
           },
           "location_shared_with_consent": {
             "anyOf": [
@@ -1559,6 +1777,454 @@
           "error"
         ],
         "title": "ErrorOut",
+        "type": "object"
+      },
+      "EscalationCancelIn": {
+        "properties": {
+          "reason": {
+            "enum": [
+              "false_alarm",
+              "feel_better",
+              "other"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "EscalationCancelIn",
+        "type": "object"
+      },
+      "EscalationOut": {
+        "properties": {
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "false_alarm",
+                  "feel_better",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Reason"
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "emergency_services_notified": {
+            "const": false,
+            "default": false,
+            "description": "Always false: no official automated channel to the Protection Civile exists. The patient or a bystander must call.",
+            "title": "Emergency Services Notified",
+            "type": "boolean"
+          },
+          "enabled": {
+            "description": "False until real escalation is clinically approved (PULSE_ESCALATION_ENABLED).",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "event_id": {
+            "format": "uuid",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "evidence_provenance": {
+            "anyOf": [
+              {
+                "enum": [
+                  "manual",
+                  "device",
+                  "patient_reported",
+                  "mixed",
+                  "simulated",
+                  "imported",
+                  "estimated",
+                  "none"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Provenance"
+          },
+          "patient_responded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Responded At"
+          },
+          "patient_response": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "need_help"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Response"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy"
+          },
+          "resolution_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Outcome"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "urgent",
+                  "emergency"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "created",
+                  "notification_attempted",
+                  "delivered",
+                  "acknowledged",
+                  "escalated",
+                  "resolved",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/EscalationStepOut"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "event_id",
+          "enabled",
+          "eligible",
+          "severity",
+          "evidence_provenance",
+          "status",
+          "policy",
+          "patient_response",
+          "patient_responded_at",
+          "cancelled_at",
+          "cancel_reason",
+          "resolved_at",
+          "resolution_outcome",
+          "steps"
+        ],
+        "title": "EscalationOut",
+        "type": "object"
+      },
+      "EscalationResolveIn": {
+        "properties": {
+          "outcome": {
+            "description": "How the episode ended, in the person's words.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "title": "EscalationResolveIn",
+        "type": "object"
+      },
+      "EscalationStepOut": {
+        "properties": {
+          "ack_deadline": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ack Deadline"
+          },
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "channel": {
+            "enum": [
+              "in_app",
+              "web_push",
+              "sms",
+              "voice",
+              "fake",
+              "none"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "no_channel",
+                  "no_official_channel",
+                  "not_verified",
+                  "no_agreement",
+                  "no_consent",
+                  "superseded"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          },
+          "stage": {
+            "enum": [
+              "doctor",
+              "doctor_reminder",
+              "facility",
+              "contact",
+              "emergency_services",
+              "patient_reminder"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "status": {
+            "description": "'sent' = handed to the channel; 'delivered' = the target's app reported it was displayed; 'acknowledged' = a person confirmed. 'skipped' = no automated channel exists for this target (skip_reason); nobody was notified.",
+            "enum": [
+              "scheduled",
+              "sending",
+              "sent",
+              "delivered",
+              "acknowledged",
+              "failed",
+              "expired",
+              "cancelled",
+              "skipped"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "target_kind": {
+            "enum": [
+              "doctor",
+              "facility",
+              "contact",
+              "emergency_services",
+              "patient"
+            ],
+            "title": "Target Kind",
+            "type": "string"
+          },
+          "target_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display name of the doctor, contact or facility; never a phone number.",
+            "title": "Target Label"
+          }
+        },
+        "required": [
+          "id",
+          "stage",
+          "target_kind",
+          "target_label",
+          "channel",
+          "status",
+          "skip_reason",
+          "sequence",
+          "due_at",
+          "sent_at",
+          "delivered_at",
+          "acknowledged_at",
+          "ack_deadline",
+          "attempts"
+        ],
+        "title": "EscalationStepOut",
+        "type": "object"
+      },
+      "EscalationTimelineOut": {
+        "properties": {
+          "actor_kind": {
+            "enum": [
+              "patient",
+              "doctor",
+              "contact",
+              "system"
+            ],
+            "title": "Actor Kind",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          }
+        },
+        "required": [
+          "at",
+          "kind",
+          "actor_kind",
+          "step_id",
+          "details"
+        ],
+        "title": "EscalationTimelineOut",
         "type": "object"
       },
       "EvaluationOut": {
@@ -2306,6 +2972,109 @@
         "title": "NoteOut",
         "type": "object"
       },
+      "NotificationOut": {
+        "properties": {
+          "alert_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alert Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "alert_created",
+              "alert_raised",
+              "alert_reviewed",
+              "alert_resolved",
+              "escalation",
+              "escalation_update"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "patient_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Id"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "step_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Id"
+          },
+          "urgent": {
+            "title": "Urgent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "patient_id",
+          "alert_id",
+          "event_id",
+          "step_id",
+          "urgent",
+          "created_at",
+          "read_at"
+        ],
+        "title": "NotificationOut",
+        "type": "object"
+      },
       "PatientListItem": {
         "properties": {
           "active_alert_count": {
@@ -2407,6 +3176,23 @@
           "avg_diastolic_7d"
         ],
         "title": "PatientListItem",
+        "type": "object"
+      },
+      "PatientResponseIn": {
+        "properties": {
+          "response": {
+            "enum": [
+              "ok",
+              "need_help"
+            ],
+            "title": "Response",
+            "type": "string"
+          }
+        },
+        "required": [
+          "response"
+        ],
+        "title": "PatientResponseIn",
         "type": "object"
       },
       "PredictionOut": {
@@ -4038,6 +4824,106 @@
         ]
       }
     },
+    "/api/v1/doctor/escalations": {
+      "get": {
+        "operationId": "doctor_escalations_api_v1_doctor_escalations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DoctorEscalationOut"
+                  },
+                  "title": "Response Doctor Escalations Api V1 Doctor Escalations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Doctor: active escalations of assigned patients that were sent to me, newest first",
+        "tags": [
+          "escalation"
+        ]
+      }
+    },
     "/api/v1/emergency-events/{event_id}": {
       "patch": {
         "operationId": "patch_event_api_v1_emergency_events__event_id__patch",
@@ -4274,6 +5160,350 @@
         ]
       }
     },
+    "/api/v1/emergency-events/{event_id}/cancel": {
+      "post": {
+        "operationId": "cancel_api_v1_emergency_events__event_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscalationCancelIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: false alarm. Pending steps stop; doctors already shown it get an update",
+        "tags": [
+          "escalation"
+        ]
+      }
+    },
+    "/api/v1/emergency-events/{event_id}/escalation": {
+      "get": {
+        "operationId": "get_escalation_api_v1_emergency_events__event_id__escalation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Who PULSE tried to reach and what actually happened (patient or assigned doctor)",
+        "tags": [
+          "escalation"
+        ]
+      }
+    },
+    "/api/v1/emergency-events/{event_id}/patient-response": {
+      "post": {
+        "operationId": "patient_response_api_v1_emergency_events__event_id__patient_response_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientResponseIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient answers the alarm: ok, or need_help (notifies without waiting for the cancel delay)",
+        "tags": [
+          "escalation"
+        ]
+      }
+    },
     "/api/v1/emergency-events/{event_id}/report": {
       "get": {
         "operationId": "event_report_api_v1_emergency_events__event_id__report_get",
@@ -4379,6 +5609,452 @@
         "summary": "Event, linked alert, readings and symptom reports within \u00b124 h",
         "tags": [
           "emergency"
+        ]
+      }
+    },
+    "/api/v1/emergency-events/{event_id}/resolve": {
+      "post": {
+        "operationId": "resolve_api_v1_emergency_events__event_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscalationResolveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient or assigned doctor: close the escalation with how it ended",
+        "tags": [
+          "escalation"
+        ]
+      }
+    },
+    "/api/v1/emergency-events/{event_id}/timeline": {
+      "get": {
+        "operationId": "get_timeline_api_v1_emergency_events__event_id__timeline_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EscalationTimelineOut"
+                  },
+                  "title": "Response Get Timeline Api V1 Emergency Events  Event Id  Timeline Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Append-only escalation timeline, oldest first (patient or assigned doctor)",
+        "tags": [
+          "escalation"
+        ]
+      }
+    },
+    "/api/v1/escalation-steps/{step_id}/acknowledge": {
+      "post": {
+        "operationId": "step_acknowledge_api_v1_escalation_steps__step_id__acknowledge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "step_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Step Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationStepOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Target doctor: 'J'ai vu / je m'en occupe'. Seen, not a promise that help has arrived",
+        "tags": [
+          "escalation"
+        ]
+      }
+    },
+    "/api/v1/escalation-steps/{step_id}/delivered": {
+      "post": {
+        "operationId": "step_delivered_api_v1_escalation_steps__step_id__delivered_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "step_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Step Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationStepOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Target doctor's app: the escalation was displayed (delivery receipt). Repeat-safe",
+        "tags": [
+          "escalation"
         ]
       }
     },
@@ -4602,6 +6278,238 @@
         "summary": "Current user and role",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/me/notifications": {
+      "get": {
+        "operationId": "my_notifications_api_v1_me_notifications_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "unread",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Unread",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationOut"
+                  },
+                  "title": "Response My Notifications Api V1 Me Notifications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My in-app notifications, newest first",
+        "tags": [
+          "escalation"
+        ]
+      }
+    },
+    "/api/v1/notifications/{notification_id}/read": {
+      "post": {
+        "operationId": "read_notification_api_v1_notifications__notification_id__read_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Notification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mark one of my notifications as read. Repeat-safe",
+        "tags": [
+          "escalation"
         ]
       }
     },

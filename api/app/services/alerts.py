@@ -17,6 +17,7 @@ from ..analysis.types import ActiveAlert, Evaluation
 from ..auth import CurrentUser
 from ..errors import ApiError
 from ..models import Alert, AlertMeasurement, AuditLog, Measurement, SymptomReport
+from . import notifications
 
 OUR_CLASSES = tuple(vocab.ALERT_CLASS_TO_LEVEL)  # alerts of other classes are not produced by the rules
 
@@ -46,6 +47,7 @@ def apply_evaluation(db: Session, patient_id: UUID, ev: Evaluation, *, measureme
                       actions=[ev.next_step], persistent=ev.persistent)
         db.add(alert)
         db.flush()
+        notifications.alert_for_doctors(db, alert, ev.level, "alert_created")
         return alert
 
     alert = db.get(Alert, ev.target_alert_id)
@@ -63,6 +65,8 @@ def apply_evaluation(db: Session, patient_id: UUID, ev: Evaluation, *, measureme
             alert.reason, alert.actions = ev.reason, [ev.next_step]
             if alert.symptom_report_id is None:
                 alert.symptom_report_id = symptom_report_id
+            db.flush()  # one UPDATE (one audit row) before the notification query
+            notifications.alert_for_doctors(db, alert, ev.level, "alert_raised")
     else:
         raise ValueError(f"Unknown alert_action {ev.alert_action}")
     db.flush()
@@ -133,6 +137,8 @@ def transition(db: Session, alert: Alert, user: CurrentUser, to: str, note: str 
     else:
         alert.resolved_at, alert.resolved_by, alert.resolution_note = now, user.id, note.strip() if note else None
     db.flush()
+    if to in ("reviewed", "resolved"):
+        notifications.alert_for_patient(db, alert, f"alert_{to}", user.id)
     return alert
 
 

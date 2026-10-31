@@ -25,6 +25,7 @@ from ..schemas import (EmergencyActionOut, EmergencyActionsIn, EmergencyEventIn,
                        EmergencyEventPatch, Location)
 
 CLOCK_SKEW = timedelta(minutes=5)   # same tolerance as readings and symptom onsets
+LOCATION_MAX_AGE = timedelta(minutes=15)  # an older position is not shown to anyone as "where the patient is"
 MAX_ACTIONS = 500                   # per event; a real incident has a few dozen at most
 REPORT_WINDOW = timedelta(hours=24)
 
@@ -39,7 +40,11 @@ def event_out(e: EmergencyEvent) -> EmergencyEventOut:
     location = Location(lat=e.location_lat, lon=e.location_lon) if e.location_lat is not None else None
     return EmergencyEventOut(id=e.id, patient_id=e.patient_id, trigger_reason=e.trigger_reason, alert_id=e.alert_id,
                              symptoms_snapshot=e.symptoms_snapshot, started_at=e.started_at, ended_at=e.ended_at,
-                             actions=actions, reported_outcome=e.reported_outcome, location=location)
+                             actions=actions, reported_outcome=e.reported_outcome, location=location,
+                             location_captured_at=e.location_captured_at if location else None,
+                             location_accuracy_m=e.location_accuracy_m if location else None,
+                             severity=e.severity, evidence_provenance=e.evidence_provenance,
+                             escalation_status=e.escalation_status)
 
 
 def get_event(db: Session, event_id: UUID, lock: bool = False) -> EmergencyEvent:
@@ -118,13 +123,22 @@ def patch_event(db: Session, event: EmergencyEvent, data: EmergencyEventPatch, n
             raise _invalid("location", "consent_required",
                            "Location is stored only with location_shared_with_consent=true in the same request.",
                            error="consent_required")
+        captured = data.location_captured_at or now
+        if captured > now + CLOCK_SKEW:
+            raise _invalid("location_captured_at", "in_future", "Use the time the phone measured the position.")
+        if captured < now - LOCATION_MAX_AGE:
+            raise _invalid("location_captured_at", "stale_location",
+                           "This position is older than 15 minutes. Share the current position.")
         event.location_lat, event.location_lon = data.location.lat, data.location.lon
+        event.location_captured_at, event.location_accuracy_m = captured, data.location_accuracy_m
     elif "location" in sent:  # explicit null removes a stored location
         event.location_lat = event.location_lon = None
+        event.location_captured_at = event.location_accuracy_m = None
     if "location_shared_with_consent" in sent and data.location_shared_with_consent is not None:
         event.location_shared_with_consent = data.location_shared_with_consent
         if not data.location_shared_with_consent:  # consent withdrawn: the location goes with it
             event.location_lat = event.location_lon = None
+            event.location_captured_at = event.location_accuracy_m = None
     if "reported_outcome" in sent:
         event.reported_outcome = data.reported_outcome
     if "ended_at" in sent and data.ended_at is not None:
