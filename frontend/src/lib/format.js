@@ -69,7 +69,16 @@ export function originOf(reading) {
 // MeasurementOut.validation_status, decided by the database (policy pulse-v1). "valid" has no badge.
 export const VALIDATION = {
   needs_review: { label: "À vérifier", tone: "warning" },
-  invalid: { label: "Invalide", tone: "neutral" },
+  invalid: { label: "Invalide", tone: "danger" },
+};
+
+// MeasurementOut.quality_flags that make a reading invalid (policy pulse-v1), in plain French.
+export const INVALID_FLAG = {
+  systolic_not_above_diastolic: "le chiffre du haut doit être plus grand que celui du bas",
+  systolic_implausible: "le chiffre du haut est hors de la plage possible",
+  diastolic_implausible: "le chiffre du bas est hors de la plage possible",
+  pulse_implausible: "le pouls est hors de la plage possible",
+  measured_in_future: "l'heure de la mesure est dans le futur",
 };
 
 export const TREND = {
@@ -82,6 +91,7 @@ export const TREND = {
 // AlertOut.level / EvaluationOut.level -> label, badge tone, icon. Presentation only.
 export const ALERT_LEVEL = {
   none: { label: "Enregistrée", tone: "success", icon: "check" },
+  low: { label: "Tension basse", tone: "warning", icon: "alert" },
   notice: { label: "Au-dessus de la cible", tone: "notice", icon: "info" },
   trend: { label: "Tendance élevée", tone: "trend", icon: "pulse" },
   severe: { label: "Très élevée", tone: "severe", icon: "alert" },
@@ -91,11 +101,20 @@ export const ALERT_LEVEL = {
 // Result card after a reading: heading and the AlertCard variant. Presentation only.
 export const EVALUATION_LEVEL = {
   none: { title: "Mesure enregistrée", variant: "info" },
+  low: { title: "Tension basse", variant: "warning" },
   notice: { title: "Au-dessus de votre cible", variant: "warning" },
   trend: { title: "Tendance à surveiller", variant: "warning" },
   severe: { title: "Tension très élevée", variant: "critical" },
   emergency: { title: "Urgence", variant: "critical" },
 };
+
+/** Result card heading. An invalid reading never reads as "saved and fine". */
+export function evaluationHeading(evaluation, measurement) {
+  if (evaluation?.rule_id === "DATA-INVALID" || measurement?.validation_status === "invalid") {
+    return { title: "Mesure non valide : elle n'est pas prise en compte", variant: "warning", invalid: true };
+  }
+  return EVALUATION_LEVEL[evaluation?.level] ?? { title: evaluation?.level, variant: "info" };
+}
 
 export const ALERT_STATUS = {
   open: { label: "Ouverte", tone: "danger" },

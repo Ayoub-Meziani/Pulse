@@ -29,6 +29,7 @@ from ..schemas import MeasurementIn
 from .alerts import active_alerts, apply_evaluation
 
 UPPER_LIMIT_FLAGS = {"systolic_implausible": 300, "diastolic_implausible": 200}  # pulse-v1 upper bounds
+LOWER_LIMIT_FLAGS = {"systolic_implausible": 50, "diastolic_implausible": 25}   # pulse-v1 lower bounds
 
 
 def current_target(db: Session, patient_id: UUID) -> Target:
@@ -54,10 +55,13 @@ def invalid_evaluation(m: Measurement) -> Evaluation:
     reason = "This reading cannot be used: " + "; ".join(texts.INVALID_FLAG_TEXT[f] for f in flags) + "."
     above_limit = (m.systolic > UPPER_LIMIT_FLAGS["systolic_implausible"]
                    or m.diastolic > UPPER_LIMIT_FLAGS["diastolic_implausible"])
-    # A typo must never hide a possible crisis: values above the plausible range ask for the symptom check.
+    below_limit = (m.systolic < LOWER_LIMIT_FLAGS["systolic_implausible"]
+                   or m.diastolic < LOWER_LIMIT_FLAGS["diastolic_implausible"])
+    # A typo must never hide a possible crisis: values outside the plausible range, too high or too low (a failed
+    # cuff, or a person who is faint), ask for the symptom check. Not a usable reading, so no alert.
     return Evaluation(level="none", rule_id="DATA-INVALID", reason=reason,
-                      next_step=texts.NEXT_STEP["DATA-INVALID"], alert_action="none",
-                      requires_symptom_check=above_limit)
+                      next_step=texts.NEXT_STEP["DATA-INVALID-LOW" if below_limit else "DATA-INVALID"],
+                      alert_action="none", requires_symptom_check=above_limit or below_limit)
 
 
 def to_reading(m: Measurement) -> Reading:
