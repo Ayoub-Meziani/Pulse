@@ -24,7 +24,7 @@ Human-readable summary, endpoint list, frontend flow rules and database/ML contr
   (valid readings of the last 7 days), so they add up to it; `needs_review` and invalid readings are in none of them
   (`count_needs_review_7d`, `count_invalid_7d`). Averages, `pct_above_target_7d` and `trend` still use valid readings of
   any provenance, simulated ones included; they are descriptive and never create alerts (D19, D20).
-- Alert confirmation and doctor alert list (D27): a patient acknowledges a **severe or emergency** alert only with
+- Alert confirmation and doctor alert list (D28): a patient acknowledges a **severe or emergency** alert only with
   `POST /alerts/{id}/patient-confirmation {"password"}` (checked with Supabase Auth, never stored or logged; the extra
   session is revoked); the plain `transition` to `acknowledged` by the patient answers 403
   `password_confirmation_required` for those levels (notice and trend unchanged; doctors unchanged). Wrong password: 403
