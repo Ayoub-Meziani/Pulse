@@ -99,6 +99,18 @@ def test_reading_too_low_to_be_real_is_invalid_but_asks_for_the_symptom_check(ap
     assert "too low to be a real measurement" in ev["next_step"] and r["alert"] is None
 
 
+@pytest.mark.parametrize("body,flag", [
+    ({"systolic": 62, "diastolic": 40, "pulse": 300}, "pulse_implausible"),                   # a pulse typo
+    ({"systolic": 196, "diastolic": 126, "measured_at": iso(datetime.now(timezone.utc) + timedelta(minutes=20))},
+     "measured_in_future"),                                                                 # a clock running fast
+])
+def test_crisis_values_made_invalid_by_another_flag_still_ask_for_the_symptom_check(api, patient, body, flag):
+    r = post(api, patient, **body).json()
+    assert r["measurement"]["validation_status"] == "invalid" and flag in r["measurement"]["quality_flags"]
+    assert (r["evaluation"]["rule_id"], r["evaluation"]["requires_symptom_check"], r["alert"]) == \
+           ("DATA-INVALID", True, None)
+
+
 @pytest.mark.parametrize("s,d,rule,symptom_check", [(85, 55, "R-LOW-1", False), (65, 40, "R-LOW-2", True)])
 def test_low_blood_pressure_is_flagged_with_an_alert(api, patient, s, d, rule, symptom_check):
     r = post(api, patient, systolic=s, diastolic=d).json()

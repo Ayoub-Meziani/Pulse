@@ -57,7 +57,7 @@ Read-only checks: counts, access rules, ML outputs; the docs were updated.
 - **Local:** M9 is applied (no row changed). The live engine runs inside `monitor --follow` on the local stack only.
 - **Cloud:** M9 was applied between 21:47 and 22:58 UTC on 30 Oct, outside this Claude session. Ayoub decided on 31 Oct to **keep** it (Q6; not approved retroactively). No `early_warning` row exists. It's additive: three wider checks on `wearable_flags` and two consistency checks.
 - **Still inactive by Ayoub's decision:** the live-v1 engine, the ML jobs, the simulators and R-RING-1. Running `monitor --follow` against the cloud needs Ayoub to lift the freeze.
-- **Local demo:** `monitor --follow` + `pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6`. The stream adds simulated samples to the local database.
+- **Local demo:** `monitor --follow` + `pulse_data.stream --patient-email patient.b@demo.pulse.test --scenario oxygen_falling --speed 5 --minutes 20`, both with `DATABASE_URL` set to the local dev stack (`DEMO_RUNBOOK.html` step 2.3). The stream adds simulated samples to the local database.
 
 ## Cloud steps by Claude: frozen
 Only read-only checks (allowed by `PULSE_DATABASE_SYNC_POLICY.md`). No `db push --linked`, no writes through `db query --linked`, no `scripts\run_cloud_jobs.ps1` until Ayoub lifts the freeze. Evidence of every earlier run: `CLOUD_RUN_LOG_2026-10-30.md`.

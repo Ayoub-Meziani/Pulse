@@ -20,7 +20,7 @@ Doctor-only model estimate, trained on **synthetic data**. It is not a measureme
 ..\.venv\Scripts\python -m pulse_ml.predict --all [--date YYYY-MM-DD]
 ..\.venv\Scripts\python -m pulse_ml.jobs                  # predict + monitor --nights + weekly on ONE connection
 ```
-Cloud: `scripts\run_cloud_jobs.ps1` runs `pulse_ml.jobs` with `DATABASE_URL` from `.env`, or with a temporary login from the linked Supabase CLI (no stored password).
+Cloud: none. The jobs refuse any non-local database (`predict.connect`, no unlock, D26), so `scripts\run_cloud_jobs.ps1` fails closed; a cloud run needs a reviewed code change and Ayoub lifting the freeze.
 `predict` uses `DATABASE_URL` (default: local stack `127.0.0.1:55322`). It prints only counts per status, never health values. Run it after seeding and before the demo (contract checkpoint C5); a daily schedule can come later.
 
 ## Inference output contract (for the backend)
@@ -57,7 +57,7 @@ Built as required by the backend review (`PULSE_ML_phase2_review.pdf`). **Flags 
 | `..\.venv\Scripts\python -m pulse_ml.ring_train` | trains IsolationForest on synthetic personal z-scores, scores all methods on test patients → `artifacts/ring-v1.1/` |
 | `..\.venv\Scripts\python -m pulse_ml.monitor --nights` | night windows (00:00–06:00 local) of assigned patients: reference, personal baseline or approved band, IsolationForest |
 | `..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5` | live 10-minute windows; polls `wearable_samples` by `created_at` with a 5-minute overlap; never re-flags a window |
-| `..\.venv\Scripts\python -m pulse_data.stream --scenario spo2_dip --minutes 1` (repo root) | **simulated** live ring samples for every demo patient (scenario on Nadia by default); refuses a cloud URL without `--i-confirmed-cloud` |
+| `..\.venv\Scripts\python -m pulse_data.stream --scenario spo2_dip --minutes 1` (repo root) | **simulated** live ring samples for every demo patient (scenario on Nadia by default); refuses any non-local database (no unlock, D26) |
 
 **Inputs:** `wearable_samples` of actively assigned patients, `patient_bands` (active), and doctor-confirmed flags (left out of the baseline).
 **Output:** rows in `wearable_flags`. Nothing else is written.
@@ -103,7 +103,7 @@ These warnings are advisory, for the doctor only (the `wearable_flags` rows `ear
 |---|---|
 | `..\.venv\Scripts\python -m pulse_data.live_sim --out data/live/train --nights 700 --seed 11` and `... --out data/live/test --nights 700 --seed 2027` (repo root) | minute-level SIMULATED nights: normal, bad sleep, sleep apnea, oxygen falling, heart rate climbing, fever starting, false-alarm traps |
 | `..\.venv\Scripts\python -m pulse_ml.live_test` | trains `live-v1` (seed 11; thresholds on held-out training nights) and tests it minute by minute on the unseen simulated seed-2027 nights → `artifacts/live-v1/` |
-| `..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5` + `..\.venv\Scripts\python -m pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6` (repo root) | live demo on the local stack: an `early_warning` row before the `outside_reference` row (the stream adds simulated samples) |
+| `..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5` + `..\.venv\Scripts\python -m pulse_data.stream --patient-email patient.b@demo.pulse.test --scenario oxygen_falling --speed 5 --minutes 20` (repo root, `DATABASE_URL` = the local dev stack behind the website, see `docs/data/DEMO_RUNBOOK.html` step 2.3) | live demo on the local stack: an `early_warning` row before the `outside_reference` row (the stream adds 30 backdated warm-up minutes, then simulated samples; the warning comes at about minute 8–11) |
 
 ## Training commands (all from `ml/`, synthetic data from `python -m pulse_data.simulate csv` at the repo root)
 | Command | Model | Time |

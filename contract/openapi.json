@@ -1833,7 +1833,7 @@
             "description": "Validation of the inserted rows by the database (policy pulse-v1)."
           },
           "duplicates": {
-            "description": "Rows identical to a stored reading (time, systolic, diastolic, pulse): skipped.",
+            "description": "Rows already stored with the same label (same values within 2 minutes, pulse equal or missing), or repeated in the file: skipped.",
             "title": "Duplicates",
             "type": "integer"
           },
@@ -1849,7 +1849,7 @@
             "description": "Highest-level rule result among fresh measured rows (ties: the latest); requires_symptom_check is true if any fresh row needs it. Drive the symptom check and recheck from it exactly as for a manual reading."
           },
           "historical": {
-            "description": "Inserted rows measured more than one hour ago: history only, no alert.",
+            "description": "Inserted rows measured more than 10 minutes ago, or before the patient's latest stored reading: history only, no alert.",
             "title": "Historical",
             "type": "integer"
           },
@@ -3043,7 +3043,7 @@
         "type": "object"
       },
       "ReadingsImportIn": {
-        "description": "A cuff export sent as CSV text (no multipart upload). Columns: measured_at, systolic, diastolic required;\npulse, unit (mmHg only), position, arm, note optional; lines starting with '#' are comments.\n\nRows measured within the last hour go through the same rules as a manual reading, oldest first; older rows\nare history only. Rows declared simulated never create an alert: the rules' result is returned as a preview.",
+        "description": "A cuff export sent as CSV text (no multipart upload). Columns: measured_at, systolic, diastolic required;\npulse, unit (mmHg only), position, arm, note optional; lines starting with '#' are comments.\n\nRows measured within the last 10 minutes and after the patient's latest stored reading go through the same rules\nas a manual reading, oldest first; other rows are history only. A row already stored with the same label (same\nvalues within 2 minutes, pulse equal or missing) is a duplicate. Rows declared simulated never create an alert:\nthe rules' result is returned as a preview.",
         "properties": {
           "csv": {
             "maxLength": 300000,

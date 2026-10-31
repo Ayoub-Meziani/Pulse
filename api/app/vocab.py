@@ -11,7 +11,7 @@ LEVEL_TO_ALERT_CLASS = {
     "emergency": "possible_emergency",
 }
 ALERT_CLASS_TO_LEVEL = {v: k for k, v in LEVEL_TO_ALERT_CLASS.items()}
-LEVEL_RANK = {"none": 0, "low": 1, "notice": 1, "trend": 2, "severe": 3, "emergency": 4}
+LEVEL_RANK = {"none": 0, "notice": 1, "low": 2, "trend": 3, "severe": 4, "emergency": 5}
 
 ACTIVE_ALERT_STATUSES = ("open", "acknowledged")
 ALERT_TRIGGER_SOURCE = "rule_engine"

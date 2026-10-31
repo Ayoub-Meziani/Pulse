@@ -1,13 +1,15 @@
 import { useId, useState } from "react";
 import { useNavigate } from "react-router";
 import { importReadings, listAlerts } from "../../api/patient";
+import AlertCard from "../alerts/AlertCard";
 import AlertList from "../alerts/AlertList";
 import { LevelBadge } from "../ui/Badge";
-import Button from "../ui/Button";
+import Button, { ButtonLink } from "../ui/Button";
 import Icon from "../ui/Icon";
 import { Section } from "../ui/States";
 import { formatDateTime } from "../../lib/format";
 import { declaresSimulated, importCounts, importErrorText, MAX_CSV_CHARS } from "../../lib/importSummary";
+import { unreachable } from "../../lib/readingFlow";
 import { useResource } from "../../lib/useResource";
 
 // Cuff CSV import. The server parses the file, validates every row and runs the reading rules on the fresh
@@ -39,9 +41,10 @@ export function CsvImportForm({ choices, busy, onSubmit }) {
     try {
       text = await f.text();
     } catch {
-      setProblem("Impossible de lire ce fichier.");
+      if (input.files?.[0] === f) setProblem("Impossible de lire ce fichier.");
       return;
     }
+    if (input.files?.[0] !== f) return;  // another file was picked while this one was read: only the latest counts
     if (!text.trim()) {
       setProblem("Ce fichier est vide.");
       return;
@@ -127,6 +130,21 @@ export function ImportSummary({ counts, nextStep, children }) {
   );
 }
 
+// No answer (lost, server down), or 409 after an answer that was lost: the server's step for a recent reading of this
+// file may never have been shown. The symptom check falls back on the offline emergency rules if the server is down.
+function MissedStep() {
+  return (
+    <div className="space-y-3">
+      <AlertCard variant="warning" title="Une mesure récente de ce fichier était très élevée ou très basse ?"
+        message="Le serveur vous aurait demandé de vérifier vos symptômes : faites-le maintenant, puis refaites une mesure. Si vous vous sentez mal, utilisez le bouton Urgence." />
+      <div className="flex flex-wrap gap-3">
+        <ButtonLink to="/patient/mesure?mode=symptomes">Vérifier mes symptômes</ButtonLink>
+        <ButtonLink to="/patient/mesure" variant="secondary">Nouvelle mesure</ButtonLink>
+      </div>
+    </div>
+  );
+}
+
 // After 409 already_imported: the first try may have raised an alert whose answer was lost, so show what is pending.
 function ActiveAlerts({ patientId, timeZone }) {
   const alerts = useResource((signal) => listAlerts(patientId, { status: "active", signal }), `ia:${patientId}`);
@@ -142,13 +160,14 @@ function ActiveAlerts({ patientId, timeZone }) {
   );
 }
 
-function ReadingsResult({ result, timeZone }) {
+/** ImportResult of a cuff file. Also shown under the symptom check when the import leads there (AddReading). */
+export function ReadingsResult({ result, timeZone }) {
   const c = importCounts(result);
   return (
     <ImportSummary counts={c} nextStep={result.next_step}>
       <p className="text-sm text-ink-muted">
         Validation par le serveur : {c.byStatus.valid} valide(s), {c.byStatus.needs_review} à vérifier, {c.byStatus.invalid} invalide(s), non prise(s) en compte.
-        {c.historical > 0 && <><br />{c.historical} mesure(s) de plus d'une heure : ajoutée(s) à l'historique, sans alerte.</>}
+        {c.historical > 0 && <><br />{c.historical} mesure(s) de plus de 10 minutes, ou antérieure(s) à votre dernière mesure : ajoutée(s) à l'historique, sans alerte.</>}
         {c.pastSevere > 0 && <> Dont <strong className="text-ink">{c.pastSevere} très élevée(s)</strong>.</>}
       </p>
       <div>
@@ -173,14 +192,17 @@ function ReadingsResult({ result, timeZone }) {
   );
 }
 
-export default function ImportPanel({ patientId, timeZone, onImported }) {
+/** onBusy(true | false): lets the page keep the panel open while a file is being sent (its answer must be seen). */
+export default function ImportPanel({ patientId, timeZone, onImported, onBusy }) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [sent, setSent] = useState(0);  // a fresh form after each import, so the same file is not sent again by mistake
 
   async function send(file, provenance) {
     setBusy(true);
+    onBusy?.(true);
     setError(null);
     setResult(null);
     try {
@@ -189,14 +211,19 @@ export default function ImportPanel({ patientId, timeZone, onImported }) {
       onImported?.();
       if (r.evaluation?.requires_symptom_check) {
         // Same flow as after a manual reading: symptom check, then the server's recheck timer or emergency screen.
-        navigate("/patient/mesure?mode=symptomes", { state: { result: { measurement: r.measurement, evaluation: r.evaluation } } });
+        // The whole answer goes along, so the counts and rejected rows are shown there too.
+        navigate("/patient/mesure?mode=symptomes", {
+          state: { result: { measurement: r.measurement, evaluation: r.evaluation }, importResult: r },
+        });
         return;
       }
       setResult(r);
+      setSent((n) => n + 1);
     } catch (e) {
-      setError(e);
+      setError({ error: e, provenance });
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
 
@@ -204,13 +231,15 @@ export default function ImportPanel({ patientId, timeZone, onImported }) {
     <div className="space-y-5">
       <p className="text-sm text-ink-muted">
         Export CSV de votre tensiomètre : colonnes measured_at, systolic, diastolic (pulse, unit, position, arm, note facultatives).
-        Les mesures de moins d'une heure passent par les mêmes règles qu'une saisie ; les plus anciennes rejoignent l'historique sans alerte.
+        Les mesures de moins de 10 minutes, plus récentes que votre dernière mesure, passent par les mêmes règles qu'une saisie ; les autres rejoignent l'historique sans alerte.
       </p>
-      <CsvImportForm choices={ORIGINS} busy={busy} onSubmit={send} />
+      <CsvImportForm key={sent} choices={ORIGINS} busy={busy} onSubmit={send} />
       {error && (
         <div className="space-y-3">
-          <p role="alert" className="flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger"><Icon name="alert" size={18} />{importErrorText(error)}</p>
-          {error.code === "already_imported" && <ActiveAlerts patientId={patientId} timeZone={timeZone} />}
+          <p role="alert" className="flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger"><Icon name="alert" size={18} />{importErrorText(error.error)}</p>
+          {/* Only measured rows can ask for a symptom check; a simulated file never does. */}
+          {error.provenance === "measured" && (unreachable(error.error) || error.error.code === "already_imported") && <MissedStep />}
+          {error.error.code === "already_imported" && <ActiveAlerts patientId={patientId} timeZone={timeZone} />}
         </div>
       )}
       {result && <ReadingsResult result={result} timeZone={timeZone} />}

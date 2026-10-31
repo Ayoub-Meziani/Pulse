@@ -5,6 +5,7 @@ import pytest
 
 from app.analysis import (compute_summary, evaluate_measurement, evaluate_symptoms,
                           evaluate_trend, validate_measurement)
+from app.analysis import texts
 from app.analysis.rules import KNOWN_SYMPTOMS, RED_FLAG_SYMPTOMS
 from app.analysis.types import ActiveAlert, Reading, Target
 
@@ -119,7 +120,15 @@ def test_high_pressure_and_target_come_before_low(s, d, level):
 def test_low_recheck_inside_a_severe_episode_stays_in_the_episode():
     sev = ActiveAlert(9, "severe", "R-SEV-1", NOW - timedelta(minutes=3))
     ev = evaluate_measurement(r(85, 55), TARGET, [sev])
-    assert (ev.rule_id, ev.target_alert_id) == ("R-SEV-3", 9)
+    assert (ev.rule_id, ev.target_alert_id, ev.requires_symptom_check) == ("R-SEV-3", 9, False)
+
+
+def test_very_low_recheck_inside_a_severe_episode_still_gets_the_symptom_check():
+    sev = ActiveAlert(9, "severe", "R-SEV-1", NOW - timedelta(minutes=1))
+    ev = evaluate_measurement(r(62, 38), TARGET, [sev])
+    assert (ev.rule_id, ev.alert_action, ev.target_alert_id) == ("R-SEV-3", "attach", 9)
+    assert (ev.requires_symptom_check, ev.recheck_after_seconds) == (True, 60)
+    assert ev.next_step == texts.NEXT_STEP["R-LOW-2"]
 
 
 def test_doctor_target_wording():

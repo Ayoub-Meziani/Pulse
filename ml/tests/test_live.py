@@ -56,7 +56,7 @@ def test_whole_night_equals_minute_by_minute(bundle):
 
 
 def test_stream_oxygen_falling_at_speed_5_warns_before_the_limit(bundle):
-    """The on-stage demo: pulse_data.stream --patient-email --scenario oxygen_falling --speed 5 (5 s ticks)."""
+    """The on-stage demo: pulse_data.stream --patient-email --scenario oxygen_falling --speed 5 --minutes 20 (5 s ticks)."""
     from pulse_data import stream
     from pulse_data.simulate import RingProfile
     rp = RingProfile(hr=65.0, hrv=34.0, spo2=96.5, temp=34.0)              # a normal profile (no COPD / AF)

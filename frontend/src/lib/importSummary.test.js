@@ -51,4 +51,11 @@ describe("importErrorText", () => {
     expect(importErrorText(new ApiError(422, "validation_error", "Invalid.", [{ message: "too long" }]))).toBe("Valeurs refusées : too long");
     expect(importErrorText(new Error("boom"))).toBe("Erreur inattendue. Réessayez.");
   });
+
+  it("no answer (network error or 5xx): the import may have happened, never reads as 'nothing done'", () => {
+    for (const e of [new ApiError(0, "network_error", "Impossible de joindre le serveur."), new ApiError(502, "bad_gateway", "Bad gateway.")]) {
+      expect(importErrorText(e)).toMatch(/a peut-être été importé/);
+    }
+    expect(importErrorText(new ApiError(403, "forbidden", "No."))).toBe("Vous ne pouvez pas importer de fichier pour ce compte.");
+  });
 });

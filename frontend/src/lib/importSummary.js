@@ -1,6 +1,7 @@
 // Display helpers for the file-import answers (ImportResult, RingImportResult; contract/openapi.json).
 // Formatting only: every count, level, alert and next step is the server's. Nothing here decides anything.
 import { ApiError } from "../api/client";
+import { unreachable } from "./readingFlow";
 
 /** ReadingsImportIn.csv / RingImportIn.csv maxLength: a bigger file is refused before it is sent. */
 export const MAX_CSV_CHARS = 300000;
@@ -53,6 +54,9 @@ export function importCounts(result) {
 export function importErrorText(error) {
   if (!(error instanceof ApiError)) return "Erreur inattendue. Réessayez.";
   if (error.code === "already_imported") return "Ce fichier a déjà été importé.";
+  if (unreachable(error)) {
+    return "La réponse du serveur n'est pas arrivée : le fichier a peut-être été importé, ou non. Renvoyez-le dans un instant ; s'il était déjà arrivé, il ne sera pas importé deux fois.";
+  }
   const details = Array.isArray(error.details) ? error.details.map((d) => d.message).filter(Boolean) : [];
   if (error.code === "invalid_file") return `Fichier refusé : ${details[0] ?? error.message}`;
   if (error.status === 422) return `Valeurs refusées : ${details.join(" ; ") || error.message}`;

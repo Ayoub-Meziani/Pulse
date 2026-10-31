@@ -88,6 +88,14 @@ def test_weekly_reports_and_doctor_band_loop(conn):
                         (karim,)).fetchone() == ("reviewed", "seen")
     assert home(amina)["simulated"] == home(amina)["valid_readings"] - 1          # her own measured reading
 
+    # the doctor rejects one proposal (what POST /bands/{id}/reject does), then the jobs run again
+    rejected = conn.execute("update public.patient_bands set status = 'rejected' where id = (select id from"
+                            " public.patient_bands where status = 'proposed' and not (patient_id = %s and metric ="
+                            " 'heart_rate') limit 1) returning patient_id, metric, statistic", (karim,)).fetchone()
+    assert rejected and weekly.run(conn, date.today())["band_proposals"] == 0   # the doctor's reject sticks
+    assert conn.execute("select count(*) from public.patient_bands where (patient_id, metric, statistic) ="
+                        " (%s, %s, %s) and status = 'proposed'", rejected).fetchone()[0] == 0
+
     band_id = conn.execute("select id::text from public.patient_bands where patient_id = %s and metric = 'heart_rate'",
                            (karim,)).fetchone()[0]
     as_doctor(conn, DOCTOR.id)

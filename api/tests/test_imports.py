@@ -61,7 +61,7 @@ def test_fresh_severe_measured_row_opens_the_severe_alert_and_asks_for_the_sympt
 
 def test_highest_level_wins_and_any_row_can_ask_for_the_symptom_check(api, conn, people):
     p = people["patient"]
-    body = ok(upload(api, p, csv_of((ago(minutes=10), 186, 118, 96), (ago(minutes=5), 128, 80, 72))))
+    body = ok(upload(api, p, csv_of((ago(minutes=8), 186, 118, 96), (ago(minutes=5), 128, 80, 72))))
     ev = body["evaluation"]
     # Same level (severe): the latest result is shown, as after a manual recheck, and the symptom check the
     # first row asked for is still required.
@@ -101,12 +101,55 @@ def test_old_severe_row_is_history_only_and_asks_for_a_reading_now(api, conn, pe
     assert alerts_of(conn, p) == []
 
 
-def test_fresh_above_target_row_and_recent_history_feed_the_trend_once(api, conn, people):
+def test_fresh_above_target_rows_and_recent_history_feed_the_trend_once(api, conn, people):
     p = people["patient"]
-    rows = [(ago(days=d), 152, 95, 80) for d in (3, 2, 1)] + [(ago(minutes=5), 150, 94, 78)]
+    rows = [(ago(days=d), 152, 95, 80) for d in (3, 2, 1)] + [(ago(minutes=6), 150, 94, 78), (ago(minutes=4), 151, 93, 77)]
     body = ok(upload(api, p, csv_of(*rows)))
     assert sorted(r[0] for r in alerts_of(conn, p)) == ["R-TGT-1", "R-TRD-1"]
     assert {a["rule_id"] for a in body["alerts"]} == {"R-TGT-1", "R-TRD-1"}
+    # Once per file: the trend alert is created on the newest row and no later row is attached to it.
+    trend = conn.execute(text("select a.id, m.systolic from public.alerts a join public.measurements m "
+                              "on m.id = a.measurement_id where a.patient_id = :p and a.rule_code = 'R-TRD-1'"),
+                         {"p": p}).one()
+    links = conn.execute(text("select count(*) from public.alert_measurements where alert_id = :a"),
+                         {"a": trend.id}).scalar()
+    assert (trend.systolic, links) == (151, 0)
+
+
+def test_severe_row_older_than_the_recheck_can_reach_is_history_and_asks_for_a_reading_now(api, conn, people):
+    p = people["patient"]
+    body = ok(upload(api, p, csv_of((ago(minutes=12), 186, 118, 96))))
+    assert (body["historical"], body["past_severe"], body["evaluation"]) == (1, 1, None)
+    assert body["next_step"] == texts.NEXT_STEP["IMPORT-PAST-SEVERE"] and alerts_of(conn, p) == []
+
+
+def test_recheck_after_an_imported_severe_row_joins_the_episode(api, conn, people):
+    p = people["patient"]
+    assert ok(upload(api, p, csv_of((ago(minutes=8), 186, 118, 96))))["evaluation"]["recheck_after_seconds"] == 60
+    recheck = api.post(f"{API}/patients/{p}/measurements", json={"systolic": 184, "diastolic": 121},
+                       headers=auth_header(p)).json()
+    assert recheck["evaluation"]["rule_id"] == "R-SEV-2"
+    assert alerts_of(conn, p) == [("R-SEV-1", "severely_high", True)]
+
+
+def test_row_older_than_a_reading_already_evaluated_never_reopens_its_episode(api, conn, people):
+    p = people["patient"]
+    api.post(f"{API}/patients/{p}/measurements", json={"systolic": 186, "diastolic": 118}, headers=auth_header(p))
+    body = ok(upload(api, p, csv_of((ago(minutes=6), 186, 118, 96))))   # the cuff's time, typed in later
+    assert (body["inserted"], body["historical"], body["past_severe"], body["alerts"]) == (1, 1, 1, [])
+    assert alerts_of(conn, p) == [("R-SEV-1", "severely_high", False)]
+
+
+def test_cuff_export_of_a_reading_typed_by_hand_is_a_duplicate_and_its_recheck_still_counts(api, conn, people):
+    p = people["patient"]
+    typed = datetime.now(timezone.utc).replace(second=0, microsecond=0) - timedelta(minutes=4)
+    api.post(f"{API}/patients/{p}/measurements", headers=auth_header(p),
+             json={"systolic": 186, "diastolic": 118, "measured_at": typed.isoformat()})   # no pulse, no seconds
+    rows = [((typed + timedelta(seconds=37)).isoformat(), 186, 118, 96),
+            ((typed + timedelta(seconds=100)).isoformat(), 186, 118, 97)]               # the recheck, not typed
+    body = ok(upload(api, p, csv_of(*rows)))
+    assert (body["inserted"], body["duplicates"], body["evaluation"]["rule_id"]) == (1, 1, "R-SEV-2")
+    assert alerts_of(conn, p) == [("R-SEV-1", "severely_high", True)]
 
 
 # ---------------------------------------------------------------- simulated rows: preview, never an alert
@@ -156,6 +199,49 @@ def test_duplicates_and_same_file(api, conn, people):
                               "public.ingestion_batches where patient_id = :p and file_name = 'cuff2.csv'"),
                          {"p": p}).one()
     assert batch == (2, 0, 2, p)
+
+
+def test_a_stored_row_repeated_in_a_merged_file_is_skipped_every_time(api, people):
+    p = people["patient"]
+    row = (ago(days=1), 150, 95, 70)
+    ok(upload(api, p, csv_of(row)))
+    merged = ok(upload(api, p, csv_of(row, row, (ago(hours=20), 140, 88, 72)), name="merged.csv"))
+    assert (merged["inserted"], merged["duplicates"]) == (1, 2)
+
+
+def test_a_typed_entry_and_its_cuff_copy_in_one_file_are_one_reading(api, conn, people):
+    p = people["patient"]
+    at = ago(minutes=5)
+    body = ok(upload(api, p, csv_of((at, 186, 118, ""), (at, 186, 118, 96))))
+    assert (body["inserted"], body["duplicates"]) == (1, 1)
+    assert alerts_of(conn, p) == [("R-SEV-1", "severely_high", False)]          # not a persistent recheck
+
+
+def test_a_very_low_row_is_not_hidden_by_a_later_above_target_row(api, people):
+    body = ok(upload(api, people["patient"], csv_of((ago(minutes=6), 66, 42, 70), (ago(minutes=4), 150, 92, 72))))
+    ev = body["evaluation"]
+    assert (ev["level"], ev["rule_id"], ev["requires_symptom_check"], ev["recheck_after_seconds"]) ==         ("low", "R-LOW-2", True, 60)
+
+
+def test_an_old_very_low_row_asks_for_a_reading_now(api, conn, people):
+    p = people["patient"]
+    body = ok(upload(api, p, csv_of((ago(minutes=30), 62, 38, 60))))
+    assert (body["historical"], body["evaluation"], body["next_step"]) == (1, None, texts.NEXT_STEP["IMPORT-PAST-LOW"])
+    assert alerts_of(conn, p) == []
+
+
+def test_a_real_file_imported_as_simulated_by_mistake_can_be_imported_again(api, conn, people):
+    p = people["patient"]
+    csv = csv_of((ago(days=2), 130, 82, 70), (ago(days=1), 128, 80, 71))
+    assert ok(upload(api, p, csv, "simulated"))["inserted"] == 2
+    again = ok(upload(api, p, csv))
+    assert (again["inserted"], again["duplicates"]) == (2, 0)
+    # The database's possible_duplicate flag ignores the label (policy pulse-v1), so these rows stay out of alerts.
+
+
+def test_a_file_whose_rows_are_all_rejected_says_so(api, people):
+    body = ok(upload(api, people["patient"], csv_of((ago(days=1), "x", 80, 70))))
+    assert (body["inserted"], body["duplicates"], body["next_step"]) == (0, 0, texts.NEXT_STEP["IMPORT-REJECTED"])
 
 
 def test_bad_rows_are_reported_and_the_rest_is_kept(api, people):
@@ -230,7 +316,8 @@ def test_real_ring_export_goes_to_a_real_wearable(api, conn, people):
 
 def test_simulated_ring_file_cannot_pass_as_a_real_export(api, people):
     r = upload_ring(api, people["patient"], ring_csv((ago(hours=3), "heart_rate", 61, "", "")), source="csv_import")
-    assert r.status_code == 422 and r.json()["error"]["details"][0]["code"] == "file_is_simulated"
+    assert r.status_code == 422
+    assert (r.json()["error"]["details"][0]["code"], r.json()["error"]["details"][0]["field"]) ==         ("file_is_simulated", "source")                                                    # RingImportIn.source
 
 
 def test_only_the_patient_can_import_ring_data(api, people):

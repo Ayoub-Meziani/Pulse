@@ -8,12 +8,17 @@ LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 def require_local(url: str, hint: str = "") -> None:
     """SystemExit unless every host the connection could reach is this machine. Follows libpq: the URL's host /
-    hostaddr, else PGHOST / PGHOSTADDR, else localhost; comma-separated lists; a path is a local socket."""
+    hostaddr, else PGHOST / PGHOSTADDR, else localhost; comma-separated lists; a path is a local socket. A libpq
+    service entry (service= or PGSERVICE) is refused: libpq takes host / hostaddr from the service file, so its
+    host cannot be checked here."""
     from psycopg.conninfo import conninfo_to_dict
 
     info = conninfo_to_dict(url)
+    hint = hint or "local stack only"
+    if info.get("service") or os.environ.get("PGSERVICE"):
+        raise SystemExit(f"refusing a libpq service entry (its host is not provably local); {hint}")
     hosts = (info.get("host") or os.environ.get("PGHOST") or "localhost").split(",")
     hosts += [h for h in (info.get("hostaddr") or os.environ.get("PGHOSTADDR") or "").split(",") if h]
     bad = [h for h in hosts if h.strip().lower() not in LOCAL_HOSTS and not h.strip().startswith("/")]
     if bad:
-        raise SystemExit(f"refusing a non-local database ({', '.join(bad)}); {hint or 'local stack only'}")
+        raise SystemExit(f"refusing a non-local database ({', '.join(bad)}); {hint}")

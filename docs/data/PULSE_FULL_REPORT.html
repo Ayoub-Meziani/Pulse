@@ -923,12 +923,12 @@ Sessions around 07:00 and 20:00 (−40 to +60 min), 1–2 readings each; 0.3 % o
 <tr><td><code>... -m pulse_ml.ring_train</code> · <code>classify</code> · <code>mbp_v2</code></td><td>Train + test <code>ring-v1.1</code>, <code>wcls-v1.1</code>, <code>mbp-v2.1</code></td></tr>
 <tr><td><code>... -m pulse_ml.real_data fetch all</code></td><td>Download the 3 real datasets (~200 MB) + manifests</td></tr>
 <tr><td><code>... -m pulse_ml.real_bands</code> · <code>wrisk</code> · <code>real_tests all</code></td><td>NHANES bands, <code>wrisk-v1</code>, real-data tests</td></tr>
-<tr><td><code>... -m pulse_ml.predict --all</code> · <code>monitor --nights</code> · <code>weekly</code></td><td>The three jobs (local by default; <code>DATABASE_URL</code> for the cloud)</td></tr>
-<tr><td><code>... -m pulse_data.stream --scenario spo2_dip --minutes 1</code></td><td>Simulated live ring (refuses the cloud without <code>--i-confirmed-cloud</code>)</td></tr>
+<tr><td><code>... -m pulse_ml.predict --all</code> · <code>monitor --nights</code> · <code>weekly</code></td><td>The three jobs (local databases only; any other host is refused, no unlock)</td></tr>
+<tr><td><code>... -m pulse_data.stream --scenario spo2_dip --minutes 1</code></td><td>Simulated live ring (refuses any non-local database, no unlock)</td></tr>
 <tr><td><code>... -m pulse_data.live_sim --out data/live/test --seed 2027</code> · <code>... -m pulse_ml.live_test</code></td><td>Minute-level situations; train + minute-by-minute test of <code>live-v1</code></td></tr>
-<tr><td><code>... -m pulse_ml.monitor --follow</code> + <code>... -m pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6</code></td><td>Live demo: an early warning before the limit (adds simulated samples to the local database)</td></tr>
+<tr><td><code>... -m pulse_ml.monitor --follow</code> + <code>... -m pulse_data.stream --patient-email patient.b@demo.pulse.test --scenario oxygen_falling --speed 5 --minutes 20</code> (<code>DATABASE_URL</code> = local dev stack)</td><td>Live demo: an early warning before the limit (adds simulated samples to the local database)</td></tr>
 <tr><td><code>scripts\cloud_update.ps1</code></td><td>Cloud: pending migrations + ring demo refresh + check (<span class="pill live">DONE</span> 30 Oct)</td></tr>
-<tr><td><code>scripts\run_cloud_jobs.ps1</code></td><td>Cloud: run the 3 jobs (<code>DATABASE_URL</code> from <code>.env</code>, or a temporary login from the linked Supabase CLI) (<span class="pill live">DONE</span> 30 Oct)</td></tr>
+<tr><td><code>scripts\run_cloud_jobs.ps1</code></td><td>Cloud: run the 3 jobs (<code>DATABASE_URL</code> from <code>.env</code>, or a temporary login from the linked Supabase CLI) (<span class="pill live">DONE</span> 30 Oct; now fails closed, the jobs refuse any non-local database)</td></tr>
 <tr><td><code>.venv\Scripts\python -m pytest</code></td><td>All tests (local stack running)</td></tr>
 </table>
 

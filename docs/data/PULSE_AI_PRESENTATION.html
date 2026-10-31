@@ -415,10 +415,10 @@
       <ol class="small">
         <li>Start <b>Docker Desktop</b> and wait until it's running (the local database starts with it).</li>
         <li>Terminal 1, in <code>ml\</code>:<br><code>..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5</code></li>
-        <li>Terminal 2, in the repo root:<br><code>.venv\Scripts\python -m pulse_data.stream --scenario oxygen_falling --speed 5 --minutes 6</code></li>
+        <li>Terminal 2, in the repo root:<br><code>.venv\Scripts\python -m pulse_data.stream --patient-email patient.b@demo.pulse.test --scenario oxygen_falling --speed 5 --minutes 20</code></li>
         <li>An <code>early_warning</code> row appears before the "limit crossed" flag.</li>
       </ol>
-      <p class="small muted">It adds simulated rows to your <b>local</b> database only. Never point it at the cloud.</p>
+      <p class="small muted">Both terminals: <code>DATABASE_URL</code> = the local dev stack (runbook step 2.3). Simulated rows, <b>local</b> only; the cloud is refused.</p>
       <h3 style="margin-top:12px">Files to open if asked</h3>
       <p class="small"><code>docs/data/PULSE_FULL_REPORT.pdf</code> (every detail) · <code>ml/MODEL_CARD.md</code></p>
     </div>

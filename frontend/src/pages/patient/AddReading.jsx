@@ -1,24 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { ApiError } from "../../api/client";
 import { addMeasurement, addSymptomReport, getEmergencyConfig } from "../../api/patient";
 import AlertCard from "../../components/alerts/AlertCard";
+import { ReadingsResult } from "../../components/readings/ImportPanel";
 import { OriginBadge, ValidationBadge } from "../../components/ui/Badge";
 import Button, { ButtonLink } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import Icon from "../../components/ui/Icon";
 import { evaluationHeading, formatDateTime, INVALID_FLAG, SYMPTOMS } from "../../lib/format";
-import { afterMeasurement, afterSymptoms, readingRequest, whenUnreachable } from "../../lib/readingFlow";
+import { cacheConfig, readCachedConfig } from "../../lib/offlineCache";
+import { afterMeasurement, afterSymptoms, readingRequest, unreachable, whenUnreachable } from "../../lib/readingFlow";
 import EmergencyScreen from "./EmergencyScreen";
 
 // Reading -> server evaluation -> next screen. Every level, flag, delay and message is the
 // server's (EvaluationOut); readingFlow.js only picks the screen. Nothing is shown as saved before
 // the server has answered.
-
-function unreachable(error) {
-  return error instanceof ApiError && (error.status === 0 || error.status >= 500);
-}
 
 function errorText(error) {
   if (!(error instanceof ApiError)) return "Erreur inattendue. Réessayez.";
@@ -63,12 +61,13 @@ function SymptomBoxes({ selected, onChange }) {
   );
 }
 
-function ReadingForm({ recheck, onSubmit }) {
+function ReadingForm({ recheck, guidance, onSubmit }) {
   const [systolic, setSystolic] = useState("");
   const [diastolic, setDiastolic] = useState("");
   const [pulse, setPulse] = useState("");
   const [measuredAt, setMeasuredAt] = useState(nowLocalInput);
-  const [position, setPosition] = useState("sitting");
+  // A recheck may be asked lying down (R-LOW-2): no preset, so the stored position is never a guess.
+  const [position, setPosition] = useState(recheck ? "" : "sitting");
   const [rested, setRested] = useState(false);
   const [symptoms, setSymptoms] = useState([]);
   const [showSymptoms, setShowSymptoms] = useState(false);
@@ -99,8 +98,9 @@ function ReadingForm({ recheck, onSubmit }) {
     <Card as="form" onSubmit={submit} className="p-5 sm:p-7" noValidate>
       <h1 className="text-xl font-bold text-ink sm:text-2xl">{recheck ? "Mesure de contrôle" : "Nouvelle mesure"}</h1>
       <p className="mt-1 text-sm text-ink-muted">
-        {recheck ? "Restez assis au calme et reprenez votre tension maintenant." : "Recopiez les valeurs affichées par votre tensiomètre."}
+        {recheck ? "Reprenez votre tension maintenant, au calme, dans la position que demande la consigne." : "Recopiez les valeurs affichées par votre tensiomètre."}
       </p>
+      {recheck && guidance && <p className="mt-3 rounded-xl bg-surface-muted px-4 py-3 text-sm text-ink">Consigne du serveur : {guidance}</p>}
 
       <div className="mt-6 grid grid-cols-2 gap-4">
         <label className={label}>Systolique
@@ -255,17 +255,36 @@ export default function AddReading() {
   const [params] = useSearchParams();
   const symptomOnly = params.get("mode") === "symptomes";
   // A file import whose fresh reading needs a symptom check arrives with its result (ImportPanel): same flow as here.
-  const imported = useLocation().state?.result ?? null;
-  const [step, setStep] = useState(symptomOnly ? { kind: "symptoms", result: imported } : { kind: "form", recheck: false });
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [importResult, setImportResult] = useState(() => location.state?.importResult ?? null);
+  const [step, setStep] = useState(() => (symptomOnly ? { kind: "symptoms", result: location.state?.result ?? null }
+    : { kind: "form", recheck: false }));
   const [config, setConfig] = useState(null);
   const pending = useRef(null);  // last request: same values -> same id (repeat-safe)
+
+  // Read on every navigation (an import can finish while this page is already open)...
+  const [seenKey, setSeenKey] = useState(location.key);
+  if (location.key !== seenKey) {
+    setSeenKey(location.key);
+    if (location.state?.result || location.state?.importResult) {
+      setStep({ kind: "symptoms", result: location.state.result ?? null });
+      setImportResult(location.state.importResult ?? null);
+    }
+  }
+  // ...then cleared: the browser keeps history state, so a reload or Back/Forward must not ask again about an old import.
+  useEffect(() => {
+    if (location.state) navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [location, navigate]);
 
   // Loaded up front so the server's fallback values are at hand if the API drops mid-flow.
   useEffect(() => {
     const controller = new AbortController();
-    getEmergencyConfig({ signal: controller.signal }).then(setConfig).catch(() => {});
+    getEmergencyConfig({ signal: controller.signal }).then((c) => { setConfig(c); cacheConfig(c); }).catch(() => {});
     return () => controller.abort();
   }, []);
+  // The server's offline values: from this page's load, else the copy kept on the device (server already down).
+  const fallback = () => (config ?? readCachedConfig())?.client_fallback;
 
   async function sendSymptoms(result, symptoms) {
     try {
@@ -275,12 +294,13 @@ export default function AddReading() {
       return null;
     } catch (error) {
       if (!unreachable(error)) return errorText(error);
-      setStep({ ...whenUnreachable(null, symptoms, config?.client_fallback), symptoms });
+      setStep({ ...whenUnreachable(null, symptoms, fallback()), symptoms });
       return null;
     }
   }
 
   async function sendReading(body, symptoms) {
+    setImportResult(null);  // a new reading: the file's summary no longer belongs under it
     pending.current = readingRequest(pending.current, body);
     let result;
     try {
@@ -288,7 +308,7 @@ export default function AddReading() {
     } catch (error) {
       if (!unreachable(error)) return errorText(error);
       // Keep the exact request: "Renvoyer" resends it with the same id, so it can never be stored twice.
-      setStep({ ...whenUnreachable(body, symptoms, config?.client_fallback), body, symptoms });
+      setStep({ ...whenUnreachable(body, symptoms, fallback()), body, symptoms });
       return null;
     }
     pending.current = null;  // stored: the next reading gets a new id
@@ -312,7 +332,7 @@ export default function AddReading() {
         <Link to="/patient" className="inline-flex items-center gap-1 text-sm font-semibold text-brand"><Icon name="back" size={18} />Tableau de bord</Link>
       </div>
 
-      {step.kind === "form" && <ReadingForm key={step.recheck ? "recheck" : "first"} recheck={step.recheck} onSubmit={sendReading} />}
+      {step.kind === "form" && <ReadingForm key={step.recheck ? "recheck" : "first"} recheck={step.recheck} guidance={step.guidance} onSubmit={sendReading} />}
 
       {step.kind === "symptoms" && (
         <>
@@ -325,7 +345,8 @@ export default function AddReading() {
       {step.kind === "recheck_wait" && (
         <>
           <ResultCard result={step.result} report={step.report} tz={user.timezone} />
-          <RecheckTimer seconds={step.seconds} onReady={() => setStep({ kind: "form", recheck: true })} />
+          <RecheckTimer seconds={step.seconds}
+            onReady={() => setStep({ kind: "form", recheck: true, guidance: step.result?.evaluation?.next_step })} />
         </>
       )}
 
@@ -357,6 +378,14 @@ export default function AddReading() {
             <Button variant="secondary" onClick={restart}>Nouvelle mesure</Button>
           </div>
         </>
+      )}
+
+      {/* The rest of the import (counts, rejected rows, alerts), after the symptom check so it never delays it. */}
+      {importResult && ["symptoms", "recheck_wait", "done"].includes(step.kind) && (
+        <Card className="p-5 sm:p-7">
+          <h2 className="text-base font-semibold text-ink">Fichier importé</h2>
+          <div className="mt-3"><ReadingsResult result={importResult} timeZone={user.timezone} /></div>
+        </Card>
       )}
     </div>
   );
