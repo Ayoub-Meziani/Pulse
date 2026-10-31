@@ -1,7 +1,7 @@
 """FastAPI application factory. Run from api/: uvicorn app.main:create_app --factory --reload
 
-Supabase integration in progress (PULSE_DB_INTEGRATION_PLAN.md §7): auth, /me and permissions
-are live; other routes keep their final schema and return 501 until implemented.
+Runs on Supabase Postgres + Auth (docs/engineering/PULSE_DB_INTEGRATION_PLAN.md). Every route of contract v1 is
+implemented except /patients/{id}/daily, which returns 501.
 """
 from __future__ import annotations
 

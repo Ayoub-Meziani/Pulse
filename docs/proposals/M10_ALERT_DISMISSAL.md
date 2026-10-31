@@ -3,7 +3,7 @@
 Status: **proposal only. Not a migration, not applied anywhere.** Prepared 2026-10-31 for Ayoub (Q5 decision).
 The SQL below is a draft for review. It must not be copied into `supabase/migrations/` until Ayoub approves it.
 After approval it runs on the local and test databases, then on staging, and on production only with a separate
-approval (`PULSE_DATABASE_SYNC_POLICY.md`).
+approval (`docs/engineering/PULSE_DATABASE_SYNC_POLICY.md`).
 
 ## 1. Decision being implemented (Ayoub, Q5)
 

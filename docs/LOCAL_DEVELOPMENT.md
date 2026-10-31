@@ -71,7 +71,7 @@ cd ../frontend && npm run lint && npm test && npm run build
 ## Notes and limits
 
 - Why not `supabase start`: on the team's Windows machine the CLI's database start fails
-  (`PULSE_DATABASE_SYNC_POLICY.md` §4). `dev_stack.py` uses the same official images (Postgres
+  (`docs/engineering/PULSE_DATABASE_SYNC_POLICY.md` §4). `dev_stack.py` uses the same official images (Postgres
   17.11.0.003, GoTrue v2.197.0, Kong 2.8.1). Auth signs ES256 tokens like the cloud project, so the API
   verifies them through JWKS exactly as in production.
 - The stack applies only the migrations verified on the live project (`LIVE_UNTIL` in `scripts/test_db.py`).

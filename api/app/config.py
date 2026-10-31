@@ -29,7 +29,7 @@ class Settings:
     demo_number: str | None = None
     emergency_numbers: tuple[dict, ...] = field(default=DEFAULT_EMERGENCY_NUMBERS)
     primary_number_id: str = "dz-14"
-    # Only ml_predictions rows of this model version are served (approved: mbp-v1, PULSE_ML_REVIEW.md).
+    # Only ml_predictions rows of this model version are served (approved: mbp-v1, docs/engineering/PULSE_ML_REVIEW.md).
     ml_model_version: str = "mbp-v1"
     # Doctor screens for the ring ML outputs (flags, live-v1 early warnings, weekly reports, bands). Off until
     # Ayoub approves serving these models (proposed decision D26); on only for the local demo.

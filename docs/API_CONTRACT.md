@@ -2,7 +2,7 @@
 
 **Source of truth:** `api/app/schemas.py` and the routers → generated `contract/openapi.json`
 (`python -m app.export_openapi`; CI fails if it is stale). Interactive docs: `http://127.0.0.1:8000/api/v1/docs`.
-Human-readable summary, endpoint list, frontend flow rules and database/ML contracts: `PULSE_INTEGRATION_CONTRACTS.md`.
+Human-readable summary, endpoint list, frontend flow rules and database/ML contracts: `docs/engineering/PULSE_INTEGRATION_CONTRACTS.md`.
 
 - Base path `/api/v1`, JSON, ids are uuid strings, timestamps ISO 8601 with offset.
 - Auth: `POST /auth/login` → `Authorization: Bearer <access_token>`; `POST /auth/refresh`.

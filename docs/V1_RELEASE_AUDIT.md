@@ -8,7 +8,7 @@ Labels: **FACT** (checked, method named) · **CLAIM** (stated by someone, not co
 **DECISION NEEDED**.
 
 > **Decisions recorded 2026-10-31 (Ayoub).** Q6: keep M9, no revert, not approved retroactively; `LIVE_UNTIL`
-> moved to M9 (local only, `PULSE_SUPABASE_CHANGELOG.md` rows 15–16). Q7: staging `pulse-staging` in `lwiza`,
+> moved to M9 (local only, `docs/engineering/PULSE_SUPABASE_CHANGELOG.md` rows 15–16). Q7: staging `pulse-staging` in `lwiza`,
 > eu-west-3, M1–M9 mirrored, nothing created until Ayoub authorizes it (`docs/STAGING_SETUP.md`). Q5: plan only
 > (`docs/proposals/M10_ALERT_DISMISSAL.md`). Q1–Q4 deferred. Sections below are the audit as written.
 
@@ -54,7 +54,7 @@ on push / pull request; no GitHub schedule, no Windows scheduled task on this ma
 | `main` repository | ✓ | ✓ (via PR #4) |
 | Backend test profile `live` / local dev stack | ✓ | ✗ (`LIVE_UNTIL` = M8) |
 | Test profile `latest` / CI | ✓ | ✓ |
-| Sync records (`PULSE_SUPABASE_CHANGELOG.md`, sync policy §5) | ✓ | recorded only in the incident report (§10d) |
+| Sync records (`docs/engineering/PULSE_SUPABASE_CHANGELOG.md`, sync policy §5) | ✓ | recorded only in the incident report (§10d) |
 
 **Corrective synchronization plan (no production action needed for consistency):**
 
@@ -62,7 +62,7 @@ on push / pull request; no GitHub schedule, no Windows scheduled task on this ma
 2. Pending your decision on M9:
    - **Keep M9 (recommended while it stays unused):** move `LIVE_UNTIL` to `20261030170000` so the local stack
      and the `live` test profile match production; record the approval and the verification in
-     `PULSE_SUPABASE_CHANGELOG.md` and the sync policy. The feature it serves (`live-v1`) stays inactive.
+     `docs/engineering/PULSE_SUPABASE_CHANGELOG.md` and the sync policy. The feature it serves (`live-v1`) stays inactive.
    - **Remove M9:** a new forward migration (M10) restoring the M7/M8 CHECK lists, applied only after confirming
      0 `early_warning` rows. Never edit or delete the M9 file (append-only history).
 3. Process: protect `main` (pull requests, review by you, CI required); restrict who can run `db push` on

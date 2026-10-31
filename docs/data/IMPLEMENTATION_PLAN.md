@@ -38,4 +38,4 @@ Raw/validated measurements, patient-reported data, clinician-authored data, rule
 - Backend teammate to confirm: who owns the shared Supabase project and applies migrations.
 
 ## Next concrete task
-Superseded by the team contract (`PULSE_INTEGRATION_CONTRACTS.md` §3–4): analytics and alert rules are backend-owned. Data/AI next: migration M3 `backend_alignment`, migration M4 `ml_predictions`, then the ML pipeline in `ml/` (next-day morning mean BP, doctor-only).
+Superseded by the team contract (`docs/engineering/PULSE_INTEGRATION_CONTRACTS.md` §3–4): analytics and alert rules are backend-owned. Data/AI next: migration M3 `backend_alignment`, migration M4 `ml_predictions`, then the ML pipeline in `ml/` (next-day morning mean BP, doctor-only).

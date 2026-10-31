@@ -51,7 +51,7 @@ Running either one unchanged would go beyond the approved scope. The operation s
 
 ## 2. Summary
 
-1. **FACT:** migration M8 `20261030160000_chronic_conditions` is applied on live `pulse`. Ayoub's approval, which `PULSE_DATABASE_SYNC_POLICY.md` §3 requires, is not on record. The previous verification (before step 8, at `AI` `6681979`) recorded M8 as "not applied, needs approval" (blocker B29).
+1. **FACT:** migration M8 `20261030160000_chronic_conditions` is applied on live `pulse`. Ayoub's approval, which `docs/engineering/PULSE_DATABASE_SYNC_POLICY.md` §3 requires, is not on record. The previous verification (before step 8, at `AI` `6681979`) recorded M8 as "not applied, needs approval" (blocker B29).
 2. **FACT:** a "ring demo refresh" ran against live `pulse` at about 14:57–14:59 UTC:
    - it **deleted** every earlier simulated wearable sample;
    - it **updated** `condition_codes` on all 12 patient profiles;
@@ -155,13 +155,13 @@ From this:
 - **FACT:** `measurements` and `profiles` are unchanged, which matches the script's stated scope.
 - **ASSUMPTION:** the earlier `condition_codes` values were overwritten for all 12 patients. They cannot be recovered from the live database (see §5).
 
-### 4.3 Classification under `PULSE_DATABASE_SYNC_POLICY.md` §3
+### 4.3 Classification under `docs/engineering/PULSE_DATABASE_SYNC_POLICY.md` §3
 
 | Operation | Policy class | Approval required | Approval on record |
 |---|---|---|---|
 | M8 `db push` | Migration | Ayoub approves every migration before it reaches `pulse` | **No.** B29 was open. |
 | `DELETE` of simulated wearable samples | Destructive change | Stop, describe the risk, Ayoub's explicit approval first | **No** |
-| `UPDATE patient_profiles.condition_codes` (12 rows) | Direct non-destructive change, which overwrites prior values | Record it in `PULSE_SUPABASE_CHANGELOG.md` and report it to Ayoub | **No** changelog entry on the backend side. The `AI` docs record it as done. |
+| `UPDATE patient_profiles.condition_codes` (12 rows) | Direct non-destructive change, which overwrites prior values | Record it in `docs/engineering/PULSE_SUPABASE_CHANGELOG.md` and report it to Ayoub | **No** changelog entry on the backend side. The `AI` docs record it as done. |
 | `INSERT` devices and samples | Direct non-destructive change, fictional data | Record and report | Recorded in the `AI` docs only |
 
 ---
@@ -411,7 +411,7 @@ Discovered during the publication-readiness check on 2026-10-30, after the evide
 
 **Process note (REPORTED, from code):** the `AI` test `test_m9_early_warnings_are_forecast_flags_for_the_doctor_only` runs `delete from public.wearable_flags`. It runs inside a rolled-back transaction against a local database by default. If someone sets `PULSE_TEST_DATABASE_URL` to the cloud database, it would delete the 33 live flags inside that transaction before rolling back; no write persists, but it is a hazard worth removing.
 
-**Applicable rule:** M9 follows the same rule as every other migration: nobody applies it to `pulse` without Ayoub's approval and a read-only verification before and after (`PULSE_DATABASE_SYNC_POLICY.md`).
+**Applicable rule:** M9 follows the same rule as every other migration: nobody applies it to `pulse` without Ayoub's approval and a read-only verification before and after (`docs/engineering/PULSE_DATABASE_SYNC_POLICY.md`).
 
 ---
 

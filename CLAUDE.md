@@ -5,11 +5,11 @@ PULSE is a hypertension monitoring and emergency-support **prototype** built in 
 
 ## Before any task
 
-1. Read this file, `IMPLEMENTATION_PLAN.md`, `docs/decisions.md`, and the docs for the area you touch
+1. Read this file, `docs/engineering/IMPLEMENTATION_PLAN.md`, `docs/decisions.md`, and the docs for the area you touch
    (`docs/API_CONTRACT.md`, `docs/SAFETY_AND_LIMITATIONS.md`, `docs/conception.pdf`).
 2. Inspect the actual code before assuming file names, routes, models or commands.
 3. Keep the existing stack and working code unless there is evidence a change is needed.
-4. **If the task depends on the database, follow `PULSE_DATABASE_SYNC_POLICY.md` first** (see below).
+4. **If the task depends on the database, follow `docs/engineering/PULSE_DATABASE_SYNC_POLICY.md` first** (see below).
 
 ## Database synchronization (mandatory, permanent)
 
@@ -17,12 +17,12 @@ The shared database is Supabase project `pulse` (ref `nfmfdhpxipdndggxtqho`); it
 `supabase/migrations/` on branch `AI` (owned by the data/AI developer). Previous verifications are never current.
 Before any database-dependent task: fetch all branches, inspect new `AI` commits and migrations, check the remote
 migration history, compare the migrations with the live schema (`scripts/compare_schemas.py`), verify the objects
-the task touches, assess impact on models / API / frontend / ML, update the docs and `PULSE_SUPABASE_CHANGELOG.md`,
+the task touches, assess impact on models / API / frontend / ML, update the docs and `docs/engineering/PULSE_SUPABASE_CHANGELOG.md`,
 and **report discrepancies before proceeding**. After any migration is applied: verify history, live schema and
 grants, and record it. Never silently apply `AI` migrations, never recreate or rewrite migration history, never
 reconstruct migrations from a dump, and never make a destructive database change without Ayoub's explicit approval.
 Read-only verification is always allowed; any direct non-destructive change must be logged and reported to Ayoub.
-Full procedure and commands: `PULSE_DATABASE_SYNC_POLICY.md`.
+Full procedure and commands: `docs/engineering/PULSE_DATABASE_SYNC_POLICY.md`.
 
 ## Ownership (stay inside your area)
 
@@ -92,7 +92,7 @@ Local full stack (Supabase Postgres + Auth on 127.0.0.1, fictional demo accounts
 `docs/LOCAL_DEVELOPMENT.md` (`scripts/dev_stack.py`, `scripts/dev_seed.py`, `scripts/dev_api.py`).
 Frontend (from `frontend/`): `npm ci`, `npm run dev`, `npm run lint`, `npm test`, `npm run build`.
 Backend tests need the throwaway databases: `python scripts/test_db.py up live|latest` (see the same doc).
-Still 501: `/patients/{id}/daily`, `/patients/{id}/journal`, `/journal/{id}/review`.
+Still 501: `/patients/{id}/daily`.
 
 Settings via environment variables: `PULSE_ENV` (default `dev`), `PULSE_DEMO_MODE` (default on),
 `PULSE_DEMO_NUMBER` (required outside dev when demo mode is on), `PULSE_EMERGENCY_NUMBERS` (JSON),

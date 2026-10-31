@@ -1,6 +1,6 @@
 """Compare two `pg_dump --schema-only` files statement by statement.
 
-Used by PULSE_DATABASE_SYNC_POLICY.md to check that the migrations on branch `AI`
+Used by docs/engineering/PULSE_DATABASE_SYNC_POLICY.md to check that the migrations on branch `AI`
 produce exactly the live Supabase schema. Formatting differences between the
 Supabase CLI dump and plain pg_dump (comments, quoting, ownership, IF NOT EXISTS,
 CREATE OR REPLACE, platform default privileges of supabase_admin) are ignored.

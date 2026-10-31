@@ -2,7 +2,7 @@
 
 FastAPI generates OpenAPI from these (GET /api/v1/openapi.json, exported to
 contract/openapi.json). Change only through a coordinated PR approved by the
-integration lead; see CLAUDE.md and PULSE_INTEGRATION_CONTRACTS.md.
+integration lead; see CLAUDE.md and docs/engineering/PULSE_INTEGRATION_CONTRACTS.md.
 
 Vocabularies follow the shared Supabase schema (supabase/migrations on branch AI),
 except where the frontend already depends on the API names (Level, full_name).
