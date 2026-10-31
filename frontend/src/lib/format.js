@@ -163,9 +163,10 @@ export function formatPercent(p) {
   return p === null || p === undefined ? "—" : `${Math.round(p * 100)} %`;
 }
 
-// Ring model outputs shown to the doctor (WearableFlagOut, WeeklyReportOut, BandOut). Advisory, never an alert.
+// Ring model outputs shown to the doctor (WearableFlagOut, WeeklyReportOut, BandOut). Advisory, never an alert:
+// no label here says "alerte" (that word is for the rule-based alerts).
 export const FLAG_KIND = {
-  early_warning: "Alerte précoce (prévision)",
+  early_warning: "Signal précoce (ML)",
   outside_reference: "Hors référence",
   personal_anomaly: "Inhabituel pour ce patient",
   multivariate_anomaly: "Anomalie combinée",
@@ -213,3 +214,13 @@ export const BAND_STATUS = {
 };
 
 export const BAND_BASIS = { reference: "référence générale", model_proposal: "proposée par le modèle", doctor: "fixée par le médecin" };
+
+/**
+ * Origin of a patient's ring data, from their devices (DeviceOut). Flags, reports and bands carry no origin yet, but
+ * simulated ring samples are always stored on a simulator device and real ones on a wearable (api imports.ring_device).
+ * "simulated": no real ring, so every ring value is simulated. "mixed": a simulator too, so some may be. null: none.
+ */
+export function ringDataOrigin(devices) {
+  if (!devices.some((d) => d.is_simulated)) return null;
+  return devices.some((d) => d.device_type === "wearable") ? "mixed" : "simulated";
+}

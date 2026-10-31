@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { approveBand, listBands, listWearableFlags, listWeeklyReports, rejectBand, reviewFlag, reviewWeeklyReport } from "../../api/doctor";
+import { listDevices } from "../../api/patient";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
+import Icon from "../ui/Icon";
 import { EmptyState, Section } from "../ui/States";
 import {
   BAND_BASIS, BAND_STATISTIC, BAND_STATUS, CONTROL_STATUS, FLAG_KIND, FLAG_REVIEW, FLAG_WINDOW, flagMetricLabel,
-  formatDate, formatDateTime, formatPercent, HOME_BP_CATEGORY, REPORT_STATUS, round, WEARABLE_METRIC,
+  formatDate, formatDateTime, formatPercent, HOME_BP_CATEGORY, REPORT_STATUS, ringDataOrigin, round, WEARABLE_METRIC,
 } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
 
@@ -20,6 +22,36 @@ function Notice() {
   return (
     <p className="rounded-xl border border-dashed border-ml/50 bg-ml-soft px-4 py-3 text-sm text-ml">
       Expérimental · non validé cliniquement · jamais une alerte · visible seulement quand cet onglet est ouvert (aucune notification)
+    </p>
+  );
+}
+
+/**
+ * "simulated" | "mixed" | null for this patient's ring data (ringDataOrigin). "unknown" while the devices are not
+ * known (loading, or the request failed, retried every 10 s): fails closed, generated data never reads as real.
+ */
+function useRingOrigin(patientId) {
+  const devices = useResource((signal) => listDevices(patientId, { signal }), `dev:${patientId}`);
+  const { status, retry } = devices;
+  useEffect(() => {
+    if (status !== "error") return undefined;
+    const timer = setTimeout(retry, 10000);
+    return () => clearTimeout(timer);
+  }, [status, retry]);
+  if (devices.status === "ok") return ringDataOrigin(devices.data);
+  return devices.last ? ringDataOrigin(devices.last) : "unknown";
+}
+
+function SimulatedNotice({ origin }) {
+  if (!origin) return null;
+  return (
+    <p className="flex gap-2 rounded-xl border border-dashed border-sim/50 bg-sim-soft px-4 py-3 text-sm text-sim">
+      <Icon name="flask" size={18} />
+      {origin === "simulated"
+        ? "Bague simulée (démo) : ce patient n'a pas de bague réelle, les données de bague utilisées ici sont générées."
+        : origin === "unknown"
+          ? "Appareils du patient non chargés : les données de bague utilisées ici peuvent être simulées (démo)."
+          : "Ce patient a aussi un appareil simulé (démo) : des données de bague utilisées ici peuvent être générées (le serveur n'en indique pas encore l'origine)."}
     </p>
   );
 }
@@ -39,8 +71,11 @@ function StatusBadge({ map, status }) {
   return <Badge tone={s.tone}>{s.label}</Badge>;
 }
 
-/** Optional note + one button per decision. actions: [[label, (note) => Promise]]. conflict: text for a 409. */
-function ReviewBox({ label, maxLength, actions, conflict, onDone }) {
+/**
+ * Optional note + one button per decision. actions: [[label, (note) => Promise]]. A 409 (another doctor reviewed first)
+ * calls onConflict(note not sent) and reloads, so the server's review replaces this box.
+ */
+function ReviewBox({ label, maxLength, actions, onConflict, onDone }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -52,7 +87,12 @@ function ReviewBox({ label, maxLength, actions, conflict, onDone }) {
       await send(note.trim() || null);
       onDone();
     } catch (e) {
-      setError(e.status === 409 ? conflict : "Action impossible. Réessayez.");
+      if (e.status !== 409) {
+        setError("Action impossible. Réessayez.");
+      } else {
+        onConflict(note.trim());
+        onDone();
+      }
     } finally {
       setBusy(false);
     }
@@ -73,10 +113,18 @@ function ReviewBox({ label, maxLength, actions, conflict, onDone }) {
   );
 }
 
-const ALREADY_REVIEWED = "Déjà examiné par un autre médecin.";
+/** Kept by the item, so it survives the reload that replaces the review box. */
+function Conflict({ note }) {
+  return (
+    <p role="alert" className="text-sm text-danger">
+      Déjà examiné par un autre médecin.{note ? ` Votre note n'a pas été enregistrée : « ${note} »` : ""}
+    </p>
+  );
+}
 
 // ---------------------------------------------------------------- flags
-function FlagItem({ flag, timeZone, onDone }) {
+function FlagItem({ flag, simulated, timeZone, onDone }) {
+  const [conflict, setConflict] = useState(null);  // note not sent after a 409
   const early = flag.kind === "early_warning";
   const unit = WEARABLE_METRIC[flag.metric]?.unit ?? "";
   return (
@@ -85,6 +133,7 @@ function FlagItem({ flag, timeZone, onDone }) {
         <Badge tone={early ? "ml" : "wear"} icon={early ? "sparkles" : "watch"}>{FLAG_KIND[flag.kind] ?? flag.kind}</Badge>
         <span className="font-medium text-ink">{flagMetricLabel(flag.metric)}</span>
         <StatusBadge map={FLAG_REVIEW} status={flag.review_status} />
+        {simulated && <Badge tone="sim" icon="flask">Simulé</Badge>}
         <span className="ml-auto text-xs text-ink-subtle">
           {FLAG_WINDOW[flag.window_kind] ?? flag.window_kind} · {formatDateTime(flag.window_start, timeZone)} → {formatDateTime(flag.window_end, timeZone)}
         </span>
@@ -98,35 +147,44 @@ function FlagItem({ flag, timeZone, onDone }) {
       )}
       <p className="break-all text-xs text-ink-subtle">{flag.reference_basis} · modèle {flag.model_version}</p>
       {flag.review_status === "open" ? (
-        <ReviewBox label="Note" maxLength={2000} conflict={ALREADY_REVIEWED} onDone={onDone} actions={[
+        <ReviewBox label="Note" maxLength={2000} onConflict={setConflict} onDone={onDone} actions={[
           ["Confirmer", (note) => reviewFlag(flag.id, { review_status: "confirmed", review_note: note })],
           ["Écarter", (note) => reviewFlag(flag.id, { review_status: "dismissed", review_note: note })],
         ]} />
       ) : (
         <p className="text-xs text-ink-muted">Examiné {formatDateTime(flag.reviewed_at, timeZone)}{flag.review_note ? ` · « ${flag.review_note} »` : ""}</p>
       )}
+      {conflict !== null && <Conflict note={conflict} />}
     </li>
   );
 }
 
 export function RingSignals({ patientId, timeZone }) {
   const flags = useResource((signal) => listWearableFlags(patientId, { limit: 100, signal }), `wf:${patientId}`);
+  const origin = useRingOrigin(patientId);
   const reload = flags.reload;
-  const off = disabledOnServer(flags);
+  // No polling on a server that does not serve the ring models, nor once access is refused (assignment ended).
+  const off = disabledOnServer(flags) || flags.error?.status === 403;
   // Refreshed every 10 s while this tab is open, like the doctor's patient list. No notification exists.
   useEffect(() => {
     if (off) return undefined;
     const id = setInterval(reload, 10000);
     return () => clearInterval(id);
   }, [reload, off]);
+  // A failed refresh keeps the last flags on screen (and the note being typed); the next poll tries again.
+  const kept = !off && flags.status !== "ok" ? flags.last : null;
 
   return (
     <div className="space-y-4">
       <Notice />
-      <RingSection state={flags} what="les signaux du bracelet">
+      <SimulatedNotice origin={origin} />
+      {kept && flags.status === "error" && (
+        <p role="alert" className="text-sm text-danger">Actualisation impossible : derniers signaux reçus affichés, nouvel essai dans 10 s.</p>
+      )}
+      <RingSection state={kept ? { ...flags, status: "ok", data: kept } : flags} what="les signaux du bracelet">
         {(list) => list.length === 0 ? <EmptyState icon="watch" title="Aucun signal pour ce patient" /> : (
           <ul className="space-y-3">
-            {list.map((f) => <FlagItem key={f.id} flag={f} timeZone={timeZone} onDone={reload} />)}
+            {list.map((f) => <FlagItem key={f.id} flag={f} simulated={origin === "simulated"} timeZone={timeZone} onDone={reload} />)}
           </ul>
         )}
       </RingSection>
@@ -145,7 +203,8 @@ function Fact({ label, value, hint }) {
   );
 }
 
-function ReportItem({ report, timeZone, onDone }) {
+function ReportItem({ report, simulated, timeZone, onDone }) {
+  const [conflict, setConflict] = useState(null);  // comment not sent after a 409
   const s = report.summary ?? {};
   const bp = s.bp_home ?? {};
   const ring = s.ring ?? {};
@@ -173,7 +232,8 @@ function ReportItem({ report, timeZone, onDone }) {
         {Array.isArray(bp.target) && ` · cible ${bp.target[0]}/${bp.target[1]}${bp.target_source === "default" ? " (générale)" : ""}`}
       </p>
       <div className="text-sm text-ink">
-        <p><span className="font-medium">Bague :</span> {ring.nights_this_week ?? 0} nuit(s) enregistrée(s) cette semaine</p>
+        <p><span className="font-medium">Bague :</span> {ring.nights_this_week ?? 0} nuit(s) enregistrée(s) cette semaine
+          {simulated && <Badge tone="sim" icon="flask" className="ml-2">Simulée</Badge>}</p>
         {nights.length > 0 && <ul className="tnum mt-1 space-y-0.5 text-ink-muted">{nights.map((n) => <li key={n.key}>{n.text}</li>)}</ul>}
         {ring.flags?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -197,25 +257,28 @@ function ReportItem({ report, timeZone, onDone }) {
         </p>
       )}
       {report.status === "ready" ? (
-        <ReviewBox label="Commentaire" maxLength={4000} conflict={ALREADY_REVIEWED} onDone={onDone} actions={[
+        <ReviewBox label="Commentaire" maxLength={4000} onConflict={setConflict} onDone={onDone} actions={[
           ["Marquer comme examiné", (comment) => reviewWeeklyReport(report.id, { doctor_comment: comment })],
         ]} />
       ) : (
         <p className="text-sm text-ink-muted">Examiné {formatDateTime(report.reviewed_at, timeZone)}{report.doctor_comment ? ` · « ${report.doctor_comment} »` : ""}</p>
       )}
+      {conflict !== null && <Conflict note={conflict} />}
     </li>
   );
 }
 
 export function WeeklyReports({ patientId, timeZone }) {
   const reports = useResource((signal) => listWeeklyReports(patientId, { signal }), `wr:${patientId}`);
+  const origin = useRingOrigin(patientId);
   return (
     <div className="space-y-4">
       <Notice />
+      <SimulatedNotice origin={origin} />
       <RingSection state={reports} what="les rapports hebdomadaires">
         {(list) => list.length === 0 ? <EmptyState icon="clipboard" title="Aucun rapport hebdomadaire" /> : (
           <ul className="space-y-3">
-            {list.map((r) => <ReportItem key={r.id} report={r} timeZone={timeZone} onDone={reports.reload} />)}
+            {list.map((r) => <ReportItem key={r.id} report={r} simulated={origin === "simulated"} timeZone={timeZone} onDone={reports.reload} />)}
           </ul>
         )}
       </RingSection>
@@ -241,7 +304,9 @@ function BandItem({ band, onDone }) {
       await send();
       onDone();
     } catch (e) {
-      setError(e.code === "invalid_transition" ? "Cette plage n'est plus en proposition." : "Action impossible. Réessayez.");
+      const stale = e.code === "invalid_transition";
+      setError(stale ? "Cette plage n'est plus en proposition." : "Action impossible. Réessayez.");
+      if (stale) onDone();  // the server's current status replaces the stale buttons (this message stays)
     } finally {
       setBusy(false);
     }
@@ -290,9 +355,11 @@ function BandItem({ band, onDone }) {
 
 export function PersonalBands({ patientId }) {
   const bands = useResource((signal) => listBands(patientId, { signal }), `bands:${patientId}`);
+  const origin = useRingOrigin(patientId);
   return (
     <div className="space-y-4">
       <Notice />
+      <SimulatedNotice origin={origin} />
       <p className="text-sm text-ink-muted">Le modèle propose des plages personnelles ; seule votre approbation les active. Elles ne servent qu'aux signaux du bracelet.</p>
       <RingSection state={bands} what="les plages personnelles">
         {(list) => list.length === 0 ? <EmptyState icon="watch" title="Aucune plage personnelle" /> : (

@@ -16,6 +16,7 @@ export default function HistoryPage() {
   const readings = useResource((signal) => listMeasurements(user.id, { limit: 200, signal }), `h:${user.id}`);
   const symptoms = useResource((signal) => listSymptomReports(user.id, { limit: 50, signal }), `sy:${user.id}`);
   const [importing, setImporting] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);  // the panel stays open until the server has answered
 
   return (
     <div className="space-y-6">
@@ -24,15 +25,15 @@ export default function HistoryPage() {
         action={
           <div className="flex flex-wrap gap-2">
             <ButtonLink to="/patient/mesure"><Icon name="plus" size={18} />Nouvelle mesure</ButtonLink>
-            <Button variant="secondary" aria-expanded={importing} onClick={() => setImporting((v) => !v)}><Icon name="upload" size={18} />Importer un fichier</Button>
+            <Button variant="secondary" aria-expanded={importing} disabled={importBusy} onClick={() => setImporting((v) => !v)}><Icon name="upload" size={18} />Importer un fichier</Button>
           </div>
         } />
 
       {importing && (
         <Card>
           <CardHeader title="Importer un fichier" subtitle="Le serveur vérifie chaque ligne et décide des alertes, comme pour une saisie."
-            action={<Button variant="ghost" onClick={() => setImporting(false)}>Fermer</Button>} />
-          <CardBody><ImportPanel patientId={user.id} timeZone={user.timezone} onImported={readings.reload} /></CardBody>
+            action={<Button variant="ghost" disabled={importBusy} onClick={() => setImporting(false)}>Fermer</Button>} />
+          <CardBody><ImportPanel patientId={user.id} timeZone={user.timezone} onImported={readings.reload} onBusy={setImportBusy} /></CardBody>
         </Card>
       )}
 

@@ -1,7 +1,8 @@
 // Screen choice after each server answer. Levels and flags in these fixtures are what the backend
 // returns for the named rules (api/app/analysis/rules.py); the helper must follow them, never compute them.
 import { describe, expect, it } from "vitest";
-import { afterMeasurement, afterSymptoms, readingRequest, whenUnreachable } from "./readingFlow";
+import { ApiError } from "../api/client";
+import { afterMeasurement, afterSymptoms, readingRequest, unreachable, whenUnreachable } from "./readingFlow";
 
 function evaluation(over = {}) {
   return { level: "none", rule_id: null, reason: "Below target.", next_step: "Reading saved.",
@@ -65,6 +66,16 @@ describe("afterSymptoms", () => {
   it("symptom-only report without a reading: done or emergency", () => {
     expect(afterSymptoms(null, report()).kind).toBe("done");
     expect(afterSymptoms(null, report(EMG)).kind).toBe("emergency");
+  });
+});
+
+describe("unreachable", () => {
+  it("network error or 5xx: no server decision; a 4xx is the server's answer", () => {
+    expect(unreachable(new ApiError(0, "network_error", "x"))).toBe(true);
+    expect(unreachable(new ApiError(503, "unavailable", "x"))).toBe(true);
+    expect(unreachable(new ApiError(409, "already_imported", "x"))).toBe(false);
+    expect(unreachable(new ApiError(422, "validation_error", "x"))).toBe(false);
+    expect(unreachable(new Error("boom"))).toBe(false);
   });
 });
 

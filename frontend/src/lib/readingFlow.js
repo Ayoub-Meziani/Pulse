@@ -2,6 +2,12 @@
 // The server decides every level and flag (EvaluationOut); this file only decides which screen comes
 // next. The only thresholds used here are the server's own client_fallback values, and only when the
 // API cannot be reached (EmergencyConfigOut.client_fallback).
+import { ApiError } from "../api/client";
+
+/** No server answer (network error or 5xx): what the server decided, or whether it stored anything, is unknown. */
+export function unreachable(error) {
+  return error instanceof ApiError && (error.status === 0 || error.status >= 500);
+}
 
 /**
  * After POST /patients/{id}/measurements.
