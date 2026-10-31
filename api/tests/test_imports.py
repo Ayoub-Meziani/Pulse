@@ -83,6 +83,16 @@ def test_fresh_implausible_row_is_invalid_with_a_symptom_check_and_no_alert(api,
     assert body["alerts"] == [] and alerts_of(conn, p) == []
 
 
+def test_fresh_low_row_opens_a_low_alert_and_a_simulated_one_only_previews_it(api, conn, people):
+    p = people["patient"]
+    body = ok(upload(api, p, csv_of((ago(minutes=5), 85, 55, 70))))
+    assert (body["evaluation"]["level"], body["evaluation"]["rule_id"]) == ("low", "R-LOW-1")
+    assert alerts_of(conn, p) == [("R-LOW-1", "follow_up", False)]
+    sim = ok(upload(api, p, csv_of((ago(minutes=3), 65, 40, 70), comment="# SIMULATED demo"), "simulated"))
+    assert [(x["level"], x["rule_id"]) for x in sim["simulated_preview"]] == [("low", "R-LOW-2")]
+    assert len(alerts_of(conn, p)) == 1
+
+
 def test_old_severe_row_is_history_only_and_asks_for_a_reading_now(api, conn, people):
     p = people["patient"]
     body = ok(upload(api, p, csv_of((ago(days=3), 186, 118, 96), (ago(days=2), 132, 84, 70))))

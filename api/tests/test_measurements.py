@@ -91,6 +91,22 @@ def test_implausibly_high_reading_still_asks_for_the_symptom_check(api, patient)
     assert ev["rule_id"] == "DATA-INVALID" and ev["requires_symptom_check"] is True
 
 
+def test_reading_too_low_to_be_real_is_invalid_but_asks_for_the_symptom_check(api, patient):
+    r = post(api, patient, systolic=1, diastolic=1, pulse=1).json()
+    m, ev = r["measurement"], r["evaluation"]
+    assert m["validation_status"] == "invalid" and "systolic_implausible" in m["quality_flags"]
+    assert (ev["level"], ev["rule_id"], ev["requires_symptom_check"]) == ("none", "DATA-INVALID", True)
+    assert "too low to be a real measurement" in ev["next_step"] and r["alert"] is None
+
+
+@pytest.mark.parametrize("s,d,rule,symptom_check", [(85, 55, "R-LOW-1", False), (65, 40, "R-LOW-2", True)])
+def test_low_blood_pressure_is_flagged_with_an_alert(api, patient, s, d, rule, symptom_check):
+    r = post(api, patient, systolic=s, diastolic=d).json()
+    ev = r["evaluation"]
+    assert (ev["level"], ev["rule_id"], ev["requires_symptom_check"]) == ("low", rule, symptom_check)
+    assert (r["alert"]["level"], r["alert"]["rule_id"]) == ("low", rule)
+
+
 def test_reading_in_the_future_is_invalid(api, patient):
     r = post(api, patient, measured_at=iso(datetime.now(timezone.utc) + timedelta(hours=1))).json()
     assert r["measurement"]["quality_flags"] == ["measured_in_future"] and r["evaluation"]["rule_id"] == "DATA-INVALID"

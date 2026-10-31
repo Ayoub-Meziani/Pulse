@@ -9,11 +9,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
 
-Level = Literal["none", "notice", "trend", "severe", "emergency"]
+Level = Literal["none", "low", "notice", "trend", "severe", "emergency"]
 AlertAction = Literal["create", "attach", "raise", "none"]
 ValidationStatus = Literal["valid", "questionable"]
 
-LEVEL_RANK: dict[str, int] = {"none": 0, "notice": 1, "trend": 2, "severe": 3, "emergency": 4}
+# low (R-LOW-1/2) ranks with notice: both ask for attention, neither is a crisis by itself.
+LEVEL_RANK: dict[str, int] = {"none": 0, "low": 1, "notice": 1, "trend": 2, "severe": 3, "emergency": 4}
 
 
 @dataclass(frozen=True)

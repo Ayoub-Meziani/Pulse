@@ -147,7 +147,7 @@ function ReadingsResult({ result, timeZone }) {
   return (
     <ImportSummary counts={c} nextStep={result.next_step}>
       <p className="text-sm text-ink-muted">
-        Validation par le serveur : {c.byStatus.valid} valide(s), {c.byStatus.needs_review} à vérifier, {c.byStatus.invalid} invalide(s).
+        Validation par le serveur : {c.byStatus.valid} valide(s), {c.byStatus.needs_review} à vérifier, {c.byStatus.invalid} invalide(s), non prise(s) en compte.
         {c.historical > 0 && <><br />{c.historical} mesure(s) de plus d'une heure : ajoutée(s) à l'historique, sans alerte.</>}
         {c.pastSevere > 0 && <> Dont <strong className="text-ink">{c.pastSevere} très élevée(s)</strong>.</>}
       </p>

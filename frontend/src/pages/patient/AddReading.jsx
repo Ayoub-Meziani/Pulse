@@ -8,7 +8,7 @@ import { OriginBadge, ValidationBadge } from "../../components/ui/Badge";
 import Button, { ButtonLink } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import Icon from "../../components/ui/Icon";
-import { EVALUATION_LEVEL, formatDateTime, SYMPTOMS } from "../../lib/format";
+import { evaluationHeading, formatDateTime, INVALID_FLAG, SYMPTOMS } from "../../lib/format";
 import { afterMeasurement, afterSymptoms, readingRequest, whenUnreachable } from "../../lib/readingFlow";
 import EmergencyScreen from "./EmergencyScreen";
 
@@ -201,19 +201,25 @@ function RecheckTimer({ seconds, onReady }) {
 
 function ResultCard({ result, report, tz }) {
   const ev = report && !result ? report.evaluation : result?.evaluation;
-  const level = EVALUATION_LEVEL[ev?.level] ?? { title: ev?.level, variant: "info" };
   const m = result?.measurement;
+  const level = evaluationHeading(ev, m);
+  const reasons = (m?.quality_flags ?? []).filter((f) => INVALID_FLAG[f]).map((f) => INVALID_FLAG[f]);
   return (
     <div className="space-y-3">
       {m && (
         <Card className="p-5">
-          <p className="flex items-center gap-2 text-sm font-medium text-success"><Icon name="check" size={18} />Mesure enregistrée par le serveur</p>
+          {level.invalid ? (
+            <p className="flex items-center gap-2 text-sm font-medium text-danger"><Icon name="alert" size={18} />Mesure enregistrée mais non valide : elle n'est utilisée ni pour vos moyennes, ni pour le graphique, ni pour les alertes</p>
+          ) : (
+            <p className="flex items-center gap-2 text-sm font-medium text-success"><Icon name="check" size={18} />Mesure enregistrée par le serveur</p>
+          )}
           <p className="tnum mt-2 text-3xl font-bold text-ink">{m.systolic}/{m.diastolic} <span className="text-base font-medium text-ink-muted">mmHg</span></p>
           <p className="mt-1 text-sm text-ink-muted">{formatDateTime(m.measured_at, tz)}{m.pulse ? ` · pouls ${m.pulse} bpm` : ""}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <OriginBadge reading={m} />
             <ValidationBadge status={m.validation_status} />
           </div>
+          {level.invalid && reasons.length > 0 && <p className="mt-3 text-sm text-ink">Raison : {reasons.join(" ; ")}.</p>}
         </Card>
       )}
       {ev && <AlertCard title={level.title} message={`${ev.reason} ${ev.next_step}`.trim()} variant={level.variant} />}
