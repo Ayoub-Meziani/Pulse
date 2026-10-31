@@ -23,6 +23,18 @@ as `questionable`, still evaluated by the safety rules, and excluded from averag
 Values needing clinician sign-off: thresholds, 60 s recheck, default target (140/90 vs 135/85 for
 home readings), trend window, symptom list, all text in `api/app/analysis/texts.py`.
 
+## File imports and wearables (proposed decision D26)
+
+| Data | What happens |
+|---|---|
+| Imported readings measured within the last hour | the same rules as a manual reading (symptom check, recheck, alerts) |
+| Older imported readings | history only, no alert; if one was 180/120 or higher, the patient is asked to measure now |
+| Simulated readings (demo files) | stored and labelled; never create or change an alert (the rules' result is shown as a preview) |
+| Ring / bracelet samples | context for the doctor; never read by any rule or alert. R-RING-1 is not implemented and stays disabled (B26): nothing happens when a ring value crosses a limit |
+| Ring ML outputs (flags, live early warnings, weekly reports, personal ranges) | doctor only, experimental, not clinically reviewed, behind a server switch that is off by default; no notification: visible only while the doctor's screen is open |
+
+Needing clinician sign-off as well: the 1-hour window for imported readings and the `IMPORT-*` texts.
+
 ## What PULSE does not do
 
 - No diagnosis, no medication advice, no treatment decisions.
@@ -30,7 +42,7 @@ home readings), trend window, symptom list, all text in `api/app/analysis/texts.
 - No detection of fainting or unconsciousness; a blood-pressure cuff cannot do this.
 - A web app cannot run in the background or show information on a locked phone.
 - No hardware integration exists yet; demo readings are `simulated` and labelled as such.
-- ML output (when added) is a forecast for doctor review only; it never drives safety alerts.
+- ML output is advisory, for the doctor only; it never drives safety alerts or patient guidance.
 
 ## Data
 

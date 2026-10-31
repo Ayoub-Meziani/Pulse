@@ -76,8 +76,15 @@ cd ../frontend && npm run lint && npm test && npm run build
   verifies them through JWKS exactly as in production.
 - The stack applies only the migrations verified on the live project (`LIVE_UNTIL` in `scripts/test_db.py`).
   A migration awaiting review (such as `20261030170000_live_early_warning`, "M9", on branch `AI`) is never applied.
-- No ML job runs locally: the doctor's "Estimation" tab shows "Aucune estimation disponible"
+- No ML job runs locally by default: the doctor's "Estimation" tab shows "Aucune estimation disponible"
   (`model_unavailable`). Experimental estimates are doctor-only and never feed alerts.
+- Optional local ML demo (proposed decision D26, for Ayoub's review): the data/AI tools can run against this
+  local database only (they refuse any other host). Steps, commands and what each screen shows are in
+  `docs/data/DEMO_RUNBOOK.html` (PDF next to it): `pulse_ml.jobs` (estimates, night flags, weekly reports,
+  proposed ranges), `pulse_ml.monitor --follow` (live early warnings), `pulse_data.stream` (simulated ring
+  samples). Start the API with `PULSE_SERVE_RING_ML=1` (doctor tabs "Signaux bracelet", "Rapport hebdo",
+  "Plages") and `PULSE_ML_MODEL_VERSION=mbp-v1.1` (Estimation tab). A stack created before M9 joined
+  `LIVE_UNTIL` needs M9 applied once (see the runbook).
 - Alert texts (`reason`, `next_step`) are English until the clinician-reviewed French version exists.
 - Running the API against the shared cloud project needs its credentials, given out of band; never put them
   in the repository.
