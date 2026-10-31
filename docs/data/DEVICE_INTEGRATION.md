@@ -10,7 +10,8 @@
 | Simulator (`pulse_data.simulate`) | implemented; feeds the seed | `source/provenance=simulated`, device type `simulator` |
 | Ring CSV import (`python -m pulse_data.ingest import-wearable-csv`) | implemented, tested (31 Oct) | `wearable_samples.source` = `simulated` or `csv_import`, **stated by the operator** |
 | Live simulated ring (`python -m pulse_data.stream --patient-email …`) | implemented (demo) | `source=simulated` |
-| Real cuff / ring | **not implemented** | — |
+| Live Bluetooth heart-rate bracelet (`python -m pulse_data.ble_bridge --patient-email …`; any device with the standard Heart Rate Service 0x180D) | implemented (31 Oct; local stack only; tested without hardware) | `wearable_samples.source=device_sync`: heart rate every 5 s, HRV (RMSSD) every 5 min when the device sends RR intervals; device `wearable`, labelled "<name> (Bluetooth)" |
+| Real cuff / other real ring data | **not implemented** (ring / cuff CSV exports only) | — |
 
 Never present simulated readings as a working hardware integration.
 
