@@ -1,7 +1,18 @@
-# Emergency escalation: design and phased plan (proposal, not implemented)
+# Emergency escalation: design and phased plan
 
-Status: **design for Ayoub's review, 2026-10-31.**
-- No code, migration, provider account or deployment has been made.
+Status (2026-10-31, branch `feat/emergency-escalation`): **phase P1 implemented and tested locally; not deployed.**
+- Done: migration M11 `20261031130000_emergency_escalation.sql`; `app/services/escalation.py` (eligibility,
+  ladder, statuses, retries, timeouts, cancel, resolve, idempotency, one active escalation per patient);
+  `app/escalation_worker.py`; routes in `app/routers/escalation.py`; non-urgent in-app notifications; frontend
+  panel "Qui est prévenu ?", local alarm (foreground only), doctor banner, notifications page.
+- Channels in P1: in-app only. Trusted contacts, facilities and the Protection Civile are recorded as **not
+  notified** (`skipped`, `no_channel` / `no_agreement` / `no_official_channel`).
+- **Off by default** (`PULSE_ESCALATION_ENABLED`): it stays off in staging and production until a clinician
+  approves the triggers, the delays (§3) and the wording.
+- Not done (blocked; see §8): web push, SMS/voice (provider contract + ANPDP), native alarm app, facility
+  agreements, any DGPC channel, facility admin screens.
+- Evidence: backend 510 tests (32 escalation); a 12-step end-to-end run on a local Auth+API+worker stack; frontend
+  42 tests. Browser test of the new screens: not done (see the PR description).
 - It **extends** the existing emergency episodes (`emergency_events`, `api/app/routers/emergency.py`,
   `frontend/src/pages/patient/EmergencyScreen.jsx`, `frontend/src/lib/incident.js`). It does not create a second
   emergency system.

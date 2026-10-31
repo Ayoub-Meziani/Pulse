@@ -81,3 +81,17 @@ cd ../frontend && npm run lint && npm test && npm run build
 - Alert texts (`reason`, `next_step`) are English until the clinician-reviewed French version exists.
 - Running the API against the shared cloud project needs its credentials, given out of band; never put them
   in the repository.
+
+## A second, independent local stack (another worktree or session)
+
+```bash
+PULSE_DEV_INSTANCE=int PULSE_DEV_MIGRATIONS=all PULSE_DEV_WEB_ORIGIN=http://localhost:5174 python scripts/dev_stack.py up
+PULSE_DEV_INSTANCE=int python scripts/dev_seed.py
+PULSE_ESCALATION_ENABLED=1 python scripts/dev_api.py --port 8001     # API
+PULSE_ESCALATION_ENABLED=1 python scripts/dev_api.py --worker        # escalation worker
+PULSE_API_URL=http://127.0.0.1:8001 npx vite --port 5174 --strictPort  # from frontend/
+```
+
+`PULSE_DEV_INSTANCE` gives the stack its own containers, network and ports (+100: database 55542, gateway 55551).
+`PULSE_DEV_MIGRATIONS=all` also applies migrations that are not live yet (local review only). Each worktree keeps
+its own `.dev/`.

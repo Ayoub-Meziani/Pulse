@@ -31,3 +31,13 @@ Human-readable summary, endpoint list, frontend flow rules and database/ML contr
   reading opens a new notice. `AlertOut` adds `dismissed_at`, `dismissed_by_role`, `dismissal_reason`, `dismissal_note`.
   `GET /alerts/{id}/events` is the read-only timeline from `audit_log` + `alert_measurements` (kinds `created`,
   `level_raised`, `measurement_attached`, `status_changed`; actor role only, never user ids or raw audit rows).
+- Emergency escalation (D25, needs migration M11; off unless `PULSE_ESCALATION_ENABLED`): `POST
+  /patients/{id}/emergency-events` now also returns `severity`, `evidence_provenance`, `escalation_status` (computed
+  on the server: only the patient's button, a stored red-flag symptom report or a severe reading from `manual` or
+  `device_sync` sources can escalate; simulated, imported, estimated or mixed never do; an episode synced more than
+  30 minutes late is recorded but not escalated). `GET /emergency-events/{id}/escalation` and `/timeline`;
+  `POST .../patient-response` (`ok` | `need_help`), `.../cancel` (patient), `.../resolve` (patient or assigned
+  doctor); `GET /doctor/escalations`; `POST /escalation-steps/{id}/delivered` and `/acknowledge` (target doctor);
+  `GET /me/notifications`, `POST /notifications/{id}/read`. `emergency_services_notified` is always false.
+  `PATCH /emergency-events/{id}` accepts `location_captured_at` (older than 15 min: 422 `stale_location`) and
+  `location_accuracy_m`. `GET /config/emergency` adds `escalation_enabled` and adapts the disclaimer.
