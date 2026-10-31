@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from .. import vocab
 from ..analysis import evaluate_measurement, evaluate_trend, texts
-from ..analysis.rules import TREND_WINDOW
+from ..analysis.rules import TREND_WINDOW, VERY_LOW_SYSTOLIC, is_severe
 from ..analysis.types import Evaluation, Reading, Target
 from ..auth import CurrentUser
 from ..errors import ApiError
@@ -57,11 +57,15 @@ def invalid_evaluation(m: Measurement) -> Evaluation:
                    or m.diastolic > UPPER_LIMIT_FLAGS["diastolic_implausible"])
     below_limit = (m.systolic < LOWER_LIMIT_FLAGS["systolic_implausible"]
                    or m.diastolic < LOWER_LIMIT_FLAGS["diastolic_implausible"])
+    # Plausible values made invalid by another flag (a pulse typo, a cuff clock running fast) that would be R-SEV-1 or
+    # R-LOW-2 as a valid reading.
+    crisis_values = m.systolic > m.diastolic and (is_severe(m.systolic, m.diastolic)
+                                                  or m.systolic < VERY_LOW_SYSTOLIC)
     # A typo must never hide a possible crisis: values outside the plausible range, too high or too low (a failed
-    # cuff, or a person who is faint), ask for the symptom check. Not a usable reading, so no alert.
+    # cuff, or a person who is faint), or crisis values, ask for the symptom check. Not a usable reading, so no alert.
     return Evaluation(level="none", rule_id="DATA-INVALID", reason=reason,
                       next_step=texts.NEXT_STEP["DATA-INVALID-LOW" if below_limit else "DATA-INVALID"],
-                      alert_action="none", requires_symptom_check=above_limit or below_limit)
+                      alert_action="none", requires_symptom_check=above_limit or below_limit or crisis_values)
 
 
 def to_reading(m: Measurement) -> Reading:

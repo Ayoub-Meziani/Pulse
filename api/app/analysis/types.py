@@ -13,8 +13,9 @@ Level = Literal["none", "low", "notice", "trend", "severe", "emergency"]
 AlertAction = Literal["create", "attach", "raise", "none"]
 ValidationStatus = Literal["valid", "questionable"]
 
-# low (R-LOW-1/2) ranks with notice: both ask for attention, neither is a crisis by itself.
-LEVEL_RANK: dict[str, int] = {"none": 0, "low": 1, "notice": 1, "trend": 2, "severe": 3, "emergency": 4}
+# low (R-LOW-1/2) ranks above notice: a low reading now can mean a faint, an above-target one cannot; below the
+# weekly trend and the severe levels. Same order as vocab.LEVEL_RANK (proposed D27).
+LEVEL_RANK: dict[str, int] = {"none": 0, "notice": 1, "low": 2, "trend": 3, "severe": 4, "emergency": 5}
 
 
 @dataclass(frozen=True)

@@ -529,8 +529,10 @@ class ReadingsImportIn(BaseModel):
     """A cuff export sent as CSV text (no multipart upload). Columns: measured_at, systolic, diastolic required;
     pulse, unit (mmHg only), position, arm, note optional; lines starting with '#' are comments.
 
-    Rows measured within the last hour go through the same rules as a manual reading, oldest first; older rows
-    are history only. Rows declared simulated never create an alert: the rules' result is returned as a preview."""
+    Rows measured within the last 10 minutes and after the patient's latest stored reading go through the same rules
+    as a manual reading, oldest first; other rows are history only. A row already stored with the same label (same
+    values within 2 minutes, pulse equal or missing) is a duplicate. Rows declared simulated never create an alert:
+    the rules' result is returned as a preview."""
     file_name: str = Field(min_length=1, max_length=255)
     csv: str = Field(min_length=1, max_length=IMPORT_CSV_MAX_CHARS)
     tz: str | None = Field(None, description=IMPORT_TZ_DESCRIPTION)
@@ -571,10 +573,12 @@ class ImportResult(BaseModel):
     batch_id: UUID
     rows_total: int
     inserted: int
-    duplicates: int = Field(description="Rows identical to a stored reading (time, systolic, diastolic, pulse): skipped.")
+    duplicates: int = Field(description="Rows already stored with the same label (same values within 2 minutes, "
+                                        "pulse equal or missing), or repeated in the file: skipped.")
     rejected: list[RejectedRow]
     by_status: ImportStatusCounts = Field(description="Validation of the inserted rows by the database (policy pulse-v1).")
-    historical: int = Field(description="Inserted rows measured more than one hour ago: history only, no alert.")
+    historical: int = Field(description="Inserted rows measured more than 10 minutes ago, or before the patient's "
+                                        "latest stored reading: history only, no alert.")
     past_severe: int = Field(description="Historical measured rows at or above 180/120; next_step then asks for a "
                                          "reading now.")
     alerts: list[AlertOut] = Field(description="Alerts created or updated by fresh, measured rows.")

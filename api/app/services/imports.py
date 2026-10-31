@@ -1,9 +1,12 @@
 """File imports by the patient: blood-pressure readings and ring samples (proposed decision D26).
 
-Readings: one ingestion batch per file; the same file again is 409 already_imported. Rows identical to a stored
-reading are skipped. Rows measured within FRESH_WINDOW go through exactly the steps of a manual reading
-(services/measurements.record_manual_reading), oldest first, so a recheck in the same file joins the episode.
-Older rows are history only: a reading from last week must never be answered with "measure again in 60 s".
+Readings: one ingestion batch per file and label; the same file again is 409 already_imported. A row that is
+already stored with the same label is skipped: the same values within the database's 2-minute duplicate window,
+with the pulse equal or missing on one side (a reading typed in by hand, then found in the cuff export). Rows
+measured within FRESH_WINDOW and after the patient's latest stored reading go through exactly the steps of a manual
+reading (services/measurements.record_manual_reading), oldest first, so a recheck in the same file joins the
+episode. Other rows are history only: a reading from last week must never be answered with "measure again in 60 s",
+and a row older than a reading already evaluated must not reopen its episode.
 Rows declared simulated never create or change an alert (generated data never decides a clinical alert, D19);
 the rules' result is returned as a preview. Imports cannot start an emergency escalation: the reading rules never
 return the emergency level, and the symptom check stays the patient's own step (D25).
@@ -19,13 +22,13 @@ from datetime import datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import vocab
 from ..analysis import evaluate_measurement, evaluate_trend, texts
-from ..analysis.rules import is_severe
+from ..analysis.rules import RECHECK_WINDOW, VERY_LOW_SYSTOLIC, is_severe
 from ..analysis.types import Evaluation
 from ..auth import CurrentUser
 from ..errors import ApiError
@@ -35,9 +38,11 @@ from .alerts import active_alerts, apply_evaluation
 from .csv_import import CsvFormatError, Rejection, declares_simulated, parse_bp, parse_ring
 from .measurements import current_target, invalid_evaluation, recent_readings, to_reading
 
-# Same as the symptom check's window for raising a severe alert (analysis/rules.evaluate_symptoms), so the symptom
-# step that follows an import attaches to the alert the import raised. Proposed decision D26.
-FRESH_WINDOW = timedelta(hours=1)
+# The 60 s recheck an import asks for must still fall inside the recheck window counted from the row's time
+# (analysis/rules.RECHECK_WINDOW, 15 min), so it joins the episode: 5 minutes are left for the symptom check and the
+# timer. Proposed decision D26.
+FRESH_WINDOW = RECHECK_WINDOW - timedelta(minutes=5)
+DUPLICATE_WINDOW = timedelta(minutes=2)  # the database's possible_duplicate window (policy pulse-v1)
 SIMULATED = vocab.SIMULATED_PROVENANCE
 
 
@@ -79,14 +84,12 @@ def _zone(tz: str | None, user: CurrentUser) -> tuple[ZoneInfo, str]:
         raise _invalid_file("invalid_timezone", "Use an IANA time zone such as Africa/Algiers.", "tz") from None
 
 
-def _check_label(text: str, simulated: bool, demo_mode: bool) -> None:
+def _check_label(text: str, simulated: bool, demo_mode: bool, field: str) -> None:
     """Never let generated data pass as real, and accept generated data only on a demo server."""
     if simulated and not demo_mode:
-        raise _invalid_file("simulated_not_allowed", "Simulated data can only be imported on a demo server.",
-                            "provenance")
+        raise _invalid_file("simulated_not_allowed", "Simulated data can only be imported on a demo server.", field)
     if not simulated and declares_simulated(text):
-        raise _invalid_file("file_is_simulated", "This file says it is simulated: import it as simulated.",
-                            "provenance")
+        raise _invalid_file("file_is_simulated", "This file says it is simulated: import it as simulated.", field)
 
 
 def _rejected(rejections: list[Rejection]) -> list[dict]:
@@ -99,10 +102,23 @@ def _refused(row: int, exc: IntegrityError | DataError) -> dict:
     return {"row": row, "reasons": [f"refused_by_database:{getattr(diag, 'constraint_name', None) or sqlstate}"]}
 
 
+def _take_stored(stored: dict, r) -> bool:
+    """True when a stored reading, or a row of this file already imported, is this row: same values within
+    DUPLICATE_WINDOW, pulse equal or missing on one side (the database's possible_duplicate rule, which needs equal
+    pulses). Each one matches one row at most, so a recheck with the same values and another pulse is still imported."""
+    candidates = [c for c in stored.get((r.systolic, r.diastolic), [])
+                  if abs(c[0] - r.measured_at) <= DUPLICATE_WINDOW and (c[1] is None or r.pulse is None
+                                                                       or c[1] == r.pulse)]
+    if not candidates:
+        return False
+    stored[(r.systolic, r.diastolic)].remove(min(candidates, key=lambda c: abs(c[0] - r.measured_at)))
+    return True
+
+
 def import_readings(db: Session, user: CurrentUser, body: ReadingsImportIn, now: datetime,
                     demo_mode: bool) -> ReadingsImport:
     simulated = body.provenance == SIMULATED
-    _check_label(body.csv, simulated, demo_mode)
+    _check_label(body.csv, simulated, demo_mode, "provenance")
     tz, tz_name = _zone(body.tz, user)
     try:
         rows, parse_rejections = parse_bp(body.csv, tz)
@@ -110,8 +126,10 @@ def import_readings(db: Session, user: CurrentUser, body: ReadingsImportIn, now:
         raise _invalid_file(e.code, e.message) from None
     rejected = _rejected(parse_rejections)
 
-    batch = IngestionBatch(patient_id=user.id, source="csv_import", file_name=body.file_name,
-                           file_sha256=hashlib.sha256(body.csv.encode("utf-8")).hexdigest(), created_by=user.id)
+    # The label is part of the file's identity: a real export imported as simulated by mistake can be imported again.
+    digest = hashlib.sha256(f"{body.provenance}\n{body.csv}".encode("utf-8")).hexdigest()
+    batch = IngestionBatch(patient_id=user.id, source="csv_import", file_name=body.file_name, file_sha256=digest,
+                           created_by=user.id)
     try:
         with db.begin_nested():  # a savepoint keeps the request's JWT claims if the file was already imported
             db.add(batch)
@@ -119,23 +137,26 @@ def import_readings(db: Session, user: CurrentUser, body: ReadingsImportIn, now:
     except IntegrityError:
         raise ApiError(409, "already_imported", "This file was already imported.") from None
 
-    # Exact duplicates of stored readings (an overlapping export) or within the file are skipped; near-duplicates
-    # are inserted and flagged possible_duplicate by the database, which keeps them out of the alerts.
+    same_label = (Measurement.patient_id == user.id, Measurement.provenance == body.provenance)
+    latest = db.scalar(select(func.max(Measurement.measured_at)).where(*same_label,
+                                                                        Measurement.validation_status != "invalid"))
     rows.sort(key=lambda r: r.measured_at)
-    stored = set()
+    stored: dict[tuple[int, int], list[tuple[datetime, int | None]]] = {}  # (sys, dia) -> stored readings
     if rows:
-        stored = set(db.execute(select(Measurement.measured_at, Measurement.systolic, Measurement.diastolic,
-                                       Measurement.pulse)
-                                .where(Measurement.patient_id == user.id,
-                                       Measurement.measured_at >= rows[0].measured_at,
-                                       Measurement.measured_at <= rows[-1].measured_at)).all())
-    inserted, duplicates = [], 0
+        for at, s, d, p in db.execute(select(Measurement.measured_at, Measurement.systolic, Measurement.diastolic,
+                                             Measurement.pulse)
+                                      .where(*same_label,
+                                             Measurement.measured_at >= rows[0].measured_at - DUPLICATE_WINDOW,
+                                             Measurement.measured_at <= rows[-1].measured_at + DUPLICATE_WINDOW)):
+            stored.setdefault((s, d), []).append((at, p))
+    in_file, inserted, duplicates = set(), [], 0
     for r in rows:
         key = (r.measured_at, r.systolic, r.diastolic, r.pulse)
-        if key in stored:
+        repeated = key in in_file
+        in_file.add(key)
+        if repeated or _take_stored(stored, r):
             duplicates += 1
             continue
-        stored.add(key)
         m = Measurement(patient_id=user.id, source="csv_import", provenance=body.provenance,
                         method=vocab.MANUAL_METHOD, systolic=r.systolic, diastolic=r.diastolic, pulse=r.pulse,
                         measured_at=r.measured_at, measured_tz=tz_name, body_position=r.position, arm=r.arm,
@@ -148,9 +169,12 @@ def import_readings(db: Session, user: CurrentUser, body: ReadingsImportIn, now:
             rejected.append(_refused(r.row, e))
             continue
         inserted.append(m)
+        # The same rule inside the file: a typed entry and the cuff's copy of it (with a pulse) are one reading.
+        stored.setdefault((r.systolic, r.diastolic), []).append((r.measured_at, r.pulse))
 
-    fresh = [m for m in inserted if m.measured_at >= now - FRESH_WINDOW]
-    historical = [m for m in inserted if m.measured_at < now - FRESH_WINDOW]
+    cutoff = max(now - FRESH_WINDOW, latest) if latest else now - FRESH_WINDOW
+    fresh = [m for m in inserted if m.measured_at >= cutoff]
+    historical = [m for m in inserted if m.measured_at < cutoff]
     target = current_target(db, user.id)
     alerts: dict = {}
     preview: list[tuple[Measurement, Evaluation]] = []
@@ -178,19 +202,24 @@ def import_readings(db: Session, user: CurrentUser, body: ReadingsImportIn, now:
         if trend is not None and (alert := apply_evaluation(db, user.id, trend, measurement_id=newest_real.id)):
             alerts[alert.id] = alert
 
-    past_severe = sum(1 for m in historical if m.provenance != SIMULATED and m.validation_status != "invalid"
-                      and is_severe(m.systolic, m.diastolic))
+    past_real = [m for m in historical if m.provenance != SIMULATED and m.validation_status != "invalid"]
+    past_severe = sum(1 for m in past_real if is_severe(m.systolic, m.diastolic))
+    past_very_low = any(m.systolic < VERY_LOW_SYSTOLIC for m in past_real)
     evaluation = dataclasses.replace(best[3], requires_symptom_check=symptom_check) if best else None
     if evaluation is not None:
         next_step = evaluation.next_step
     elif past_severe:
         next_step = texts.NEXT_STEP["IMPORT-PAST-SEVERE"]
+    elif past_very_low:
+        next_step = texts.NEXT_STEP["IMPORT-PAST-LOW"]
     elif preview:
         next_step = texts.NEXT_STEP["IMPORT-SIMULATED"]
     elif inserted:
         next_step = texts.NEXT_STEP["IMPORT-HISTORY"]
-    else:
+    elif duplicates:
         next_step = texts.NEXT_STEP["IMPORT-NOTHING"]
+    else:
+        next_step = texts.NEXT_STEP["IMPORT-REJECTED"]
 
     batch.rows_total = len(rows) + len(parse_rejections)
     batch.rows_inserted, batch.rows_duplicate = len(inserted), duplicates
@@ -219,7 +248,7 @@ def ring_device(db: Session, patient_id: UUID, simulated: bool) -> Device:
 
 def import_ring(db: Session, user: CurrentUser, body: RingImportIn, demo_mode: bool) -> RingImport:
     simulated = body.source == "simulated"
-    _check_label(body.csv, simulated, demo_mode)
+    _check_label(body.csv, simulated, demo_mode, "source")
     tz, _ = _zone(body.tz, user)
     try:
         rows, parse_rejections = parse_ring(body.csv, tz)

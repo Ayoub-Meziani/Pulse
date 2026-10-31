@@ -6,7 +6,8 @@ Rule ids:
   R-EMG-1  any red-flag symptom reported                       -> emergency
   R-SEV-1  systolic >= 180 or diastolic >= 120                 -> severe (symptom check, recheck 60 s)
   R-SEV-2  recheck within 15 min still >= 180 / >= 120         -> severe, persistent (attach)
-  R-SEV-3  recheck within 15 min below 180 / 120               -> severe alert stays open (attach)
+  R-SEV-3  recheck within 15 min below 180 / 120               -> severe alert stays open (attach); systolic < 70
+                                                                  also gets R-LOW-2's symptom check and recheck
   R-TGT-1  reading >= target                                   -> notice (one active notice per patient)
   R-LOW-2  systolic < 70                                       -> low (symptom check, recheck 60 s)
   R-LOW-1  systolic < 90 or diastolic < 60                     -> low (one active low alert per patient)
@@ -90,11 +91,14 @@ def evaluate_measurement(reading: Reading, target: Target,
             requires_symptom_check=True, recheck_after_seconds=RECHECK_SECONDS)
 
     if previous_severe is not None:
+        # A fall from crisis level to very low within minutes (a faint, or a cuff fault) still gets R-LOW-2's checks.
+        very_low = s < VERY_LOW_SYSTOLIC
         return Evaluation(
             level="severe", rule_id="R-SEV-3",
             reason=f"Recheck {s}/{d} is below 180/120.",
-            next_step=texts.NEXT_STEP["R-SEV-3"],
-            alert_action="attach", target_alert_id=previous_severe.id)
+            next_step=texts.NEXT_STEP["R-LOW-2" if very_low else "R-SEV-3"],
+            alert_action="attach", target_alert_id=previous_severe.id,
+            requires_symptom_check=very_low, recheck_after_seconds=RECHECK_SECONDS if very_low else None)
 
     if is_above_target(s, d, target):
         label = texts.target_label(target.is_default)

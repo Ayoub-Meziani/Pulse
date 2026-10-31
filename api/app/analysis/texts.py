@@ -33,9 +33,12 @@ NEXT_STEP = {
     # File imports (proposed decision D26; wording pending clinician review).
     "IMPORT-PAST-SEVERE": "Some imported readings were 180/120 or higher. Measure your blood pressure now. "
                           "If you feel unwell, call emergency services.",
+    "IMPORT-PAST-LOW": "Some imported readings were very low. Measure your blood pressure now. If you feel faint, "
+                       "confused or unwell, call emergency services.",
     "IMPORT-SIMULATED": "Simulated readings are labelled and never raise an alert.",
     "IMPORT-HISTORY": "Older readings were added to your history; they count in your weekly average.",
     "IMPORT-NOTHING": "Nothing new was added: these readings were already in your history.",
+    "IMPORT-REJECTED": "No reading could be added. Check the rejected rows and the file format, then try again.",
     "IMPORT-RING": "Ring data is context for your doctor and never raises an alert.",
 }
 
