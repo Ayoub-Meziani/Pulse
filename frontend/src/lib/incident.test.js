@@ -67,6 +67,19 @@ describe("incident queue", () => {
     expect(store.read()[0].actions).toHaveLength(1);
   });
 
+  it("drops a stale queued position but still sends the outcome", async () => {
+    const store = memoryStore();
+    const id = openIncident(store, "p1");
+    queuePatch(store, id, { location: { lat: 36.7, lon: 3.06 }, location_shared_with_consent: true,
+      location_captured_at: "2026-10-31T08:00:00Z" });
+    queuePatch(store, id, { reported_outcome: "felt_better" });
+    closeIncident(store, id);
+    const stale = Object.assign(new Error("422"), { status: 422, details: [{ field: "location_captured_at", code: "stale_location" }] });
+    const a = { ...api(), patch: vi.fn().mockRejectedValueOnce(stale).mockResolvedValue({}) };
+    expect(await flushIncidents(store, a)).toEqual([]);
+    expect(a.patch).toHaveBeenLastCalledWith(id, { reported_outcome: "felt_better" });
+  });
+
   it("merges successive patches (location with consent, then the outcome)", () => {
     const store = memoryStore();
     const id = openIncident(store, "p1");

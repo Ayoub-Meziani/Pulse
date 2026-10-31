@@ -31,13 +31,13 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from dev_stack import DB  # same container as the stack (PULSE_DEV_INSTANCE), never another stack
 from test_db import psql
 
 ROOT = Path(__file__).resolve().parents[1]
 DEV = ROOT / ".dev"
 API_ENV = DEV / "api.env"
 CREDENTIALS = DEV / "demo-credentials.txt"
-DB = "pulse-dev-db"
 ACCOUNTS = [
     ("patient_a", "patient.a@demo.pulse.test", "Nadia Benali (démo)", "patient"),
     ("patient_b", "patient.b@demo.pulse.test", "Karim Haddad (démo)", "patient"),

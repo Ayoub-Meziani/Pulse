@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { addEmergencyActions, getEmergencyCard, getEmergencyConfig, patchEmergencyEvent, startEmergencyEvent } from "../../api/patient";
+import EscalationPanel from "../../components/emergency/EscalationPanel";
+import LocalAlarm from "../../components/emergency/LocalAlarm";
 import Icon from "../../components/ui/Icon";
 import { formatDateTime, originOf } from "../../lib/format";
 import { browserStore, closeIncident, flushIncidents, openIncident, queueAction, queuePatch } from "../../lib/incident";
@@ -45,7 +47,8 @@ function locate(timeoutMs = 8000) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve({ status: "denied" }); return; }
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ status: "granted", lat: p.coords.latitude, lon: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) }),
+      (p) => resolve({ status: "granted", lat: p.coords.latitude, lon: p.coords.longitude, accuracy: Math.round(p.coords.accuracy),
+        at: new Date(p.timestamp || Date.now()).toISOString() }),
       (e) => resolve({ status: e.code === 3 ? "timeout" : "denied" }),
       { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60000 },
     );
@@ -122,6 +125,11 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
   const [shareResult, setShareResult] = useState(null);
   const [outcome, setOutcome] = useState(null);
   const incident = useRef(null);
+  // On the server once the queue says so, or once it was fully sent and left the queue.
+  const isCreated = useCallback(() => {
+    const queued = store.read().find((i) => i.id === incident.current);
+    return Boolean(incident.current) && (!queued || queued.created);
+  }, []);
 
   const flush = () => flushIncidents(store, API, user.id).catch(() => {});
   const log = (action, detail = null) => {
@@ -166,7 +174,8 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
     setLocation(pos);
     log(pos.status === "granted" ? "location_granted" : pos.status === "timeout" ? "location_timeout" : "location_denied");
     if (pos.status === "granted" && incident.current) {
-      queuePatch(store, incident.current, { location: { lat: pos.lat, lon: pos.lon }, location_shared_with_consent: true });
+      queuePatch(store, incident.current, { location: { lat: pos.lat, lon: pos.lon }, location_shared_with_consent: true,
+        location_captured_at: pos.at, location_accuracy_m: pos.accuracy });
       flush();
     }
     const r = card?.last_reading;
@@ -244,6 +253,10 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
       <ContactCard contact={card?.primary_contact} sharing={sharing} location={location} landmark={landmark} setLandmark={setLandmark}
         shareResult={shareResult} onShare={share} onCall={() => log("contact_call_tapped")} />
 
+      <EscalationPanel eventId={incident.current} getCreated={isCreated} enabled={Boolean(config?.escalation_enabled)} />
+
+      <LocalAlarm onStart={() => log("alarm_started")} onStop={() => log("alarm_stopped")} />
+
       <MedicalCard card={card} offline={cardOffline} />
 
       {config && (
@@ -256,7 +269,9 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
 
       <section className="rounded-2xl border border-line bg-surface p-5" aria-labelledby="outcome-title">
         <h2 id="outcome-title" className="text-lg font-bold text-ink">Que s'est-il passé ?</h2>
-        <p className="mt-1 text-sm text-ink-muted">Votre réponse est ajoutée au dossier de cet épisode. Votre médecin le consultera lors du suivi ; il n'est pas prévenu en temps réel.</p>
+        <p className="mt-1 text-sm text-ink-muted">Votre réponse est ajoutée au dossier de cet épisode. {config?.escalation_enabled
+          ? "Votre médecin voit l'alerte dans PULSE s'il est connecté ; ce n'est pas un appel."
+          : "Votre médecin le consultera lors du suivi ; il n'est pas prévenu en temps réel."}</p>
         {outcome ? (
           <p className="mt-3 rounded-xl bg-success-soft px-4 py-3 text-sm font-medium text-success" role="status">
             Noté : « {outcome} ». Enregistré sur ce téléphone et envoyé au serveur dès que la connexion le permet.
@@ -287,7 +302,7 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
         </div>
       )}
 
-      <p className="text-xs text-ink-subtle">Prototype : PULSE n'appelle personne et ne détecte pas de malaise. Les appels et les partages se font depuis votre téléphone.</p>
+      <p className="text-xs text-ink-subtle">Prototype : PULSE n'appelle personne, ne prévient pas les secours et ne détecte pas de malaise. Les appels et les partages se font depuis votre téléphone.</p>
       <Link to="/patient" className="inline-flex items-center gap-1 text-sm font-semibold text-brand"><Icon name="back" size={18} />Retour au tableau de bord</Link>
     </section>
   );

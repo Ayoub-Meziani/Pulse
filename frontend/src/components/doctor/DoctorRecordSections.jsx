@@ -52,6 +52,8 @@ const ACTION_LABEL = {
   location_denied: "Position refusée",
   location_timeout: "Position : délai dépassé",
   outcome_reported: "Suite déclarée par le patient",
+  alarm_started: "Alarme sonore déclenchée sur le téléphone",
+  alarm_stopped: "Alarme sonore arrêtée",
 };
 const TRIGGER_LABEL = { symptom: "Symptôme d'alerte", severe_reading: "Mesure très élevée", manual: "Bouton Urgence" };
 

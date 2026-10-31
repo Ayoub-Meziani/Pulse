@@ -1,4 +1,5 @@
 import { useState } from "react";
+import EscalationBanner from "../doctor/EscalationBanner";
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
 import { getEmergencyConfig } from "../../api/patient";
 import { useAuth } from "../../auth/AuthContext";
@@ -123,6 +124,7 @@ export default function AppLayout() {
       )}
 
       <main id="main" className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        {user.role === "doctor" && <EscalationBanner timeZone={user.timezone} />}
         <Outlet />
       </main>
 

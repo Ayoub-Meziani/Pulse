@@ -406,7 +406,7 @@ class EmergencyCardOut(BaseModel):
 TriggerReason = Literal["symptom", "severe_reading", "manual"]
 ActionType = Literal["screen_opened", "emergency_call_tapped", "contact_call_tapped", "share_opened",
                      "share_failed", "location_granted", "location_denied", "location_timeout",
-                     "outcome_reported"]
+                     "outcome_reported", "alarm_started", "alarm_stopped"]
 
 
 EscalationSeverity = Literal["urgent", "emergency"]

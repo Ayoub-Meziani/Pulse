@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router";
+import NotificationsPage from "./pages/NotificationsPage";
 import AppLayout from "./components/layout/AppLayout";
 import RequireRole from "./auth/RequireRole";
 import { homeFor } from "./auth/roles";
@@ -41,6 +42,9 @@ export default function App() {
       <Route element={<RequireRole roles={["patient", "doctor", "admin"]} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomeRedirect />} />
+          <Route element={<RequireRole roles={["patient", "doctor"]} />}>
+            <Route path="/notifications" element={<NotificationsPage />} />
+          </Route>
 
           <Route element={<RequireRole roles={["patient"]} />}>
             <Route path="/patient" element={<PatientDashboard />} />

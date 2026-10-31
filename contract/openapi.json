@@ -1028,7 +1028,9 @@
               "location_granted",
               "location_denied",
               "location_timeout",
-              "outcome_reported"
+              "outcome_reported",
+              "alarm_started",
+              "alarm_stopped"
             ],
             "title": "Action",
             "type": "string"
@@ -1076,7 +1078,9 @@
               "location_granted",
               "location_denied",
               "location_timeout",
-              "outcome_reported"
+              "outcome_reported",
+              "alarm_started",
+              "alarm_stopped"
             ],
             "title": "Action",
             "type": "string"

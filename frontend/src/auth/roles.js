@@ -17,7 +17,11 @@ export const NAV = {
     { to: "/patient/alertes", label: "Alertes", icon: "bell" },
     { to: "/patient/journal", label: "Journal", icon: "note" },
     { to: "/patient/profil", label: "Mon profil", icon: "user" },
+    { to: "/notifications", label: "Notifications", icon: "info" },
   ],
-  doctor: [{ to: "/doctor", label: "Mes patients", icon: "users", end: true }],
+  doctor: [
+    { to: "/doctor", label: "Mes patients", icon: "users", end: true },
+    { to: "/notifications", label: "Notifications", icon: "info" },
+  ],
   admin: [{ to: "/admin", label: "Compte", icon: "shield", end: true }],
 };

@@ -67,7 +67,15 @@ export async function flushIncidents(store, api, patientId) {
       }
       const patch = current(store, incident.id).patch;
       if (patch) {
-        await api.patch(incident.id, patch);
+        try {
+          await api.patch(incident.id, patch);
+        } catch (e) {
+          // A position queued offline for more than 15 minutes is refused (stale_location). It must never be
+          // shown as "where the patient is now", and it must not block the outcome: drop it and retry.
+          if (!isStaleLocation(e)) throw e;
+          const rest = withoutLocation(patch);
+          if (Object.keys(rest).length) await api.patch(incident.id, rest);
+        }
         update(store, incident.id, { patch: null });
       }
       const done = current(store, incident.id);
@@ -79,6 +87,16 @@ export async function flushIncidents(store, api, patientId) {
     }
   }
   return store.read();
+}
+
+const LOCATION_FIELDS = ["location", "location_shared_with_consent", "location_captured_at", "location_accuracy_m"];
+
+function isStaleLocation(e) {
+  return e?.status === 422 && (e.details ?? []).some((d) => d.code === "stale_location");
+}
+
+function withoutLocation(patch) {
+  return Object.fromEntries(Object.entries(patch).filter(([k]) => !LOCATION_FIELDS.includes(k)));
 }
 
 /** Marks an incident finished locally (outcome reported); it leaves the queue once everything is sent. */
