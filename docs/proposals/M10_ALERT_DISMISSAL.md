@@ -1,9 +1,9 @@
 # M10 proposal: notice-alert dismissal and alert timeline (Q5)
 
-Status: **proposal only. Not a migration, not applied anywhere.** Prepared 2026-10-31 for Ayoub (Q5 decision).
-The SQL below is a draft for review. It must not be copied into `supabase/migrations/` until Ayoub approves it.
-After approval it runs on the local and test databases, then on staging, and on production only with a separate
-approval (`PULSE_DATABASE_SYNC_POLICY.md`).
+Status: **implemented on branch `feat/q5-alert-dismissal` (2026-10-31, authorized by Ayoub)** as
+`supabase/migrations/20261031120000_alert_dismissal.sql` (M10, including the append-only `audit_log`). Applied only to
+the local `latest` test database. Order to ship: staging → production (after a verified backup) → `LIVE_UNTIL` → merge.
+The API code needs M10: on an M9 database it fails (67 tests on the `live` profile), so it must not merge or deploy first.
 
 ## 1. Decision being implemented (Ayoub, Q5)
 

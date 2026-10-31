@@ -1,5 +1,5 @@
 import { LevelBadge, StatusBadge } from "../ui/Badge";
-import { formatDateTime } from "../../lib/format";
+import { DISMISSAL_REASON_LABEL, formatDateTime } from "../../lib/format";
 
 /**
  * Alerts (AlertOut[]). Reason and next step are the server's words, shown verbatim (English until the
@@ -22,6 +22,12 @@ export default function AlertList({ alerts, timeZone, renderActions }) {
           {a.resolution_note && (
             <p className="mt-2 rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">
               Clôture : {a.resolution_note}
+            </p>
+          )}
+          {a.dismissed_at && (
+            <p className="mt-2 rounded-lg bg-surface-muted px-3 py-2 text-sm text-ink-muted">
+              Écartée par {a.dismissed_by_role === "doctor" ? "le médecin" : "le patient"} le {formatDateTime(a.dismissed_at, timeZone)} :{" "}
+              {DISMISSAL_REASON_LABEL[a.dismissal_reason] ?? a.dismissal_reason}{a.dismissal_note ? ` — « ${a.dismissal_note} »` : ""}
             </p>
           )}
           {renderActions && <div className="mt-3 flex flex-wrap gap-2">{renderActions(a)}</div>}

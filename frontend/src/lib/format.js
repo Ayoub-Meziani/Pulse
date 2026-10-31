@@ -102,7 +102,19 @@ export const ALERT_STATUS = {
   acknowledged: { label: "Prise en compte", tone: "warning" },
   reviewed: { label: "Examinée par le médecin", tone: "brand" },
   resolved: { label: "Clôturée", tone: "neutral" },
+  dismissed: { label: "Écartée", tone: "neutral" },
 };
+
+// TransitionIn.reason (Q5): only notice alerts can be dismissed; "other" needs a note (server rule).
+export const DISMISSAL_REASONS = [
+  ["remeasured_lower", "J'ai remesuré, la tension était plus basse"],
+  ["measurement_error", "Erreur de mesure (brassard, position…)"],
+  ["other", "Autre raison (à préciser)"],
+];
+export const DISMISSAL_REASON_LABEL = Object.fromEntries(DISMISSAL_REASONS);
+
+// AlertEventOut: read-only timeline built by the server from the audit log.
+export const ALERT_EVENT_ACTOR = { rule: "Règle de sécurité", patient: "Patient", doctor: "Médecin" };
 
 // Symptom codes of the contract (schemas.Symptom), in the server's order. Which ones are red flags
 // is decided by the server, never here.

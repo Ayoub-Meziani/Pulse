@@ -139,6 +139,10 @@ class Alert(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(TS)
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     resolution_note: Mapped[str | None] = mapped_column(Text)
+    dismissed_at: Mapped[datetime | None] = mapped_column(TS)  # migration M10
+    dismissed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    dismissal_reason: Mapped[str | None] = mapped_column(Text)
+    dismissal_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _server(TS)
 
 
@@ -148,6 +152,18 @@ class AlertMeasurement(Base):  # migration M3
     measurement_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     attached_at: Mapped[datetime] = _server(TS)
+
+
+class AuditLog(Base):  # read only: written by the private.audit() trigger, append-only since M10
+    __tablename__ = "audit_log"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    table_name: Mapped[str] = mapped_column(Text)
+    row_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    action: Mapped[str] = mapped_column(Text)
+    actor: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    changed_at: Mapped[datetime] = _server(TS)
+    old_data: Mapped[dict | None] = mapped_column(JSONB)
+    new_data: Mapped[dict | None] = mapped_column(JSONB)
 
 
 class TrustedContact(Base):

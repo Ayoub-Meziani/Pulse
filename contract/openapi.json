@@ -31,7 +31,8 @@
               "open",
               "acknowledged",
               "reviewed",
-              "resolved"
+              "resolved",
+              "dismissed"
             ],
             "title": "Status",
             "type": "string"
@@ -65,6 +66,61 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "dismissal_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissal Note"
+          },
+          "dismissal_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "remeasured_lower",
+                  "measurement_error",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissal Reason"
+          },
+          "dismissed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissed At"
+          },
+          "dismissed_by_role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "patient",
+                  "doctor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who dismissed this notice; never a user id.",
+            "title": "Dismissed By Role"
           },
           "id": {
             "format": "uuid",
@@ -162,7 +218,8 @@
               "open",
               "acknowledged",
               "reviewed",
-              "resolved"
+              "resolved",
+              "dismissed"
             ],
             "title": "Status",
             "type": "string"
@@ -196,9 +253,115 @@
           "reviewed_at",
           "resolved_at",
           "resolution_note",
+          "dismissed_at",
+          "dismissed_by_role",
+          "dismissal_reason",
+          "dismissal_note",
           "measurements"
         ],
         "title": "AlertDetail",
+        "type": "object"
+      },
+      "AlertEventOut": {
+        "properties": {
+          "actor_role": {
+            "description": "'rule' = the deterministic rule engine.",
+            "enum": [
+              "patient",
+              "doctor",
+              "rule"
+            ],
+            "title": "Actor Role",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "acknowledged",
+                  "reviewed",
+                  "resolved",
+                  "dismissed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Status"
+          },
+          "kind": {
+            "enum": [
+              "created",
+              "level_raised",
+              "measurement_attached",
+              "status_changed"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "notice",
+                  "trend",
+                  "severe",
+                  "emergency"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level after a creation or a raise.",
+            "title": "Level"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resolution or dismissal note.",
+            "title": "Note"
+          },
+          "to_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "acknowledged",
+                  "reviewed",
+                  "resolved",
+                  "dismissed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Status"
+          }
+        },
+        "required": [
+          "at",
+          "kind",
+          "actor_role"
+        ],
+        "title": "AlertEventOut",
         "type": "object"
       },
       "AlertOut": {
@@ -219,6 +382,61 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "dismissal_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissal Note"
+          },
+          "dismissal_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "remeasured_lower",
+                  "measurement_error",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissal Reason"
+          },
+          "dismissed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissed At"
+          },
+          "dismissed_by_role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "patient",
+                  "doctor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who dismissed this notice; never a user id.",
+            "title": "Dismissed By Role"
           },
           "id": {
             "format": "uuid",
@@ -308,7 +526,8 @@
               "open",
               "acknowledged",
               "reviewed",
-              "resolved"
+              "resolved",
+              "dismissed"
             ],
             "title": "Status",
             "type": "string"
@@ -341,7 +560,11 @@
           "acknowledged_at",
           "reviewed_at",
           "resolved_at",
-          "resolution_note"
+          "resolution_note",
+          "dismissed_at",
+          "dismissed_by_role",
+          "dismissal_reason",
+          "dismissal_note"
         ],
         "title": "AlertOut",
         "type": "object"
@@ -2949,14 +3172,32 @@
                 "type": "null"
               }
             ],
-            "description": "Required to resolve a severe or emergency alert.",
+            "description": "Required to resolve a severe or emergency alert, and to dismiss with reason 'other' (at most 500 characters for a dismissal).",
             "title": "Note"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "remeasured_lower",
+                  "measurement_error",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required with to='dismissed' (notice alerts only).",
+            "title": "Reason"
           },
           "to": {
             "enum": [
               "acknowledged",
               "reviewed",
-              "resolved"
+              "resolved",
+              "dismissed"
             ],
             "title": "To",
             "type": "string"
@@ -3344,6 +3585,118 @@
         ]
       }
     },
+    "/api/v1/alerts/{alert_id}/events": {
+      "get": {
+        "operationId": "alert_events_api_v1_alerts__alert_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertEventOut"
+                  },
+                  "title": "Response Alert Events Api V1 Alerts  Alert Id  Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read-only timeline of the alert from the audit log, oldest first (patient or assigned doctor)",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
     "/api/v1/alerts/{alert_id}/transition": {
       "post": {
         "operationId": "transition_api_v1_alerts__alert_id__transition_post",
@@ -3456,7 +3809,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "open\u2192acknowledged (patient or doctor); \u2192reviewed, reviewed\u2192resolved (doctor). Others: 409",
+        "summary": "open\u2192acknowledged (patient or doctor); open/acknowledged\u2192dismissed, notice only, reason required (patient or doctor); \u2192reviewed, reviewed\u2192resolved (doctor). Others: 409",
         "tags": [
           "alerts"
         ]

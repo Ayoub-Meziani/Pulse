@@ -24,3 +24,10 @@ Human-readable summary, endpoint list, frontend flow rules and database/ML contr
   (valid readings of the last 7 days), so they add up to it; `needs_review` and invalid readings are in none of them
   (`count_needs_review_7d`, `count_invalid_7d`). Averages, `pct_above_target_7d` and `trend` still use valid readings of
   any provenance, simulated ones included; they are descriptive and never create alerts (D19, D20).
+- Alert dismissal (Q5, D24, needs migration M10): `POST /alerts/{id}/transition` with `{"to": "dismissed", "reason":
+  "remeasured_lower" | "measurement_error" | "other", "note"?}` by the patient or the assigned doctor, **notice alerts
+  only** (open or acknowledged; severe, trend and emergency → 409). `other` needs a note (≤ 500). A dismissed notice
+  leaves the active list, stays under `status=all`, can still be `reviewed` by the doctor, and the next above-target
+  reading opens a new notice. `AlertOut` adds `dismissed_at`, `dismissed_by_role`, `dismissal_reason`, `dismissal_note`.
+  `GET /alerts/{id}/events` is the read-only timeline from `audit_log` + `alert_measurements` (kinds `created`,
+  `level_raised`, `measurement_attached`, `status_changed`; actor role only, never user ids or raw audit rows).

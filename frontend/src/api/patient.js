@@ -23,8 +23,19 @@ export function listActiveAlerts(patientId, { signal } = {}) {
   return listAlerts(patientId, { status: "active", signal });
 }
 
-export function transitionAlert(alertId, to, note) {
-  return request(`/alerts/${alertId}/transition`, { method: "POST", body: note ? { to, note } : { to } });
+export function transitionAlert(alertId, to, note, reason) {
+  return request(`/alerts/${alertId}/transition`, {
+    method: "POST", body: { to, ...(note ? { note } : {}), ...(reason ? { reason } : {}) },
+  });
+}
+
+/** Q5: notice alerts only; the server refuses severe, trend and emergency alerts (409). */
+export function dismissAlert(alertId, reason, note) {
+  return transitionAlert(alertId, "dismissed", note, reason);
+}
+
+export function getAlertEvents(alertId, { signal } = {}) {
+  return request(`/alerts/${alertId}/events`, { signal });
 }
 
 export function listSymptomReports(patientId, { limit = 50, signal } = {}) {

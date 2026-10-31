@@ -22,7 +22,8 @@ Method = Literal["cuff_oscillometric", "cuff_auscultatory", "wearable_estimate",
 ValidationStatus = Literal["valid", "needs_review", "invalid"]
 Level = Literal["none", "notice", "trend", "severe", "emergency"]
 AlertLevel = Literal["notice", "trend", "severe", "emergency"]
-AlertStatus = Literal["open", "acknowledged", "reviewed", "resolved"]
+AlertStatus = Literal["open", "acknowledged", "reviewed", "resolved", "dismissed"]
+DismissalReason = Literal["remeasured_lower", "measurement_error", "other"]
 Symptom = Literal["chest_pain", "shortness_of_breath", "back_pain", "weakness", "numbness",
                   "vision_change", "difficulty_speaking", "severe_headache", "confusion",
                   "dizziness", "nausea", "palpitations", "other"]
@@ -177,6 +178,10 @@ class AlertOut(BaseModel):
     reviewed_at: datetime | None
     resolved_at: datetime | None
     resolution_note: str | None
+    dismissed_at: datetime | None
+    dismissed_by_role: Literal["patient", "doctor"] | None = Field(description="Who dismissed this notice; never a user id.")
+    dismissal_reason: DismissalReason | None
+    dismissal_note: str | None
 
 
 class AlertDetail(AlertOut):
@@ -184,8 +189,23 @@ class AlertDetail(AlertOut):
 
 
 class TransitionIn(BaseModel):
-    to: Literal["acknowledged", "reviewed", "resolved"]
-    note: str | None = Field(None, max_length=2000, description="Required to resolve a severe or emergency alert.")
+    to: Literal["acknowledged", "reviewed", "resolved", "dismissed"]
+    note: str | None = Field(None, max_length=2000, description="Required to resolve a severe or emergency alert, and to "
+                             "dismiss with reason 'other' (at most 500 characters for a dismissal).")
+    reason: DismissalReason | None = Field(None, description="Required with to='dismissed' (notice alerts only).")
+
+
+AlertEventKind = Literal["created", "level_raised", "measurement_attached", "status_changed"]
+
+
+class AlertEventOut(BaseModel):
+    at: datetime
+    kind: AlertEventKind
+    actor_role: Literal["patient", "doctor", "rule"] = Field(description="'rule' = the deterministic rule engine.")
+    from_status: AlertStatus | None = None
+    to_status: AlertStatus | None = None
+    level: AlertLevel | None = Field(None, description="Level after a creation or a raise.")
+    note: str | None = Field(None, description="Resolution or dismissal note.")
 
 
 # ---------------------------------------------------------------- summary / history

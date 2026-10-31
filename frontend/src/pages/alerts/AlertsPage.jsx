@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { listAlerts, transitionAlert } from "../../api/patient";
 import AlertList from "../../components/alerts/AlertList";
+import AlertTimeline from "../../components/alerts/AlertTimeline";
+import DismissNotice from "../../components/alerts/DismissNotice";
 import Button from "../../components/ui/Button";
 import { Card, CardBody, PageHeader } from "../../components/ui/Card";
 import { EmptyState, Section } from "../../components/ui/States";
@@ -9,7 +11,8 @@ import { useResource } from "../../lib/useResource";
 
 const FILTERS = [["active", "En cours"], ["all", "Toutes"]];
 
-/** Patient alerts from the API. The patient can only acknowledge an open alert; review and closure are the doctor's. */
+/** Patient alerts from the API. The patient can acknowledge an open alert and dismiss a notice (with a reason);
+ * review and closure are the doctor's. */
 export default function AlertsPage() {
   const { user } = useAuth();
   const [filter, setFilter] = useState("active");
@@ -52,10 +55,16 @@ export default function AlertsPage() {
               </EmptyState>
             ) : (
               <AlertList alerts={list} timeZone={user.timezone}
-                renderActions={(a) => a.status === "open" && (
-                  <Button variant="secondary" disabled={busy === a.id} onClick={() => acknowledge(a)}>
-                    {busy === a.id ? "Envoi…" : "J'ai pris connaissance de cette alerte"}
-                  </Button>
+                renderActions={(a) => (
+                  <>
+                    {a.status === "open" && (
+                      <Button variant="secondary" disabled={busy === a.id} onClick={() => acknowledge(a)}>
+                        {busy === a.id ? "Envoi…" : "J'ai pris connaissance de cette alerte"}
+                      </Button>
+                    )}
+                    <DismissNotice alert={a} onDone={alerts.reload} />
+                    <AlertTimeline alertId={a.id} timeZone={user.timezone} />
+                  </>
                 )} />
             )}
           </Section>

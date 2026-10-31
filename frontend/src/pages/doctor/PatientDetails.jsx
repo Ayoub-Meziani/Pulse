@@ -6,6 +6,8 @@ import {
   getProfile, getSummary, listAlerts, listMeasurements, listNotes, listSymptomReports, transitionAlert,
 } from "../../api/patient";
 import AlertList from "../../components/alerts/AlertList";
+import AlertTimeline from "../../components/alerts/AlertTimeline";
+import DismissNotice from "../../components/alerts/DismissNotice";
 import BloodPressureChart from "../../components/charts/BloodPressureChart";
 import ReadingList from "../../components/readings/ReadingList";
 import SymptomList from "../../components/symptoms/SymptomList";
@@ -53,7 +55,7 @@ function SummaryStats({ summary }) {
   );
 }
 
-function DoctorAlertActions({ alert, onDone }) {
+function DoctorAlertActions({ alert, onDone, timeZone }) {
   const [closing, setClosing] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -73,11 +75,12 @@ function DoctorAlertActions({ alert, onDone }) {
     }
   }
 
-  if (alert.status === "resolved") return null;
+  const timeline = <AlertTimeline alertId={alert.id} timeZone={timeZone} />;
+  if (alert.status === "resolved") return timeline;
   return (
     <div className="w-full space-y-2">
       <div className="flex flex-wrap gap-2">
-        {(alert.status === "open" || alert.status === "acknowledged") && (
+        {(alert.status === "open" || alert.status === "acknowledged" || alert.status === "dismissed") && (
           <Button variant="secondary" disabled={busy} onClick={() => move("reviewed")}><Icon name="check" size={16} />Marquer comme examinée</Button>
         )}
         {alert.status === "reviewed" && !closing && <Button variant="secondary" onClick={() => setClosing(true)}>Clôturer…</Button>}
@@ -95,6 +98,8 @@ function DoctorAlertActions({ alert, onDone }) {
         </div>
       )}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <DismissNotice alert={alert} onDone={onDone} />
+      {timeline}
     </div>
   );
 }
@@ -105,7 +110,7 @@ function AlertsBlock({ patientId, status, timeZone }) {
     <Section state={alerts} what="les alertes">
       {(list) => list.length === 0
         ? <p className="text-sm text-ink-muted">{status === "active" ? "Aucune alerte en cours." : "Aucune alerte."}</p>
-        : <AlertList alerts={list} timeZone={timeZone} renderActions={(a) => <DoctorAlertActions alert={a} onDone={alerts.reload} />} />}
+        : <AlertList alerts={list} timeZone={timeZone} renderActions={(a) => <DoctorAlertActions alert={a} onDone={alerts.reload} timeZone={timeZone} />} />}
     </Section>
   );
 }
