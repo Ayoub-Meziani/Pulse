@@ -38,3 +38,11 @@ class GoTrue:
 
     def refresh(self, refresh_token: str) -> dict:
         return self._token("refresh_token", {"refresh_token": refresh_token})
+
+    def revoke(self, access_token: str) -> None:
+        """Ends one session (scope=local). Best effort: a failure leaves a session that expires by itself."""
+        try:
+            self._client.post("/logout", params={"scope": "local"},
+                              headers={"Authorization": f"Bearer {access_token}"})
+        except httpx.HTTPError:
+            pass
