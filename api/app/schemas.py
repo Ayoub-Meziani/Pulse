@@ -20,8 +20,8 @@ Source = Literal["manual", "device_sync", "csv_import", "simulated"]
 Provenance = Literal["measured", "estimated", "simulated"]
 Method = Literal["cuff_oscillometric", "cuff_auscultatory", "wearable_estimate", "unknown"]
 ValidationStatus = Literal["valid", "needs_review", "invalid"]
-Level = Literal["none", "notice", "trend", "severe", "emergency"]
-AlertLevel = Literal["notice", "trend", "severe", "emergency"]
+Level = Literal["none", "low", "notice", "trend", "severe", "emergency"]
+AlertLevel = Literal["low", "notice", "trend", "severe", "emergency"]
 AlertStatus = Literal["open", "acknowledged", "reviewed", "resolved"]
 Symptom = Literal["chest_pain", "shortness_of_breath", "back_pain", "weakness", "numbness",
                   "vision_change", "difficulty_speaking", "severe_headache", "confusion",
@@ -109,10 +109,13 @@ class EvaluationOut(BaseModel):
     """Deterministic rule result, always returned in the same response as the reading or symptom report.
 
     Reading flagged invalid by the database: level="none", rule_id="DATA-INVALID", no alert, next_step asks
-    to measure again; if the reading is above the plausibility limits (systolic > 300 or diastolic > 200)
-    requires_symptom_check is true so a typo never hides a possible crisis."""
-    level: Level = Field(description="none | notice (above target) | trend | severe (>= 180 or >= 120) | emergency (red-flag symptom).")
-    rule_id: str | None = Field(description="Rule that decided the level: R-EMG-1, R-SEV-1/2/3, R-TGT-1, R-TRD-1, or DATA-INVALID.")
+    to measure again; if the reading is outside the plausibility limits (systolic > 300 or diastolic > 200, or
+    systolic < 50 or diastolic < 25: too low to be real, or a failed cuff) requires_symptom_check is true so a typo
+    never hides a possible crisis."""
+    level: Level = Field(description="none | low (below 90/60, R-LOW-1/2) | notice (above target) | trend | "
+                                      "severe (>= 180 or >= 120) | emergency (red-flag symptom).")
+    rule_id: str | None = Field(description="Rule that decided the level: R-EMG-1, R-SEV-1/2/3, R-LOW-1/2, R-TGT-1, "
+                                            "R-TRD-1, or DATA-INVALID.")
     reason: str
     next_step: str
     requires_symptom_check: bool = Field(description="Show the symptom checklist now and POST symptom-reports.")
@@ -181,6 +184,24 @@ class AlertOut(BaseModel):
 
 class AlertDetail(AlertOut):
     measurements: list[MeasurementOut] = Field(description="Readings attached to this alert episode, oldest first.")
+
+
+class PatientConfirmationIn(BaseModel):
+    password: str = Field(min_length=1, max_length=200, description=(
+        "The patient's account password, checked with Supabase Auth and never stored or logged."))
+
+
+class AlertReading(BaseModel):
+    systolic: int
+    diastolic: int
+    measured_at: datetime
+    source: Source
+    provenance: Provenance
+
+
+class DoctorAlertOut(AlertOut):
+    patient_name: str
+    reading: AlertReading | None = Field(description="The reading that triggered the alert (null for symptom alerts).")
 
 
 class TransitionIn(BaseModel):

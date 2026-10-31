@@ -10,6 +10,7 @@
           },
           "level": {
             "enum": [
+              "low",
               "notice",
               "trend",
               "severe",
@@ -73,6 +74,7 @@
           },
           "level": {
             "enum": [
+              "low",
               "notice",
               "trend",
               "severe",
@@ -227,6 +229,7 @@
           },
           "level": {
             "enum": [
+              "low",
               "notice",
               "trend",
               "severe",
@@ -344,6 +347,51 @@
           "resolution_note"
         ],
         "title": "AlertOut",
+        "type": "object"
+      },
+      "AlertReading": {
+        "properties": {
+          "diastolic": {
+            "title": "Diastolic",
+            "type": "integer"
+          },
+          "measured_at": {
+            "format": "date-time",
+            "title": "Measured At",
+            "type": "string"
+          },
+          "provenance": {
+            "enum": [
+              "measured",
+              "estimated",
+              "simulated"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "manual",
+              "device_sync",
+              "csv_import",
+              "simulated"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "systolic": {
+            "title": "Systolic",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "systolic",
+          "diastolic",
+          "measured_at",
+          "source",
+          "provenance"
+        ],
+        "title": "AlertReading",
         "type": "object"
       },
       "BandApproveIn": {
@@ -851,6 +899,169 @@
           "created_at"
         ],
         "title": "DeviceOut",
+        "type": "object"
+      },
+      "DoctorAlertOut": {
+        "properties": {
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "low",
+              "notice",
+              "trend",
+              "severe",
+              "emergency"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "measurement_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Id"
+          },
+          "next_step": {
+            "title": "Next Step",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "patient_name": {
+            "title": "Patient Name",
+            "type": "string"
+          },
+          "persistent": {
+            "title": "Persistent",
+            "type": "boolean"
+          },
+          "reading": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlertReading"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reading that triggered the alert (null for symptom alerts)."
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Note"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "acknowledged",
+              "reviewed",
+              "resolved"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "symptom_report_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symptom Report Id"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "level",
+          "rule_id",
+          "status",
+          "persistent",
+          "reason",
+          "next_step",
+          "measurement_id",
+          "symptom_report_id",
+          "created_at",
+          "acknowledged_at",
+          "reviewed_at",
+          "resolved_at",
+          "resolution_note",
+          "patient_name",
+          "reading"
+        ],
+        "title": "DoctorAlertOut",
         "type": "object"
       },
       "EmergencyActionIn": {
@@ -1503,12 +1714,13 @@
         "type": "object"
       },
       "EvaluationOut": {
-        "description": "Deterministic rule result, always returned in the same response as the reading or symptom report.\n\nReading flagged invalid by the database: level=\"none\", rule_id=\"DATA-INVALID\", no alert, next_step asks\nto measure again; if the reading is above the plausibility limits (systolic > 300 or diastolic > 200)\nrequires_symptom_check is true so a typo never hides a possible crisis.",
+        "description": "Deterministic rule result, always returned in the same response as the reading or symptom report.\n\nReading flagged invalid by the database: level=\"none\", rule_id=\"DATA-INVALID\", no alert, next_step asks\nto measure again; if the reading is outside the plausibility limits (systolic > 300 or diastolic > 200, or\nsystolic < 50 or diastolic < 25: too low to be real, or a failed cuff) requires_symptom_check is true so a typo\nnever hides a possible crisis.",
         "properties": {
           "level": {
-            "description": "none | notice (above target) | trend | severe (>= 180 or >= 120) | emergency (red-flag symptom).",
+            "description": "none | low (below 90/60, R-LOW-1/2) | notice (above target) | trend | severe (>= 180 or >= 120) | emergency (red-flag symptom).",
             "enum": [
               "none",
+              "low",
               "notice",
               "trend",
               "severe",
@@ -1551,7 +1763,7 @@
                 "type": "null"
               }
             ],
-            "description": "Rule that decided the level: R-EMG-1, R-SEV-1/2/3, R-TGT-1, R-TRD-1, or DATA-INVALID.",
+            "description": "Rule that decided the level: R-EMG-1, R-SEV-1/2/3, R-LOW-1/2, R-TGT-1, R-TRD-1, or DATA-INVALID.",
             "title": "Rule Id"
           },
           "show_emergency": {
@@ -2399,6 +2611,22 @@
         "title": "NoteOut",
         "type": "object"
       },
+      "PatientConfirmationIn": {
+        "properties": {
+          "password": {
+            "description": "The patient's account password, checked with Supabase Auth and never stored or logged.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "PatientConfirmationIn",
+        "type": "object"
+      },
       "PatientListItem": {
         "properties": {
           "active_alert_count": {
@@ -2447,6 +2675,7 @@
             "anyOf": [
               {
                 "enum": [
+                  "low",
                   "notice",
                   "trend",
                   "severe",
@@ -3070,6 +3299,7 @@
           "level": {
             "enum": [
               "none",
+              "low",
               "notice",
               "trend",
               "severe",
@@ -4170,6 +4400,124 @@
         ]
       }
     },
+    "/api/v1/alerts/{alert_id}/patient-confirmation": {
+      "post": {
+        "operationId": "patient_confirmation_api_v1_alerts__alert_id__patient_confirmation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientConfirmationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: re-enter the password to acknowledge an open alert (seen; not a medical resolution)",
+        "tags": [
+          "alerts"
+        ]
+      }
+    },
     "/api/v1/alerts/{alert_id}/transition": {
       "post": {
         "operationId": "transition_api_v1_alerts__alert_id__transition_post",
@@ -4734,6 +5082,106 @@
         "summary": "Emergency numbers and offline fallback constants (no login; cache it on the device)",
         "tags": [
           "emergency"
+        ]
+      }
+    },
+    "/api/v1/doctor/alerts": {
+      "get": {
+        "operationId": "doctor_alerts_api_v1_doctor_alerts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DoctorAlertOut"
+                  },
+                  "title": "Response Doctor Alerts Api V1 Doctor Alerts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Doctor: severe and emergency alerts of assigned patients not resolved yet, most severe first",
+        "tags": [
+          "alerts"
         ]
       }
     },

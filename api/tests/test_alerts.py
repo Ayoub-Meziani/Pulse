@@ -126,6 +126,18 @@ def test_one_open_notice_collects_above_target_readings(api, people):
     assert a["alert"]["rule_id"] == "R-TGT-1" and b["alert"]["id"] == a["alert"]["id"]
 
 
+def test_one_open_low_alert_collects_low_readings_and_the_doctor_sees_it(api, conn, people):
+    p = people["patient"]
+    a = reading(api, p, 85, 55, measured_at=ago(hours=2))["alert"]
+    b = reading(api, p, 82, 54)["alert"]
+    assert (a["level"], a["rule_id"]) == ("low", "R-LOW-1") and b["id"] == a["id"]
+    assert conn.execute(text("select alert_class from public.alerts where id = :id"),
+                        {"id": a["id"]}).scalar() == "follow_up"
+    assert [x["level"] for x in api.get(f"{API}/patients/{p}/alerts", headers=auth_header(p)).json()] == ["low"]
+    mine = api.get(f"{API}/patients", headers=auth_header(people["doctor"])).json()
+    assert [(x["highest_active_alert"], x["active_alert_count"]) for x in mine] == [("low", 1)]
+
+
 def test_weekly_trend_alert_after_three_readings_above_target(api, people):
     p = people["patient"]
     results = [reading(api, p, 150, 95, measured_at=ago(days=d)) for d in (3, 2, 1)]
@@ -161,7 +173,9 @@ def test_alert_list_filters_and_permissions(api, people):
 def test_full_lifecycle_of_a_severe_alert(api, people):
     p, doc = people["patient"], people["doctor"]
     alert_id = reading(api, p, 186, 118)["alert"]["id"]
-    ack = move(api, alert_id, p, "acknowledged")
+    plain = move(api, alert_id, p, "acknowledged")  # a patient confirms severe alerts with the password
+    assert plain.status_code == 403 and plain.json()["error"]["code"] == "password_confirmation_required"
+    ack = move(api, alert_id, doc, "acknowledged")
     assert ack.status_code == 200 and ack.json()["status"] == "acknowledged" and ack.json()["acknowledged_at"]
     assert move(api, alert_id, doc, "reviewed").json()["status"] == "reviewed"
     no_note = move(api, alert_id, doc, "resolved")

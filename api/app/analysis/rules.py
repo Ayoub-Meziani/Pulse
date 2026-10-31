@@ -8,7 +8,13 @@ Rule ids:
   R-SEV-2  recheck within 15 min still >= 180 / >= 120         -> severe, persistent (attach)
   R-SEV-3  recheck within 15 min below 180 / 120               -> severe alert stays open (attach)
   R-TGT-1  reading >= target                                   -> notice (one active notice per patient)
+  R-LOW-2  systolic < 70                                       -> low (symptom check, recheck 60 s)
+  R-LOW-1  systolic < 90 or diastolic < 60                     -> low (one active low alert per patient)
   R-TRD-1  >= 3 valid readings in 7 days, mean >= target       -> trend (one active trend per patient)
+
+Low pressure (proposed decision D27): below 90/60 is low blood pressure in public guidance (AHA, NHS); it matters
+most with dizziness, fainting or confusion. High pressure, an open severe episode and a reading above target take
+priority (150/55 is above target, not low). Readings too low to be real are invalid (DATA-INVALID, symptom check).
 """
 from __future__ import annotations
 
@@ -20,6 +26,9 @@ from .types import ActiveAlert, Evaluation, Reading, Target
 
 SEVERE_SYSTOLIC = 180
 SEVERE_DIASTOLIC = 120
+LOW_SYSTOLIC = 90        # R-LOW-1: below 90 systolic or 60 diastolic (pending clinician review)
+LOW_DIASTOLIC = 60
+VERY_LOW_SYSTOLIC = 70   # R-LOW-2: symptom check and recheck (pending clinician review)
 RECHECK_SECONDS = 60
 RECHECK_WINDOW = timedelta(minutes=15)
 TREND_WINDOW = timedelta(days=7)
@@ -34,6 +43,10 @@ RED_FLAG_SYMPTOMS = frozenset({"chest_pain", "shortness_of_breath", "back_pain",
 
 def is_severe(systolic: int, diastolic: int) -> bool:
     return systolic >= SEVERE_SYSTOLIC or diastolic >= SEVERE_DIASTOLIC
+
+
+def is_low(systolic: int, diastolic: int) -> bool:
+    return systolic < LOW_SYSTOLIC or diastolic < LOW_DIASTOLIC
 
 
 def is_above_target(systolic: float, diastolic: float, target: Target) -> bool:
@@ -92,6 +105,20 @@ def evaluate_measurement(reading: Reading, target: Target,
             next_step=texts.NEXT_STEP["R-TGT-1"].format(target_label=label),
             alert_action="attach" if open_notice else "create",
             target_alert_id=open_notice.id if open_notice else None)
+
+    # After the target check: a low diastolic with a systolic above target (e.g. 150/55) stays R-TGT-1.
+    if is_low(s, d):
+        open_low = _active(active_alerts, "low")
+        action = dict(alert_action="attach" if open_low else "create",
+                      target_alert_id=open_low.id if open_low else None)
+        if s < VERY_LOW_SYSTOLIC:
+            return Evaluation(level="low", rule_id="R-LOW-2", reason=f"Systolic {s} is below {VERY_LOW_SYSTOLIC}.",
+                              next_step=texts.NEXT_STEP["R-LOW-2"], requires_symptom_check=True,
+                              recheck_after_seconds=RECHECK_SECONDS, **action)
+        which = f"Systolic {s} is below {LOW_SYSTOLIC}" if s < LOW_SYSTOLIC \
+            else f"Diastolic {d} is below {LOW_DIASTOLIC}"
+        return Evaluation(level="low", rule_id="R-LOW-1", reason=f"{which}.", next_step=texts.NEXT_STEP["R-LOW-1"],
+                          **action)
 
     return Evaluation(level="none", rule_id=None, reason="Below target.",
                       next_step=texts.NEXT_STEP[None], alert_action="none")

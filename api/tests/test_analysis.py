@@ -95,6 +95,33 @@ def test_severe_older_than_recheck_window_starts_new_alert():
     assert ev.rule_id == "R-SEV-1" and ev.alert_action == "create"
 
 
+@pytest.mark.parametrize("s,d,rule", [(85, 55, "R-LOW-1"), (88, 70, "R-LOW-1"), (120, 58, "R-LOW-1"),
+                                      (69, 45, "R-LOW-2"), (60, 40, "R-LOW-2")])
+def test_low_pressure_is_flagged(s, d, rule):
+    ev = evaluate_measurement(r(s, d), TARGET, [])
+    assert (ev.level, ev.rule_id, ev.alert_action) == ("low", rule, "create")
+    very_low = rule == "R-LOW-2"
+    assert (ev.requires_symptom_check, ev.recheck_after_seconds) == ((True, 60) if very_low else (False, None))
+    assert "emergency services" in ev.next_step
+
+
+def test_second_low_reading_attaches_to_the_open_low_alert():
+    open_low = ActiveAlert(7, "low", "R-LOW-1", NOW - timedelta(hours=2))
+    ev = evaluate_measurement(r(84, 52), TARGET, [open_low])
+    assert (ev.rule_id, ev.alert_action, ev.target_alert_id) == ("R-LOW-1", "attach", 7)
+
+
+@pytest.mark.parametrize("s,d,level", [(185, 55, "severe"), (150, 55, "notice"), (90, 60, "none"), (128, 82, "none")])
+def test_high_pressure_and_target_come_before_low(s, d, level):
+    assert evaluate_measurement(r(s, d), TARGET, []).level == level
+
+
+def test_low_recheck_inside_a_severe_episode_stays_in_the_episode():
+    sev = ActiveAlert(9, "severe", "R-SEV-1", NOW - timedelta(minutes=3))
+    ev = evaluate_measurement(r(85, 55), TARGET, [sev])
+    assert (ev.rule_id, ev.target_alert_id) == ("R-SEV-3", 9)
+
+
 def test_doctor_target_wording():
     ev = evaluate_measurement(r(132, 82), Target(130, 80, is_default=False), [])
     assert ev.level == "notice" and "your target" in ev.reason

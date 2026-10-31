@@ -22,6 +22,13 @@ NEXT_STEP = {
     "R-TRD-1": "Your readings this week are above {target_label}. Your doctor will review them.",
     "DATA-INVALID": "Check the cuff and the numbers, then measure again. If you feel unwell, "
                     "use the Urgence button or call emergency services.",
+    # Low pressure (proposed decision D27; wording pending clinician review).
+    "R-LOW-1": "Your blood pressure is low. Sit or lie down and measure again later; your doctor will see it. "
+               "If you feel dizzy, faint or confused, call emergency services.",
+    "R-LOW-2": "Your blood pressure is very low. Answer the symptom check first, then lie down and measure again "
+               "in 60 seconds. If you feel faint, confused or unwell, call emergency services.",
+    "DATA-INVALID-LOW": "This reading is too low to be a real measurement, or the cuff failed. If you feel faint, "
+                        "confused or unwell, call emergency services now. Otherwise check the cuff and measure again.",
     None: "Reading saved.",
     # File imports (proposed decision D26; wording pending clinician review).
     "IMPORT-PAST-SEVERE": "Some imported readings were 180/120 or higher. Measure your blood pressure now. "

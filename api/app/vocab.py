@@ -4,13 +4,14 @@ from __future__ import annotations
 from .analysis.rules import RED_FLAG_SYMPTOMS  # noqa: F401  (re-exported: one source for red flags)
 
 LEVEL_TO_ALERT_CLASS = {
+    "low": "follow_up",  # low blood pressure (R-LOW-1/2): an existing class, no migration (proposed D27)
     "notice": "above_target",
     "trend": "above_target_trend",
     "severe": "severely_high",
     "emergency": "possible_emergency",
 }
 ALERT_CLASS_TO_LEVEL = {v: k for k, v in LEVEL_TO_ALERT_CLASS.items()}
-LEVEL_RANK = {"none": 0, "notice": 1, "trend": 2, "severe": 3, "emergency": 4}
+LEVEL_RANK = {"none": 0, "low": 1, "notice": 1, "trend": 2, "severe": 3, "emergency": 4}
 
 ACTIVE_ALERT_STATUSES = ("open", "acknowledged")
 ALERT_TRIGGER_SOURCE = "rule_engine"
