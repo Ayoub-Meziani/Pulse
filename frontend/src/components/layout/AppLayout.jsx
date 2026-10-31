@@ -5,6 +5,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { homeFor, NAV, ROLE_LABEL } from "../../auth/roles";
 import { initials } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
+import { AlertSoundToggle, AlertSoundWatcher } from "../alerts/AlertSound";
 import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
 
@@ -60,6 +61,7 @@ function SidebarContent({ user, items, onNavigate, onSignOut }) {
           <Icon name="phone" size={18} /> Urgence
         </Link>
       )}
+      {(user.role === "patient" || user.role === "doctor") && <AlertSoundToggle />}
       <UserBlock user={user} onSignOut={onSignOut} />
     </div>
   );
@@ -80,6 +82,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen lg:pl-64">
+      <AlertSoundWatcher user={user} />
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2">
         Aller au contenu
       </a>

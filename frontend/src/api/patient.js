@@ -1,6 +1,12 @@
 // Endpoints of one patient's record (contract/openapi.json). Used by the patient for their own id and by
 // an actively assigned doctor; the server decides who may read what (403 otherwise). Shapes are the server's.
+import { announceAlertsChanged } from "../lib/alertSound";
 import { request } from "./client";
+
+// Calls that can create or change an alert tell the sound watcher to look again now instead of in 15 s.
+function thenAnnounce(promise) {
+  return promise.then((result) => { announceAlertsChanged(); return result; });
+}
 
 const base = (patientId) => `/patients/${patientId}`;
 
@@ -24,7 +30,7 @@ export function listActiveAlerts(patientId, { signal } = {}) {
 }
 
 export function transitionAlert(alertId, to, note) {
-  return request(`/alerts/${alertId}/transition`, { method: "POST", body: note ? { to, note } : { to } });
+  return thenAnnounce(request(`/alerts/${alertId}/transition`, { method: "POST", body: note ? { to, note } : { to } }));
 }
 
 export function listSymptomReports(patientId, { limit = 50, signal } = {}) {
@@ -59,11 +65,11 @@ export function listWearableSamples(patientId, { metric, limit = 500, signal } =
 // Reading flow. Each answer carries the server's deterministic evaluation (EvaluationOut).
 /** body.id (uuid) makes the call repeat-safe: the same id returns the stored reading instead of a second one. */
 export function addMeasurement(patientId, body) {
-  return request(`${base(patientId)}/measurements`, { method: "POST", body });
+  return thenAnnounce(request(`${base(patientId)}/measurements`, { method: "POST", body }));
 }
 
 export function addSymptomReport(patientId, body) {
-  return request(`${base(patientId)}/symptom-reports`, { method: "POST", body });
+  return thenAnnounce(request(`${base(patientId)}/symptom-reports`, { method: "POST", body }));
 }
 
 /** Public: numbers, disclaimer, demo flag and the offline fallback values (EmergencyConfigOut). */
