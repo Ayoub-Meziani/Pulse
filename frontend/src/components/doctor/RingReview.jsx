@@ -3,7 +3,6 @@ import { approveBand, listBands, listWearableFlags, listWeeklyReports, rejectBan
 import { listDevices } from "../../api/patient";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
-import Icon from "../ui/Icon";
 import { EmptyState, Section } from "../ui/States";
 import {
   BAND_BASIS, BAND_STATISTIC, BAND_STATUS, CONTROL_STATUS, FLAG_KIND, FLAG_REVIEW, FLAG_WINDOW, flagMetricLabel,
@@ -17,15 +16,6 @@ import { useResource } from "../../lib/useResource";
 const input = "field mt-1.5 text-sm";
 // Date-only values ("2026-10-26") parse as UTC midnight: format them in UTC so the day never shifts.
 const DAY_TZ = "UTC";
-
-function Notice() {
-  return (
-    <p className="flex gap-2 rounded-xl border border-dashed border-ml/50 bg-ml-soft px-4 py-3 text-sm text-ml">
-      <Icon name="sparkles" size={18} />
-      Expérimental · non validé cliniquement · jamais une alerte · visible seulement quand cet onglet est ouvert (aucune notification)
-    </p>
-  );
-}
 
 /**
  * "simulated" | "mixed" | null for this patient's ring data (ringDataOrigin). "unknown" while the devices are not
@@ -41,20 +31,6 @@ function useRingOrigin(patientId) {
   }, [status, retry]);
   if (devices.status === "ok") return ringDataOrigin(devices.data);
   return devices.last ? ringDataOrigin(devices.last) : "unknown";
-}
-
-function SimulatedNotice({ origin }) {
-  if (!origin) return null;
-  return (
-    <p className="flex gap-2 rounded-xl border border-dashed border-sim/50 bg-sim-soft px-4 py-3 text-sm text-sim">
-      <Icon name="flask" size={18} />
-      {origin === "simulated"
-        ? "Bague simulée (démo) : ce patient n'a pas de bague réelle, les données de bague utilisées ici sont générées."
-        : origin === "unknown"
-          ? "Appareils du patient non chargés : les données de bague utilisées ici peuvent être simulées (démo)."
-          : "Ce patient a aussi un appareil simulé (démo) : des données de bague utilisées ici peuvent être générées (le serveur n'en indique pas encore l'origine)."}
-    </p>
-  );
 }
 
 const disabledOnServer = (state) => state.status === "error" && state.error?.status === 404 && state.error.code === "feature_disabled";
@@ -177,8 +153,6 @@ export function RingSignals({ patientId, timeZone }) {
 
   return (
     <div className="space-y-4">
-      <Notice />
-      <SimulatedNotice origin={origin} />
       {kept && flags.status === "error" && (
         <p role="alert" className="text-sm text-danger">Actualisation impossible : derniers signaux reçus affichés, nouvel essai dans 10 s.</p>
       )}
@@ -274,8 +248,6 @@ export function WeeklyReports({ patientId, timeZone }) {
   const origin = useRingOrigin(patientId);
   return (
     <div className="space-y-4">
-      <Notice />
-      <SimulatedNotice origin={origin} />
       <RingSection state={reports} what="les rapports hebdomadaires">
         {(list) => list.length === 0 ? <EmptyState icon="clipboard" title="Aucun rapport hebdomadaire" /> : (
           <ul className="stagger space-y-3">
@@ -356,11 +328,8 @@ function BandItem({ band, onDone }) {
 
 export function PersonalBands({ patientId }) {
   const bands = useResource((signal) => listBands(patientId, { signal }), `bands:${patientId}`);
-  const origin = useRingOrigin(patientId);
   return (
     <div className="space-y-4">
-      <Notice />
-      <SimulatedNotice origin={origin} />
       <p className="text-sm text-ink-muted">Le modèle propose des plages personnelles ; seule votre approbation les active. Elles ne servent qu'aux signaux du bracelet.</p>
       <RingSection state={bands} what="les plages personnelles">
         {(list) => list.length === 0 ? <EmptyState icon="watch" title="Aucune plage personnelle" /> : (

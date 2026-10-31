@@ -10,6 +10,7 @@ import { useDialog } from "../../lib/useDialog";
 import { useResource } from "../../lib/useResource";
 import DoctorAlertFlag from "../alerts/DoctorAlertFlag";
 import PatientAlertFlag from "../alerts/PatientAlertFlag";
+import DoctorRingWatch from "../doctor/DoctorRingWatch";
 import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
 
@@ -163,6 +164,7 @@ export default function AppLayout() {
             the route wrapper so they never remount (and never restart the beep) on navigation. */}
         {user.role === "patient" && <PatientAlertFlag user={user} config={emergencyConfig} />}
         {user.role === "doctor" && <DoctorAlertFlag user={user} />}
+        {user.role === "doctor" && <DoctorRingWatch />}
         <div key={location.pathname} className="animate-page-in">
           <Outlet />
         </div>
