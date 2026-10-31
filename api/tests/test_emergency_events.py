@@ -243,7 +243,8 @@ def test_report_holds_only_this_patients_data_within_24h(api, conn, team):
     assert [(m["systolic"], m["diastolic"]) for m in rep["readings"]] == [(182, 112)]
     assert [s["symptoms"] for s in rep["symptom_reports"]] == [["severe_headache"]]
     assert {m["patient_id"] for m in rep["readings"]} | {s["patient_id"] for s in rep["symptom_reports"]} == {str(p)}
-    assert "199" not in str(rep) and "chest_pain" not in str(rep)
+    # the other patient's id, not their values: "199" can occur by chance inside a UUID or a timestamp
+    assert str(other) not in str(rep) and "chest_pain" not in str(rep)
 
 
 # ---------------------------------------------------------------- safety: events never touch alerts

@@ -5,7 +5,7 @@ anon/authenticated/service_role roles). It never points at a shared database: co
 local, bound to 127.0.0.1, and recreated on every `up`.
 
 Two profiles, kept until every migration on the branch is verified live
-(PULSE_DATABASE_SYNC_POLICY.md):
+(docs/engineering/PULSE_DATABASE_SYNC_POLICY.md):
     latest  every file in supabase/migrations                 port 55432
     live    only migrations up to LIVE_UNTIL (= live pulse)   port 55433
 
@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-# Build of the live project (PULSE_DATABASE_SYNC_POLICY.md). Same official image, two registries:
+# Build of the live project (docs/engineering/PULSE_DATABASE_SYNC_POLICY.md). Same official image, two registries:
 # the second is tried when the first refuses (e.g. anonymous rate limits on shared CI runners).
 IMAGES = ("public.ecr.aws/supabase/postgres:17.11.0.003", "supabase/postgres:17.11.0.003")
 PASSWORD = "pulse-test-only"

@@ -1,4 +1,4 @@
-"""Features for the next-day morning blood-pressure estimate (PULSE_INTEGRATION_CONTRACTS.md §4).
+"""Features for the next-day morning blood-pressure estimate (docs/engineering/PULSE_INTEGRATION_CONTRACTS.md §4).
 
 Shared by training and the prediction job, so both see exactly the same inputs.
 Every feature for target day D comes from readings on local days strictly before D.

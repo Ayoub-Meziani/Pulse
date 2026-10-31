@@ -3,7 +3,7 @@
 -- its auth.uid() reads only request.jwt.claim.sub and auth.jwt() does not exist. These are the
 -- definitions read from the live project `pulse` (schema dump of `auth`, 2026-10-30), so tests see
 -- the same auth.uid()/auth.role()/auth.email()/auth.jwt() behaviour as production.
--- Re-check against the live dump during each database sync (PULSE_DATABASE_SYNC_POLICY.md).
+-- Re-check against the live dump during each database sync (docs/engineering/PULSE_DATABASE_SYNC_POLICY.md).
 
 create or replace function auth.uid() returns uuid language sql stable as $$
   select coalesce(

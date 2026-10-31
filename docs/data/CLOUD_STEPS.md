@@ -60,4 +60,4 @@ Read-only checks: counts, access rules, ML outputs; the docs were updated.
 - **Local demo:** `monitor --follow` + `pulse_data.stream --patient-email patient.b@demo.pulse.test --scenario oxygen_falling --speed 5 --minutes 20`, both with `DATABASE_URL` set to the local dev stack (`DEMO_RUNBOOK.html` step 2.3). The stream adds simulated samples to the local database.
 
 ## Cloud steps by Claude: frozen
-Only read-only checks (allowed by `PULSE_DATABASE_SYNC_POLICY.md`). No `db push --linked`, no writes through `db query --linked`, no `scripts\run_cloud_jobs.ps1` until Ayoub lifts the freeze. Evidence of every earlier run: `CLOUD_RUN_LOG_2026-10-30.md`.
+Only read-only checks (allowed by `docs/engineering/PULSE_DATABASE_SYNC_POLICY.md`). No `db push --linked`, no writes through `db query --linked`, no `scripts\run_cloud_jobs.ps1` until Ayoub lifts the freeze. Evidence of every earlier run: `CLOUD_RUN_LOG_2026-10-30.md`.

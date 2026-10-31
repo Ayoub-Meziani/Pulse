@@ -81,7 +81,7 @@ Keep secrets in a password manager and in the host's environment. Locally, use t
    - a schema-only dump compared with `scripts/compare_schemas.py` against the `live` test DB (which is M1–M9
      since 2026-10-31) shows 0 differences;
    - RLS is enabled on every table, there are no `anon` grants, and the auth trigger is present.
-   Record the result in `PULSE_SUPABASE_CHANGELOG.md` and in sync policy §5.
+   Record the result in `docs/engineering/PULSE_SUPABASE_CHANGELOG.md` and in sync policy §5.
 6. **[AUTH] Accounts.**
    - Create Patient A, Patient B and the doctor with the Auth admin API (from Ayoub's machine) or in the dashboard.
      Store the generated passwords in the password manager.

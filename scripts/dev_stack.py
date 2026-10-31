@@ -12,7 +12,7 @@ so a migration that is not live yet is never applied here).
 
 `up` does not create accounts or data: demo accounts are a separate, explicit step
 (python scripts/dev_seed.py). Why not `supabase start`: on this team's Windows machine the CLI's
-database start fails (PULSE_DATABASE_SYNC_POLICY.md §4); this script uses the same official images.
+database start fails (docs/engineering/PULSE_DATABASE_SYNC_POLICY.md §4); this script uses the same official images.
 
 Auth signs ES256 tokens like the cloud project, so the API's JWKS verification is the production path.
 Local secrets (database password, signing key) are generated per stack and stay in .dev/ (git-ignored).

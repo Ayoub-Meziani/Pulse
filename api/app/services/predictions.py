@@ -1,4 +1,4 @@
-"""Read the ML batch job's output (PULSE_ML_REVIEW.md §4). Doctor view only.
+"""Read the ML batch job's output (docs/engineering/PULSE_ML_REVIEW.md §4). Doctor view only.
 
 The API never runs a model and imports no ML library: it reads rows of public.ml_predictions written
 offline by `pulse_ml.predict`. Predictions are never inputs to the rules, alerts or any patient response.
