@@ -71,10 +71,13 @@ def test_training_is_deterministic():
     ("postgresql://postgres.ref:x@aws-0-eu-central-1.pooler.supabase.com:6543/postgres", {}, False),
     ("postgresql://", {"PGHOST": "aws-0-eu-central-1.pooler.supabase.com"}, False),
     ("postgresql://127.0.0.1/postgres", {"PGHOSTADDR": "203.0.113.7"}, False),
+    ("postgresql:///postgres?service=pulse", {}, False),                 # libpq takes the host from pg_service.conf
+    ("service=pulse", {}, False),
+    ("postgresql://", {"PGSERVICE": "pulse"}, False),
 ])
 def test_jobs_refuse_any_non_local_database(monkeypatch, url, env, ok):
     from pulse_ml import predict
-    for k in ("PGHOST", "PGHOSTADDR", "PULSE_DB_ROLE"):
+    for k in ("PGHOST", "PGHOSTADDR", "PGSERVICE", "PULSE_DB_ROLE"):
         monkeypatch.delenv(k, raising=False)
     for k, v in {"DATABASE_URL": url, **env}.items():
         monkeypatch.setenv(k, v)

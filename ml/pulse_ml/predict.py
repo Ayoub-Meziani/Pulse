@@ -30,9 +30,13 @@ LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 def require_local(url: str) -> None:
     """SystemExit unless every host the connection could reach is this machine (libpq: the URL's host / hostaddr,
-    else PGHOST / PGHOSTADDR, else localhost; comma lists; a path is a local socket). A copy of
+    else PGHOST / PGHOSTADDR, else localhost; comma lists; a path is a local socket; a service entry, service= or
+    PGSERVICE, is refused since libpq takes its host from the service file). A copy of
     pulse_data.localdb.require_local, which cannot be imported when run from ml/. No unlock flag."""
     info = conninfo_to_dict(url)
+    if info.get("service") or os.environ.get("PGSERVICE"):
+        raise SystemExit("refusing a libpq service entry (its host is not provably local); the ML jobs run on the"
+                         " local stack only")
     hosts = (info.get("host") or os.environ.get("PGHOST") or "localhost").split(",")
     hosts += [h for h in (info.get("hostaddr") or os.environ.get("PGHOSTADDR") or "").split(",") if h]
     bad = [h for h in hosts if h.strip().lower() not in LOCAL_HOSTS and not h.strip().startswith("/")]

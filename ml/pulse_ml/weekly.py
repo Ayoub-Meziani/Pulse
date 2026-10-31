@@ -34,11 +34,12 @@ UPSERT = """
       control_status = excluded.control_status, next_week_above_target_prob = excluded.next_week_above_target_prob,
       model_versions = excluded.model_versions, summary = excluded.summary
     where w.status = 'ready'"""
+# one open proposal at a time; none over a doctor's band; none again after the doctor rejected this model's proposal
 PROPOSE = """
     insert into public.patient_bands (patient_id, metric, statistic, low, high, basis, status, proposed_model_version)
     select %s, %s, %s, %s, %s, 'model_proposal', 'proposed', %s
     where not exists (select 1 from public.patient_bands where patient_id = %s and metric = %s and statistic = %s
-                      and status in ('proposed', 'active'))"""   # one open proposal at a time; none over a doctor's band
+                      and (status in ('proposed', 'active') or (status = 'rejected' and proposed_model_version = %s)))"""
 
 
 def monday(d: date) -> date:
@@ -153,7 +154,7 @@ def run(conn, week: date | None = None) -> dict:
         out["reports"] += 1
         for p in proposals:
             cur = conn.execute(PROPOSE, (patient, p["metric"], p["statistic"], p["low"], p["high"], ring.MODEL_VERSION,
-                                         patient, p["metric"], p["statistic"]))
+                                         patient, p["metric"], p["statistic"], ring.MODEL_VERSION))
             out["band_proposals"] += cur.rowcount
     return out
 

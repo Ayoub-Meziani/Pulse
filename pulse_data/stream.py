@@ -1,22 +1,25 @@
 """SIMULATED live ring stream for the demo: inserts 'now' samples for the demo ring patients.
 
     python -m pulse_data.stream [--interval 5] [--minutes 3] [--scenario NAME] [--patient cohort_1] [--speed 5]
-    python -m pulse_data.stream --patient-email patient.b@demo.pulse.test --scenario oxygen_falling --speed 5
+    python -m pulse_data.stream --patient-email patient.b@demo.pulse.test --scenario oxygen_falling --speed 5 --minutes 20
 
 Scenarios: spo2_dip / hr_rise (a constant shift), or a live situation from pulse_data.live_sim that unfolds minute
 by minute (oxygen_falling, heart_rate_climbing, fever_starting, bad_sleep, sleep_apnea, false_alarm_traps,
 normal_night). A live situation starts 15 situation-minutes before its onset (at least 30 minutes into the night);
 --speed N plays N situation-minutes per real minute (demo only: the live engine then sees faster slopes than a real
 night). The accelerated on-stage demo uses oxygen_falling only (speed 3-5); other situations warn reliably only at
-speed 1.
+speed 1. Give it enough --minutes: the default 3 at speed 5 ends just before the onset; with --minutes 20 the
+early warning comes ~7-10 real minutes in. That holds for a personal night SpO2 of about 96-98 % without COPD (Karim:
+yes); nearer 94 % or at 98.5 % the median crosses the limit with no early warning, and with COPD no early warning
+comes within 20 minutes (offline replay with live-v1).
 --patient-email streams to that patient's existing simulated ring in whichever local database DATABASE_URL points to
 (e.g. the local dev stack behind the website), and to no other ring. Ring profile: the median of the patient's
 previous nights in that database (00:00-06:00 local, last 14 days; the default profile below 3 nights); COPD / atrial
 fibrillation from patient_profiles.condition_codes, so the situation's limit is the engine's (COPD: SpO2 88 %).
 A live situation first inserts the 30 situation-minutes before its start, one per minute ending now (the live engine
 needs ~27 minutes of history before it can warn), then plays at --speed.
-Every row is source = 'simulated' with a fresh external_id. Local stack by default; a non-local
-DATABASE_URL is refused unless --i-confirmed-cloud is given (backend review + user confirmation, review M9).
+Every row is source = 'simulated' with a fresh external_id. Local stack by default; a non-local DATABASE_URL is
+always refused (no unlock, D26).
 Prints counts only.
 """
 from __future__ import annotations
@@ -131,11 +134,9 @@ def main() -> None:
                     help="who gets the scenario (default Nadia; Fatima has COPD, so her SpO2 limit is 88 %%)")
     ap.add_argument("--speed", type=float, default=1.0, help="live situations: situation-minutes per real minute")
     ap.add_argument("--patient-email", help="stream to this patient's existing simulated ring instead of the seed rings")
-    ap.add_argument("--i-confirmed-cloud", action="store_true")
     a = ap.parse_args()
     url = os.environ.get("DATABASE_URL", LOCAL_DB)
-    if not a.i_confirmed_cloud:
-        require_local(url, "--i-confirmed-cloud needs backend review + user confirmation")
+    require_local(url)
     live = a.scenario in LIVE_SITUATIONS
     situation = situation_minutes(*_profile(a.patient)[1:], a.scenario) if live and not a.patient_email else None
     rng, sent, sent_minutes = random.Random(), 0, set()

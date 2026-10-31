@@ -97,7 +97,7 @@ def test_demo_csv_today_is_simulated_and_never_in_the_future(tmp_path):
     assert not rejected
     assert [(r.systolic, r.diastolic) for r in readings] == [(152, 94), (186, 118)]       # above target, then severe
     assert [r.measured_at for r in readings] == [now.replace(hour=9, minute=27, second=0, microsecond=0),
-                                                 now.replace(minute=2, second=0, microsecond=0)]
+                                                 now.replace(minute=5, second=0, microsecond=0)]
     assert all(r.measured_at.utcoffset() == timedelta(hours=1) for r in readings)         # ISO with offset
     later = simulate.write_demo_csv_today(tmp_path / "b", now + timedelta(minutes=3))
     assert later.read_bytes() != path.read_bytes()                                        # another sha each run
@@ -112,10 +112,14 @@ def test_demo_csv_today_is_simulated_and_never_in_the_future(tmp_path):
     ("host=127.0.0.1,db.example.com dbname=postgres", {}, False),
     ("postgresql://127.0.0.1/postgres?hostaddr=203.0.113.7", {}, False),
     ("postgresql://127.0.0.1/postgres", {"PGHOSTADDR": "203.0.113.7"}, False),
+    ("postgresql:///postgres?service=pulse", {}, False),                 # libpq takes the host from pg_service.conf
+    ("service=pulse", {}, False),
+    ("postgresql://", {"PGSERVICE": "pulse"}, False),
+    ("postgresql://postgres:postgres@127.0.0.1:55322/postgres", {"PGSERVICE": "pulse"}, False),  # may add a hostaddr
 ])
 def test_require_local_refuses_any_non_local_host(monkeypatch, url, env, ok):
     from pulse_data.localdb import require_local
-    for k in ("PGHOST", "PGHOSTADDR"):
+    for k in ("PGHOST", "PGHOSTADDR", "PGSERVICE"):
         monkeypatch.delenv(k, raising=False)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
@@ -124,6 +128,21 @@ def test_require_local_refuses_any_non_local_host(monkeypatch, url, env, ok):
     else:
         with pytest.raises(SystemExit):
             require_local(url)
+
+
+def test_stream_refuses_a_cloud_database_with_no_unlock(monkeypatch):
+    import sys
+    from pulse_data import stream
+    monkeypatch.setenv("DATABASE_URL", "postgresql://postgres.ref:x@aws-0-eu-central-1.pooler.supabase.com:6543/postgres")
+    monkeypatch.setattr(stream.psycopg, "connect", lambda *a, **k: pytest.fail("connected to a cloud database"))
+    argv = ["stream", "--patient-email", "patient.b@demo.pulse.test", "--scenario", "oxygen_falling"]
+    monkeypatch.setattr(sys, "argv", argv)
+    with pytest.raises(SystemExit, match="refusing"):
+        stream.main()
+    monkeypatch.setattr(sys, "argv", argv + ["--i-confirmed-cloud"])
+    with pytest.raises(SystemExit) as refused:
+        stream.main()
+    assert refused.value.code == 2                        # argparse: the old unlock flag no longer exists
 
 
 def test_seed_is_deterministic_and_labelled_simulated():
