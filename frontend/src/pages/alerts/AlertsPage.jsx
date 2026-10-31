@@ -3,8 +3,10 @@ import { useAuth } from "../../auth/AuthContext";
 import { listAlerts, transitionAlert } from "../../api/patient";
 import AlertList from "../../components/alerts/AlertList";
 import Button from "../../components/ui/Button";
+import Icon from "../../components/ui/Icon";
 import { Card, CardBody, PageHeader } from "../../components/ui/Card";
 import { EmptyState, Section } from "../../components/ui/States";
+import Tabs from "../../components/ui/Tabs";
 import { useResource } from "../../lib/useResource";
 
 const FILTERS = [["active", "En cours"], ["all", "Toutes"]];
@@ -34,16 +36,11 @@ export default function AlertsPage() {
     <div className="space-y-6">
       <PageHeader eyebrow="Espace patient" title="Alertes"
         subtitle="Créées par les règles de sécurité à partir de vos mesures et symptômes. Votre médecin les examine." />
-      <div className="inline-flex rounded-xl border border-line bg-surface p-1" role="tablist" aria-label="Filtre">
-        {FILTERS.map(([value, text]) => (
-          <button key={value} type="button" role="tab" aria-selected={filter === value} onClick={() => setFilter(value)}
-            className={`min-h-10 rounded-lg px-4 text-sm font-semibold ${filter === value ? "bg-brand text-white" : "text-ink-muted hover:text-ink"}`}>
-            {text}
-          </button>
-        ))}
+      <div className="-mx-3">
+        <Tabs items={FILTERS} value={filter} onChange={setFilter} label="Filtre" variant="segmented" idPrefix="alerts-filter" />
       </div>
       {error && <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
-      <Card>
+      <Card role="tabpanel" id="alerts-filter-panel" aria-labelledby={`alerts-filter-tab-${filter}`} className="animate-fade-in" key={filter}>
         <CardBody className="pt-5">
           <Section state={alerts} what="vos alertes">
             {(list) => list.length === 0 ? (
@@ -54,7 +51,7 @@ export default function AlertsPage() {
               <AlertList alerts={list} timeZone={user.timezone}
                 renderActions={(a) => a.status === "open" && (
                   a.level === "severe" || a.level === "emergency"
-                    ? <p className="text-sm font-medium text-ink">Confirmez cette alerte avec votre mot de passe dans le bandeau en haut de la page.</p>
+                    ? <p className="flex items-start gap-2 text-sm font-medium text-ink"><Icon name="shield" size={18} className="mt-0.5 shrink-0 text-level-severe" />Confirmez cette alerte avec votre mot de passe dans l'alarme rouge (bandeau en haut de la page).</p>
                     : <Button variant="secondary" disabled={busy === a.id} onClick={() => acknowledge(a)}>
                       {busy === a.id ? "Envoi…" : "J'ai pris connaissance de cette alerte"}
                     </Button>

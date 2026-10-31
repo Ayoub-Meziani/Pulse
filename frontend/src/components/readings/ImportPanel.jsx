@@ -1,14 +1,15 @@
 import { useId, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { importReadings, listAlerts } from "../../api/patient";
 import AlertCard from "../alerts/AlertCard";
 import AlertList from "../alerts/AlertList";
 import { LevelBadge } from "../ui/Badge";
 import Button, { ButtonLink } from "../ui/Button";
 import Icon from "../ui/Icon";
+import StatTile from "../ui/StatTile";
 import { Section } from "../ui/States";
 import { formatDateTime } from "../../lib/format";
-import { declaresSimulated, importCounts, importErrorText, MAX_CSV_CHARS } from "../../lib/importSummary";
+import { csvKind, declaresSimulated, importCounts, importErrorText, MAX_CSV_CHARS } from "../../lib/importSummary";
 import { unreachable } from "../../lib/readingFlow";
 import { useResource } from "../../lib/useResource";
 
@@ -18,17 +19,40 @@ import { useResource } from "../../lib/useResource";
 const ORIGINS = [["measured", "Mesures réelles de mon tensiomètre"], ["simulated", "Données simulées (démo)"]];
 const SHOWN_REJECTED = 50;
 
+// A file of the other kind, said before it is sent (the server would refuse it for missing columns).
+const ELSEWHERE = {
+  cuff: {
+    text: "Ce fichier ressemble à un export de tensiomètre (colonnes systolic, diastolic) : importez-le depuis Historique › Importer un fichier.",
+    to: "/patient/historique?importer=1", link: "Ouvrir Historique › Importer un fichier",
+  },
+  ring: {
+    text: "Ce fichier ressemble à un export de bague (colonnes metric, value) : importez-le depuis le tableau de bord, carte « Bracelet (facultatif) ».",
+    to: "/patient#bracelet", link: "Ouvrir la carte Bracelet",
+  },
+};
+
+export function ErrorBox({ children }) {
+  return (
+    <p role="alert" className="flex animate-fade-up gap-2 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+      <Icon name="alert" size={18} className="mt-0.5 shrink-0" /><span>{children}</span>
+    </p>
+  );
+}
+
 /**
  * File input + required origin choice (no default), shared with the ring import. choices: [[value, label]], the
  * simulated one being "simulated". A file that declares itself simulated can only be sent as simulated.
+ * kind ("cuff" | "ring"): what this panel imports; a file whose header is of the other kind is not sent.
  */
-export function CsvImportForm({ choices, busy, onSubmit }) {
+export function CsvImportForm({ kind, choices, busy, onSubmit }) {
   const name = useId();
   const [file, setFile] = useState(null);  // { name, text }
   const [origin, setOrigin] = useState(null);
   const [problem, setProblem] = useState(null);
   const forced = file !== null && declaresSimulated(file.text);
   const chosen = forced ? "simulated" : origin;
+  const found = file && csvKind(file.text);
+  const elsewhere = found && found !== kind ? ELSEWHERE[found] : null;
 
   async function pick(event) {
     const input = event.target;
@@ -59,28 +83,48 @@ export function CsvImportForm({ choices, busy, onSubmit }) {
 
   function submit(event) {
     event.preventDefault();
-    if (file && chosen && !busy) onSubmit(file, chosen);
+    if (file && chosen && !elsewhere && !busy) onSubmit(file, chosen);
   }
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <label className="block text-sm font-medium text-ink">Fichier CSV
-        <input type="file" accept=".csv,text/csv" onChange={pick}
-          className="mt-1.5 block w-full text-sm text-ink-muted file:mr-3 file:min-h-11 file:rounded-xl file:border-0 file:bg-brand-soft file:px-4 file:font-semibold file:text-brand" />
+      {/* The input covers the whole zone (transparent), so a file can be dropped on it or picked with a click. */}
+      <label className="relative flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line-strong/60 bg-surface-muted/50 px-4 py-5 text-center transition-colors hover:border-brand hover:bg-brand-soft/40 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-soft text-brand"><Icon name="upload" size={22} /></span>
+        <span className="text-sm font-semibold text-ink">Fichier CSV</span>
+        <span className="text-xs text-ink-muted">{file ? file.name : "Cliquez pour choisir un fichier, ou déposez-le ici"}</span>
+        <input type="file" accept=".csv,text/csv" onChange={pick} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
       </label>
-      {problem && <p role="alert" className="flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger"><Icon name="alert" size={18} />{problem}</p>}
+      {problem && <ErrorBox>{problem}</ErrorBox>}
+      {elsewhere && (
+        <div role="alert" className="flex animate-fade-up gap-2 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning">
+          <Icon name="info" size={18} className="mt-0.5 shrink-0" />
+          <div>
+            <p>{elsewhere.text}</p>
+            <Link to={elsewhere.to} className="mt-1 inline-flex min-h-11 items-center gap-1 font-semibold underline underline-offset-2">
+              {elsewhere.link}<Icon name="chevron" size={16} />
+            </Link>
+          </div>
+        </div>
+      )}
       <fieldset>
         <legend className="text-sm font-medium text-ink">Ce fichier contient <span className="font-normal text-ink-muted">(obligatoire)</span></legend>
-        <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {choices.map(([value, text]) => {
             const off = forced && value !== "simulated";
+            const sim = value === "simulated";
             return (
-              <label key={value} className={`flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm ${
-                off ? "cursor-not-allowed border-line text-ink-subtle" : chosen === value ? "cursor-pointer border-brand bg-brand-soft text-ink" : "cursor-pointer border-line text-ink hover:bg-surface-muted"
+              <label key={value} className={`flex min-h-14 items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus ${
+                off ? "cursor-not-allowed border-line text-ink-subtle opacity-70"
+                  : chosen === value ? `cursor-pointer shadow-card text-ink ${sim ? "border-dashed border-sim bg-sim-soft" : "border-brand bg-brand-soft"}`
+                    : `cursor-pointer bg-surface text-ink hover:border-line-strong ${sim ? "border-dashed border-sim/50" : "border-line"}`
               }`}>
-                <input type="radio" name={name} className="h-4 w-4 accent-[#0b5cad]" value={value}
+                <input type="radio" name={name} className="h-4 w-4 shrink-0 accent-brand" value={value}
                   checked={chosen === value} disabled={off} onChange={() => setOrigin(value)} />
-                {text}
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-surface ${sim ? "text-sim" : "text-brand"}`}>
+                  <Icon name={sim ? "flask" : kind === "ring" ? "watch" : "pulse"} size={16} />
+                </span>
+                <span className="font-medium">{text}</span>
               </label>
             );
           })}
@@ -91,7 +135,7 @@ export function CsvImportForm({ choices, busy, onSubmit }) {
           </p>
         )}
       </fieldset>
-      <Button type="submit" disabled={busy || !file || !chosen}><Icon name="upload" size={18} />{busy ? "Import en cours…" : "Importer le fichier"}</Button>
+      <Button type="submit" disabled={busy || !file || !chosen || !!elsewhere}><Icon name="upload" size={18} />{busy ? "Import en cours…" : "Importer le fichier"}</Button>
     </form>
   );
 }
@@ -100,29 +144,32 @@ export function CsvImportForm({ choices, busy, onSubmit }) {
 export function ImportSummary({ counts, nextStep, children }) {
   const more = counts.rejected.length - SHOWN_REJECTED;
   return (
-    <div className="space-y-4 rounded-xl border border-line p-4">
-      <p className="flex items-center gap-2 text-sm font-medium text-success"><Icon name="check" size={18} />Fichier traité par le serveur · {counts.total} ligne(s) lue(s)</p>
-      <dl className="grid grid-cols-3 gap-3">
-        {[["Ajoutées", counts.added], ["Doublons ignorés", counts.duplicates], ["Rejetées", counts.rejected.length]].map(([text, n]) => (
-          <div key={text} className="rounded-xl bg-surface-muted p-3">
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{text}</dt>
-            <dd className="tnum mt-1 text-xl font-semibold text-ink">{n}</dd>
-          </div>
-        ))}
-      </dl>
+    <div className="animate-fade-up space-y-4 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
+      <p className="flex items-center gap-2 text-sm font-semibold text-success">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-success-soft"><Icon name="check" size={16} /></span>
+        <span>Fichier traité par le serveur · <span className="tnum">{counts.total}</span> ligne(s) lue(s)</span>
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile label="Ajoutées" value={counts.added} icon="plus" />
+        <StatTile label="Doublons ignorés" value={counts.duplicates} icon="refresh" />
+        <StatTile label="Rejetées" value={counts.rejected.length} icon="close" />
+      </div>
       {children}
       {counts.rejected.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-ink">Lignes rejetées</p>
-          <ul className="mt-1 space-y-1 text-sm text-ink-muted">
+          <ul className="mt-2 divide-y divide-line overflow-hidden rounded-xl border border-line text-sm text-ink-muted">
             {counts.rejected.slice(0, SHOWN_REJECTED).map((r, i) => (
-              <li key={`${r.row}-${i}`}><span className="tnum">{r.row === null ? "Ligne ?" : `Ligne ${r.row}`}</span> : {r.reasons.join(", ")}</li>
+              <li key={`${r.row}-${i}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2">
+                <span className="tnum shrink-0 rounded-md bg-surface-muted px-2 py-0.5 text-xs font-semibold text-ink">{r.row === null ? "Ligne ?" : `Ligne ${r.row}`}</span>
+                <span>{r.reasons.join(", ")}</span>
+              </li>
             ))}
-            {more > 0 && <li>… et {more} autre(s) ligne(s) rejetée(s).</li>}
+            {more > 0 && <li className="px-3 py-2">… et {more} autre(s) ligne(s) rejetée(s).</li>}
           </ul>
         </div>
       )}
-      <div>
+      <div className="rounded-xl bg-surface-muted px-4 py-3">
         <p className="text-sm font-medium text-ink">{nextStep}</p>
         <p className="mt-1 text-xs text-ink-subtle">Consigne du serveur (texte en anglais en attendant la traduction validée).</p>
       </div>
@@ -177,7 +224,7 @@ export function ReadingsResult({ result, timeZone }) {
         </div>
       </div>
       {result.simulated_preview.length > 0 && (
-        <div className="rounded-xl border border-dashed border-sim/50 bg-sim-soft p-4">
+        <div className="rounded-2xl border border-dashed border-sim/50 bg-sim-soft p-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-sim"><Icon name="flask" size={16} />Ce que les règles auraient fait — aucune alerte créée (données simulées)</p>
           <ul className="mt-2 space-y-1.5">
             {result.simulated_preview.map((p, i) => (
@@ -229,14 +276,15 @@ export default function ImportPanel({ patientId, timeZone, onImported, onBusy })
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-ink-muted">
-        Export CSV de votre tensiomètre : colonnes measured_at, systolic, diastolic (pulse, unit, position, arm, note facultatives).
-        Les mesures de moins de 10 minutes, plus récentes que votre dernière mesure, passent par les mêmes règles qu'une saisie ; les autres rejoignent l'historique sans alerte.
+      <p className="flex gap-2 rounded-xl bg-brand-soft/50 px-4 py-3 text-sm text-ink-muted">
+        <Icon name="info" size={18} className="mt-0.5 shrink-0 text-brand" />
+        <span>Export CSV de votre tensiomètre : colonnes measured_at, systolic, diastolic (pulse, unit, position, arm, note facultatives).
+        Les mesures de moins de 10 minutes, plus récentes que votre dernière mesure, passent par les mêmes règles qu'une saisie ; les autres rejoignent l'historique sans alerte.</span>
       </p>
-      <CsvImportForm key={sent} choices={ORIGINS} busy={busy} onSubmit={send} />
+      <CsvImportForm key={sent} kind="cuff" choices={ORIGINS} busy={busy} onSubmit={send} />
       {error && (
         <div className="space-y-3">
-          <p role="alert" className="flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger"><Icon name="alert" size={18} />{importErrorText(error.error)}</p>
+          <ErrorBox>{importErrorText(error.error)}</ErrorBox>
           {/* Only measured rows can ask for a symptom check; a simulated file never does. */}
           {error.provenance === "measured" && (unreachable(error.error) || error.error.code === "already_imported") && <MissedStep />}
           {error.error.code === "already_imported" && <ActiveAlerts patientId={patientId} timeZone={timeZone} />}

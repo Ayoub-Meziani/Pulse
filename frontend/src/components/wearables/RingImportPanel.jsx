@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { importRing } from "../../api/patient";
-import { CsvImportForm, ImportSummary } from "../readings/ImportPanel";
+import { CsvImportForm, ErrorBox, ImportSummary } from "../readings/ImportPanel";
 import Badge from "../ui/Badge";
 import Icon from "../ui/Icon";
 import { WEARABLE_METRIC } from "../../lib/format";
@@ -30,17 +30,20 @@ export default function RingImportPanel({ patientId, onImported }) {
 
   const counts = result && importCounts(result);
   return (
-    <details className="rounded-xl border border-line">
-      <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium text-ink">
-        <Icon name="upload" size={18} />Importer un export de ma bague (CSV)
+    <details className="group rounded-2xl border border-line bg-surface">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-ink hover:bg-surface-muted [&::-webkit-details-marker]:hidden">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-wear-soft text-wear"><Icon name="upload" size={16} /></span>
+        <span className="flex-1">Importer un export de ma bague (CSV)</span>
+        <Icon name="chevron" size={18} className="shrink-0 text-ink-subtle transition-transform group-open:rotate-90" />
       </summary>
       <div className="space-y-4 border-t border-line p-4">
-        <p className="text-sm text-ink-muted">
-          Colonnes measured_at, metric (heart_rate, hrv_rmssd, spo2, skin_temperature), value. Les données de la bague
-          ne déclenchent jamais d'alerte ni de consigne d'urgence, quelles que soient les valeurs.
+        <p className="flex gap-2 rounded-xl bg-wear-soft/60 px-4 py-3 text-sm text-ink-muted">
+          <Icon name="info" size={18} className="mt-0.5 shrink-0 text-wear" />
+          <span>Colonnes measured_at, metric (heart_rate, hrv_rmssd, spo2, skin_temperature), value. Les données de la bague
+          ne déclenchent jamais d'alerte ni de consigne d'urgence, quelles que soient les valeurs.</span>
         </p>
-        <CsvImportForm choices={SOURCES} busy={busy} onSubmit={send} />
-        {error && <p role="alert" className="flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger"><Icon name="alert" size={18} />{importErrorText(error)}</p>}
+        <CsvImportForm kind="ring" choices={SOURCES} busy={busy} onSubmit={send} />
+        {error && <ErrorBox>{importErrorText(error)}</ErrorBox>}
         {counts && (
           <ImportSummary counts={counts} nextStep={result.next_step}>
             {Object.keys(counts.byMetric).length > 0 && (

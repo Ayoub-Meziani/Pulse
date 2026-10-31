@@ -3,6 +3,7 @@ import { listDevices, listWearableSamples } from "../../api/patient";
 import { useResource } from "../../lib/useResource";
 import { DEVICE_TYPE, formatDateTime, WEARABLE_METRIC } from "../../lib/format";
 import Badge from "../ui/Badge";
+import Icon from "../ui/Icon";
 import { EmptyState, Section } from "../ui/States";
 
 function Stat({ metric, samples, timeZone }) {
@@ -13,12 +14,12 @@ function Stat({ metric, samples, timeZone }) {
   const values = rows.map((s) => s.value);
   const simulated = rows.some((s) => s.source === "simulated");
   return (
-    <div className="rounded-xl border border-wear/25 bg-wear-soft/60 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-wear">{meta.label}</p>
+    <div className="card rounded-2xl border border-wear/25 bg-wear-soft/60 p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-wear"><Icon name="watch" size={15} />{meta.label}</p>
         {simulated && <Badge tone="sim" icon="flask">Simulé</Badge>}
       </div>
-      <p className="tnum mt-2 text-2xl font-semibold text-ink">
+      <p className="tnum mt-2 text-3xl font-extrabold tracking-tight text-ink">
         {latest.value} <span className="text-sm font-normal text-ink-muted">{meta.unit}</span>
       </p>
       <p className="mt-1 text-xs text-ink-muted">
@@ -52,7 +53,8 @@ export default function WearablePanel({ patientId, timeZone, emptyText }) {
         <div className="space-y-4">
           <ul className="flex flex-wrap gap-2">
             {list.map((d) => (
-              <li key={d.id} className="inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm">
+              <li key={d.id} className="inline-flex min-h-11 flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-sm shadow-card">
+                <Icon name="watch" size={16} className="text-wear" />
                 <span className="font-medium text-ink">{d.label ?? DEVICE_TYPE[d.device_type]}</span>
                 <span className="text-ink-muted">{DEVICE_TYPE[d.device_type]}</span>
                 {d.is_simulated && <Badge tone="sim" icon="flask">Simulé</Badge>}
@@ -63,12 +65,13 @@ export default function WearablePanel({ patientId, timeZone, emptyText }) {
             {(rows) => rows.length === 0 ? (
               <p className="text-sm text-ink-muted">Aucune donnée reçue de cet appareil.</p>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="stagger grid gap-3 sm:grid-cols-2">
                 {Object.keys(WEARABLE_METRIC).map((m) => <Stat key={m} metric={m} samples={rows} timeZone={timeZone} />)}
               </div>
             )}
           </Section>
-          <p className="text-xs text-ink-muted">
+          <p className="flex gap-2 rounded-xl bg-surface-muted/70 px-3 py-2 text-xs text-ink-muted">
+            <Icon name="info" size={15} />
             Données indicatives : la fréquence cardiaque et la SpO₂ ne sont pas des mesures de tension et ne
             déclenchent aucune alerte ni consigne d'urgence.
           </p>

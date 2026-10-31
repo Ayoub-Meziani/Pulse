@@ -40,8 +40,34 @@ function toInt(value) {
   return value.trim() !== "" && Number.isInteger(n) ? n : null;
 }
 
-const field = "mt-1.5 block w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
+const field = "field mt-1.5";
 const label = "text-sm font-medium text-ink";
+const big = "field mt-2 py-4 text-center text-4xl font-extrabold tracking-tight tnum placeholder:text-line-strong/60";
+
+// Display only: where the patient is in the flow. readingFlow.js decides the steps, not this list.
+const STEPS = ["Mesure", "Symptômes", "Contrôle", "Résultat"];
+
+function stepIndex(step) {
+  if (step.kind === "form") return step.recheck ? 2 : 0;
+  return { symptoms: 1, recheck_wait: 2, done: 3 }[step.kind] ?? -1;
+}
+
+function Stepper({ current }) {
+  return (
+    <ol aria-label="Étapes" className="flex gap-2">
+      {STEPS.map((name, i) => (
+        <li key={name} aria-current={i === current ? "step" : undefined} className="min-w-0 flex-1">
+          <span aria-hidden="true" className="block h-1.5 overflow-hidden rounded-full bg-line">
+            <span className={`block h-full origin-left rounded-full bg-linear-to-r from-brand to-glow transition-transform duration-500 ease-(--ease-out-expo) ${i <= current ? "scale-x-100" : "scale-x-0"}`} />
+          </span>
+          <span className={`mt-2 block truncate text-xs font-semibold sm:text-sm ${i === current ? "text-brand" : i < current ? "text-ink" : "text-ink-subtle"}`}>
+<span className="tnum hidden sm:inline">{i + 1} · </span>{name}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 function SymptomBoxes({ selected, onChange }) {
   function toggle(code) {
@@ -50,10 +76,10 @@ function SymptomBoxes({ selected, onChange }) {
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {SYMPTOMS.map(([code, text]) => (
-        <label key={code} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition-colors ${
-          selected.includes(code) ? "border-brand bg-brand-soft text-ink" : "border-line bg-surface text-ink hover:bg-surface-muted"
+        <label key={code} className={`flex min-h-13 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium text-ink transition-[border-color,background-color,box-shadow,transform] duration-200 hover:-translate-y-px ${
+          selected.includes(code) ? "border-brand bg-brand-soft ring-1 ring-brand" : "border-line bg-surface hover:border-line-strong hover:shadow-card"
         }`}>
-          <input type="checkbox" className="h-4 w-4 accent-[#0b5cad]" checked={selected.includes(code)} onChange={() => toggle(code)} />
+          <input type="checkbox" className="h-5 w-5 shrink-0 accent-brand" checked={selected.includes(code)} onChange={() => toggle(code)} />
           {text}
         </label>
       ))}
@@ -95,25 +121,33 @@ function ReadingForm({ recheck, guidance, onSubmit }) {
   }
 
   return (
-    <Card as="form" onSubmit={submit} className="p-5 sm:p-7" noValidate>
-      <h1 className="text-xl font-bold text-ink sm:text-2xl">{recheck ? "Mesure de contrôle" : "Nouvelle mesure"}</h1>
+    <Card as="form" variant="elevated" onSubmit={submit} className="animate-fade-up p-5 sm:p-8" noValidate>
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-brand-hover text-white shadow-glow-brand">
+          <Icon name={recheck ? "refresh" : "pulse"} size={22} />
+        </span>
+        <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{recheck ? "Mesure de contrôle" : "Nouvelle mesure"}</h1>
+      </div>
       <p className="mt-1 text-sm text-ink-muted">
         {recheck ? "Reprenez votre tension maintenant, au calme, dans la position que demande la consigne." : "Recopiez les valeurs affichées par votre tensiomètre."}
       </p>
-      {recheck && guidance && <p className="mt-3 rounded-xl bg-surface-muted px-4 py-3 text-sm text-ink">Consigne du serveur : {guidance}</p>}
+      {recheck && guidance && <p className="mt-3 rounded-xl border-l-4 border-brand bg-surface-muted px-4 py-3 text-sm text-ink">Consigne du serveur : {guidance}</p>}
 
-      <div className="mt-6 grid grid-cols-2 gap-4">
-        <label className={label}>Systolique
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
+        <label className={`${label} text-center`}>Systolique
           <span className="block text-xs font-normal text-ink-muted">chiffre du haut</span>
-          <input className={`${field} tnum text-xl font-semibold`} inputMode="numeric" autoComplete="off" required
+          <input className={big} inputMode="numeric" autoComplete="off" required
             value={systolic} onChange={(e) => setSystolic(e.target.value)} placeholder="128" aria-describedby="unit-mmhg" />
         </label>
-        <label className={label}>Diastolique
+        <label className={`${label} text-center`}>Diastolique
           <span className="block text-xs font-normal text-ink-muted">chiffre du bas</span>
-          <input className={`${field} tnum text-xl font-semibold`} inputMode="numeric" autoComplete="off" required
+          <input className={big} inputMode="numeric" autoComplete="off" required
             value={diastolic} onChange={(e) => setDiastolic(e.target.value)} placeholder="82" aria-describedby="unit-mmhg" />
         </label>
-        <p id="unit-mmhg" className="col-span-2 -mt-2 text-xs text-ink-subtle">Valeurs en mmHg.</p>
+        <p id="unit-mmhg" className="col-span-2 -mt-1 text-center text-xs text-ink-subtle">Valeurs en mmHg.</p>
+      </div>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className={label}>Pouls <span className="font-normal text-ink-muted">(facultatif, bpm)</span>
           <input className={`${field} tnum`} inputMode="numeric" autoComplete="off" value={pulse} onChange={(e) => setPulse(e.target.value)} placeholder="72" />
         </label>
@@ -128,24 +162,24 @@ function ReadingForm({ recheck, guidance, onSubmit }) {
             <option value="">Non précisé</option>
           </select>
         </label>
-        <label className="mt-7 flex min-h-11 items-center gap-3 text-sm text-ink">
-          <input type="checkbox" className="h-4 w-4 accent-[#0b5cad]" checked={rested} onChange={(e) => setRested(e.target.checked)} />
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 self-end rounded-xl border border-line bg-surface px-3 py-2.5 text-sm text-ink transition-colors hover:border-line-strong has-checked:border-brand has-checked:bg-brand-soft">
+          <input type="checkbox" className="h-5 w-5 shrink-0 accent-brand" checked={rested} onChange={(e) => setRested(e.target.checked)} />
           Repos de 5 minutes avant la mesure
         </label>
       </div>
 
-      <div className="mt-6 rounded-xl border border-line">
+      <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface-muted/40">
         <button type="button" onClick={() => setShowSymptoms((v) => !v)} aria-expanded={showSymptoms}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-ink">
+          className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-ink hover:bg-surface-muted">
           <span>Symptômes en ce moment <span className="font-normal text-ink-muted">(facultatif){symptoms.length ? ` · ${symptoms.length} sélectionné(s)` : ""}</span></span>
-          <Icon name="chevron" size={18} className={showSymptoms ? "rotate-90" : ""} />
+          <Icon name="chevron" size={18} className={`shrink-0 transition-transform duration-200 ${showSymptoms ? "rotate-90" : ""}`} />
         </button>
-        {showSymptoms && <div className="border-t border-line p-4"><SymptomBoxes selected={symptoms} onChange={setSymptoms} /></div>}
+        {showSymptoms && <div className="animate-fade-in border-t border-line bg-surface p-4"><SymptomBoxes selected={symptoms} onChange={setSymptoms} /></div>}
       </div>
 
-      {error && <p className="mt-5 flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert"><Icon name="alert" size={18} />{error}</p>}
+      {error && <p className="mt-5 flex gap-2 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert"><Icon name="alert" size={18} className="shrink-0" />{error}</p>}
       <div className="mt-6 flex flex-wrap gap-3">
-        <Button type="submit" disabled={busy} className="flex-1 sm:flex-none">{busy ? "Envoi en cours…" : "Enregistrer la mesure"}</Button>
+        <Button type="submit" disabled={busy} className="flex-1 sm:flex-none sm:px-6">{busy ? "Envoi en cours…" : "Enregistrer la mesure"}</Button>
         <ButtonLink to="/patient" variant="secondary">Annuler</ButtonLink>
       </div>
     </Card>
@@ -167,8 +201,8 @@ function SymptomCheck({ onSubmit, intro }) {
   }
 
   return (
-    <Card className="p-5 sm:p-7">
-      <h2 className="text-xl font-bold text-ink">Avez-vous un de ces symptômes en ce moment ?</h2>
+    <Card variant="elevated" className="animate-fade-up p-5 sm:p-8">
+      <h2 className="text-xl font-extrabold tracking-tight text-ink sm:text-2xl">Avez-vous un de ces symptômes en ce moment ?</h2>
       {intro && <p className="mt-1 text-sm text-ink-muted">{intro}</p>}
       <div className="mt-5"><SymptomBoxes selected={symptoms} onChange={setSymptoms} /></div>
       {error && <p className="mt-4 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{error}</p>}
@@ -188,13 +222,26 @@ function RecheckTimer({ seconds, onReady }) {
     return () => clearTimeout(id);
   }, [left]);
   return (
-    <Card className="border-level-notice/30 bg-level-notice-soft p-5 sm:p-7">
-      <h2 className="text-xl font-bold text-level-notice">Reposez-vous, puis reprenez votre tension</h2>
-      <p className="tnum mt-2 text-level-notice" aria-live="polite">
-        {left > 0 ? `Nouvelle mesure possible dans ${left} s.` : "Vous pouvez reprendre votre tension."}
-      </p>
-      <p className="mt-1 text-sm text-level-notice">Si vous vous sentez mal, utilisez le bouton Urgence.</p>
-      <Button disabled={left > 0} onClick={onReady} className="mt-4">Reprendre ma tension</Button>
+    <Card className="flex animate-fade-up flex-col items-center gap-6 border-level-notice/30 bg-level-notice-soft p-5 text-center sm:flex-row sm:p-7 sm:text-left">
+      <div className="relative h-28 w-28 shrink-0 text-level-notice" aria-hidden="true">
+        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="10" />
+          <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" strokeWidth="10" strokeLinecap="round"
+            pathLength="100" strokeDasharray="100" strokeDashoffset={100 * (1 - (seconds > 0 ? left / seconds : 0))}
+            className="transition-[stroke-dashoffset] duration-1000 ease-linear" />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center">
+          {left > 0 ? <span className="tnum text-3xl font-extrabold">{left}<span className="text-base font-semibold"> s</span></span> : <Icon name="check" size={36} />}
+        </span>
+      </div>
+      <div className="min-w-0">
+        <h2 className="text-xl font-bold text-level-notice">Reposez-vous, puis reprenez votre tension</h2>
+        <p className="tnum mt-2 text-level-notice" aria-live="polite">
+          {left > 0 ? `Nouvelle mesure possible dans ${left} s.` : "Vous pouvez reprendre votre tension."}
+        </p>
+        <p className="mt-1 text-sm text-level-notice">Si vous vous sentez mal, utilisez le bouton Urgence.</p>
+        <Button disabled={left > 0} onClick={onReady} className="mt-4">Reprendre ma tension</Button>
+      </div>
     </Card>
   );
 }
@@ -207,13 +254,16 @@ function ResultCard({ result, report, tz }) {
   return (
     <div className="space-y-3">
       {m && (
-        <Card className="p-5">
+        <Card variant="elevated" className="animate-scale-in p-5 sm:p-7">
           {level.invalid ? (
-            <p className="flex items-center gap-2 text-sm font-medium text-danger"><Icon name="alert" size={18} />Mesure enregistrée mais non valide : elle n'est utilisée ni pour vos moyennes, ni pour le graphique, ni pour les alertes</p>
+            <p className="flex items-start gap-2 text-sm font-medium text-danger"><Icon name="alert" size={18} className="mt-0.5 shrink-0" />Mesure enregistrée mais non valide : elle n'est utilisée ni pour vos moyennes, ni pour le graphique, ni pour les alertes</p>
           ) : (
-            <p className="flex items-center gap-2 text-sm font-medium text-success"><Icon name="check" size={18} />Mesure enregistrée par le serveur</p>
+            <p className="inline-flex items-center gap-2 rounded-full bg-success-soft px-3 py-1 text-sm font-semibold text-success"><Icon name="check" size={16} />Mesure enregistrée par le serveur</p>
           )}
-          <p className="tnum mt-2 text-3xl font-bold text-ink">{m.systolic}/{m.diastolic} <span className="text-base font-medium text-ink-muted">mmHg</span></p>
+          <p className="mt-4 flex flex-wrap items-baseline gap-x-2 font-extrabold tracking-tight text-ink">
+            <span className="tnum animate-reveal text-5xl sm:text-6xl">{m.systolic}<span className="text-ink-subtle">/</span>{m.diastolic}</span>
+            <span className="text-base font-medium text-ink-muted">mmHg</span>
+          </p>
           <p className="mt-1 text-sm text-ink-muted">{formatDateTime(m.measured_at, tz)}{m.pulse ? ` · pouls ${m.pulse} bpm` : ""}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <OriginBadge reading={m} />
@@ -329,8 +379,10 @@ export default function AddReading() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div className="flex items-center justify-between">
-        <Link to="/patient" className="inline-flex items-center gap-1 text-sm font-semibold text-brand"><Icon name="back" size={18} />Tableau de bord</Link>
+        <Link to="/patient" className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand hover:underline"><Icon name="back" size={18} />Tableau de bord</Link>
       </div>
+
+      {stepIndex(step) >= 0 && <Stepper current={stepIndex(step)} />}
 
       {step.kind === "form" && <ReadingForm key={step.recheck ? "recheck" : "first"} recheck={step.recheck} guidance={step.guidance} onSubmit={sendReading} />}
 
@@ -360,7 +412,7 @@ export default function AddReading() {
       )}
 
       {step.kind === "unreachable" && !step.emergency && (
-        <Card className="border-danger/30 bg-danger-soft p-5 text-danger sm:p-7" role="alert">
+        <Card className="animate-fade-up border-danger/30 bg-danger-soft p-5 text-danger sm:p-7" role="alert">
           <h2 className="text-xl font-bold">Serveur injoignable</h2>
           <p className="mt-2">La confirmation du serveur n'est pas arrivée : considérez la saisie comme non enregistrée. Renvoyez-la dans un instant ; si elle était déjà arrivée, elle ne sera pas enregistrée deux fois. Si vous vous sentez mal, utilisez le bouton Urgence.</p>
           <div className="mt-4 flex flex-wrap gap-3">
@@ -383,7 +435,7 @@ export default function AddReading() {
       {/* The rest of the import (counts, rejected rows, alerts), after the symptom check so it never delays it. */}
       {importResult && ["symptoms", "recheck_wait", "done"].includes(step.kind) && (
         <Card className="p-5 sm:p-7">
-          <h2 className="text-base font-semibold text-ink">Fichier importé</h2>
+          <h2 className="flex items-center gap-2 text-base font-semibold text-ink"><Icon name="upload" size={18} className="text-brand" />Fichier importé</h2>
           <div className="mt-3"><ReadingsResult result={importResult} timeZone={user.timezone} /></div>
         </Card>
       )}

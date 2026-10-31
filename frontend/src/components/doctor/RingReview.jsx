@@ -14,13 +14,14 @@ import { useResource } from "../../lib/useResource";
 // The assigned doctor's view of the ring model outputs (offline jobs in ml/). Advisory only: nothing here is read by
 // the rules, alerts or emergency guidance, and nothing notifies anyone. Every value and status is the server's.
 
-const input = "mt-1.5 block w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
+const input = "field mt-1.5 text-sm";
 // Date-only values ("2026-10-26") parse as UTC midnight: format them in UTC so the day never shifts.
 const DAY_TZ = "UTC";
 
 function Notice() {
   return (
-    <p className="rounded-xl border border-dashed border-ml/50 bg-ml-soft px-4 py-3 text-sm text-ml">
+    <p className="flex gap-2 rounded-xl border border-dashed border-ml/50 bg-ml-soft px-4 py-3 text-sm text-ml">
+      <Icon name="sparkles" size={18} />
       Expérimental · non validé cliniquement · jamais une alerte · visible seulement quand cet onglet est ouvert (aucune notification)
     </p>
   );
@@ -128,7 +129,7 @@ function FlagItem({ flag, simulated, timeZone, onDone }) {
   const early = flag.kind === "early_warning";
   const unit = WEARABLE_METRIC[flag.metric]?.unit ?? "";
   return (
-    <li className={`space-y-2 rounded-xl border p-4 ${early ? "border-ml/50 bg-ml-soft/60" : "border-line"}`}>
+    <li className={`space-y-2 rounded-2xl border p-4 shadow-card ${early ? "border-dashed border-ml/50 bg-ml-soft/60" : "border-line bg-surface"}`}>
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={early ? "ml" : "wear"} icon={early ? "sparkles" : "watch"}>{FLAG_KIND[flag.kind] ?? flag.kind}</Badge>
         <span className="font-medium text-ink">{flagMetricLabel(flag.metric)}</span>
@@ -183,7 +184,7 @@ export function RingSignals({ patientId, timeZone }) {
       )}
       <RingSection state={kept ? { ...flags, status: "ok", data: kept } : flags} what="les signaux du bracelet">
         {(list) => list.length === 0 ? <EmptyState icon="watch" title="Aucun signal pour ce patient" /> : (
-          <ul className="space-y-3">
+          <ul className="stagger space-y-3">
             {list.map((f) => <FlagItem key={f.id} flag={f} simulated={origin === "simulated"} timeZone={timeZone} onDone={reload} />)}
           </ul>
         )}
@@ -195,9 +196,9 @@ export function RingSignals({ patientId, timeZone }) {
 // ---------------------------------------------------------------- weekly reports
 function Fact({ label, value, hint }) {
   return (
-    <div className="rounded-xl border border-line p-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-ink-subtle">{label}</dt>
-      <dd className="mt-1 font-semibold text-ink">{value}</dd>
+    <div className="rounded-xl border border-line/70 bg-surface-muted/60 p-3.5">
+      <dt className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{label}</dt>
+      <dd className="tnum mt-1 text-lg font-bold text-ink">{value}</dd>
       {hint && <dd className="text-xs text-ink-muted">{hint}</dd>}
     </div>
   );
@@ -215,7 +216,7 @@ function ReportItem({ report, simulated, timeZone, onDone }) {
     .map((st) => ({ key: `${m}_${st}`, text: `${meta.label} (${BAND_STATISTIC[st]}) : ${ring[`${m}_${st}`]} ${meta.unit}` })));
 
   return (
-    <li className="space-y-3 rounded-xl border border-line p-4">
+    <li className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-semibold text-ink">Semaine du lundi {formatDate(report.week_start, DAY_TZ)}</p>
         <StatusBadge map={REPORT_STATUS} status={report.status} />
@@ -277,7 +278,7 @@ export function WeeklyReports({ patientId, timeZone }) {
       <SimulatedNotice origin={origin} />
       <RingSection state={reports} what="les rapports hebdomadaires">
         {(list) => list.length === 0 ? <EmptyState icon="clipboard" title="Aucun rapport hebdomadaire" /> : (
-          <ul className="space-y-3">
+          <ul className="stagger space-y-3">
             {list.map((r) => <ReportItem key={r.id} report={r} simulated={origin === "simulated"} timeZone={timeZone} onDone={reports.reload} />)}
           </ul>
         )}
@@ -313,13 +314,13 @@ function BandItem({ band, onDone }) {
   }
 
   return (
-    <li className={`space-y-2 rounded-xl border p-4 ${band.status === "proposed" ? "border-wear/40 bg-wear-soft/40" : "border-line"}`}>
+    <li className={`space-y-2 rounded-2xl border p-4 shadow-card ${band.status === "proposed" ? "border-wear/40 bg-wear-soft/40" : "border-line bg-surface"}`}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-ink">{meta?.label ?? band.metric}</span>
         <span className="text-sm text-ink-muted">{BAND_STATISTIC[band.statistic] ?? band.statistic}</span>
         <StatusBadge map={BAND_STATUS} status={band.status} />
       </div>
-      <p className="tnum text-lg font-semibold text-ink">{band.low} – {band.high} <span className="text-sm font-normal text-ink-muted">{meta?.unit}</span></p>
+      <p className="tnum text-2xl font-extrabold tracking-tight text-ink">{band.low} – {band.high} <span className="text-sm font-normal text-ink-muted">{meta?.unit}</span></p>
       <p className="text-xs text-ink-subtle">
         {BAND_BASIS[band.basis] ?? band.basis}
         {band.proposed_model_version ? ` · modèle ${band.proposed_model_version}` : ""}
@@ -363,7 +364,7 @@ export function PersonalBands({ patientId }) {
       <p className="text-sm text-ink-muted">Le modèle propose des plages personnelles ; seule votre approbation les active. Elles ne servent qu'aux signaux du bracelet.</p>
       <RingSection state={bands} what="les plages personnelles">
         {(list) => list.length === 0 ? <EmptyState icon="watch" title="Aucune plage personnelle" /> : (
-          <ul className="space-y-3">
+          <ul className="stagger space-y-3">
             {list.map((b) => <BandItem key={b.id} band={b} onDone={bands.reload} />)}
           </ul>
         )}

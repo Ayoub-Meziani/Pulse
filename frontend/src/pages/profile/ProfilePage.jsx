@@ -10,7 +10,7 @@ import { Section } from "../../components/ui/States";
 import { formatDate } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
 
-const input = "mt-1.5 block w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
+const input = "field mt-1.5 text-sm";
 
 function Row({ label, children }) {
   return (
@@ -75,7 +75,7 @@ function ProfileForm({ profile, onSaved, onCancel, patientId }) {
         <textarea className={input} rows={2} value={f.medication_context} onChange={set("medication_context")} /></label>
       <label className="block text-sm font-medium text-ink">Cabinet ou clinique habituels<input className={input} value={f.regular_clinic} onChange={set("regular_clinic")} /></label>
       <label className="flex items-start gap-3 text-sm text-ink">
-        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#0b5cad]" checked={f.consent_location} onChange={set("consent_location")} />
+        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand" checked={f.consent_location} onChange={set("consent_location")} />
         J'accepte que ma position soit enregistrée dans le dossier d'un épisode d'urgence quand je choisis de la partager.
       </label>
       {error && <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
@@ -118,7 +118,8 @@ function Contacts({ patientId }) {
           <ul className="divide-y divide-line">
             {list.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center gap-2 py-3 text-sm">
-                <span className="min-w-0 flex-1 font-medium text-ink">{c.name}{c.relationship ? <span className="font-normal text-ink-muted"> · {c.relationship}</span> : null}
+                <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft font-bold text-brand">{c.name.trim().charAt(0).toUpperCase()}</span>
+                <span className="min-w-40 flex-1 font-medium text-ink">{c.name}{c.relationship ? <span className="font-normal text-ink-muted"> · {c.relationship}</span> : null}
                   <span className="tnum block font-normal text-ink-muted">{c.phone}</span></span>
                 {!c.active && <Badge>Inactif</Badge>}
                 <Button variant="ghost" disabled={busy} onClick={() => run(() => updateTrustedContact(c.id, { active: !c.active }))}>{c.active ? "Désactiver" : "Réactiver"}</Button>
@@ -135,14 +136,14 @@ function Contacts({ patientId }) {
       </Section>
       {error && <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
       {adding ? (
-        <form onSubmit={add} className="space-y-3 rounded-xl border border-line p-4">
+        <form onSubmit={add} className="animate-fade-up space-y-3 rounded-2xl border border-line bg-surface-muted/50 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm font-medium text-ink">Nom<input className={input} required maxLength={120} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
             <label className="block text-sm font-medium text-ink">Lien<input className={input} maxLength={60} value={form.relationship} onChange={(e) => setForm({ ...form, relationship: e.target.value })} placeholder="Fille, voisin…" /></label>
           </div>
           <label className="block text-sm font-medium text-ink">Téléphone<input className={input} required inputMode="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+213 …" /></label>
           <label className="flex items-start gap-3 text-sm text-ink">
-            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#0b5cad]" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} />
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} />
             Cette personne a accepté d'être mon contact de confiance.
           </label>
           <div className="flex flex-wrap gap-3">
@@ -167,8 +168,8 @@ export default function ProfilePage() {
     <div className="space-y-6">
       <PageHeader eyebrow="Espace patient" title="Mon profil" />
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="Informations" action={!editing && profile.status === "ok" && <Button variant="secondary" onClick={() => { setEditing(true); setSaved(false); }}>Modifier</Button>} />
+        <Card variant="elevated">
+          <CardHeader title="Informations" icon="user" action={!editing && profile.status === "ok" && <Button variant="secondary" onClick={() => { setEditing(true); setSaved(false); }}>Modifier</Button>} />
           <CardBody>
             {saved && <p role="status" className="mb-3 rounded-xl bg-success-soft px-4 py-3 text-sm text-success">Profil enregistré.</p>}
             <Section state={profile} what="votre profil">
@@ -192,14 +193,14 @@ export default function ProfilePage() {
           </CardBody>
         </Card>
         <div className="space-y-4">
-          <Card>
-            <CardHeader title="Plan de suivi" subtitle="Fixé par votre médecin" />
+          <Card className="relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-linear-to-r before:from-brand before:to-glow">
+            <CardHeader title="Plan de suivi" subtitle="Fixé par votre médecin" icon="clipboard" />
             <CardBody>
               <Section state={plan} what="votre plan de suivi">
                 {(c) => (
                   <dl className="divide-y divide-line">
                     <Row label="Cible">
-                      <span className="tnum font-semibold">{c.target_systolic}/{c.target_diastolic} mmHg</span>{" "}
+                      <span className="tnum text-lg font-extrabold">{c.target_systolic}/{c.target_diastolic}</span> <span className="text-ink-muted">mmHg</span>{" "}
                       {c.is_default ? <Badge>Cible générale</Badge> : <Badge tone="brand">Fixée par votre médecin</Badge>}
                     </Row>
                     <Row label="Mesures par jour">{c.monitoring_readings_per_day}</Row>
@@ -211,7 +212,7 @@ export default function ProfilePage() {
             </CardBody>
           </Card>
           <Card>
-            <CardHeader title="Personnes de confiance" subtitle="Visibles sur votre carte d'urgence. PULSE ne les contacte pas : c'est vous qui appelez ou partagez." />
+            <CardHeader icon="users" title="Personnes de confiance" subtitle="Visibles sur votre carte d'urgence. PULSE ne les contacte pas : c'est vous qui appelez ou partagez." />
             <CardBody><Contacts patientId={user.id} /></CardBody>
           </Card>
         </div>
