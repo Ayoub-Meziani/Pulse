@@ -1,0 +1,6 @@
+# SIMULATED example cuff export (fictional values): every column the import reads
+measured_at,systolic,diastolic,pulse,unit,position,arm,note
+2026-10-22T08:00:00+01:00,142,91,76,mmHg,sitting,left,after breakfast
+2026-10-22T08:02:00+01:00,138,88,74,mmHg,sitting,left,second reading
+2026-10-22T20:30:00+01:00,126,80,70,mmHg,lying,right,before sleep
+2026-10-23T07:45:00+01:00,151,95,81,mmHg,standing,left,woke up with a headache

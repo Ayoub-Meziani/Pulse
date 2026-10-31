@@ -5,11 +5,13 @@ import BloodPressureChart from "../charts/BloodPressureChart";
 import JournalList from "../journal/JournalList";
 import Badge, { LevelBadge } from "../ui/Badge";
 import Button from "../ui/Button";
+import Icon from "../ui/Icon";
+import StatTile from "../ui/StatTile";
 import { EmptyState, ErrorState, Loading, Section } from "../ui/States";
 import { formatDate, formatDateTime, SYMPTOM_LABEL } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
 
-const input = "mt-1.5 block w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
+const input = "field mt-1.5 text-sm";
 
 // ---------------------------------------------------------------- journal
 export function DoctorJournal({ patientId, timeZone }) {
@@ -65,9 +67,10 @@ function EventReport({ eventId, timeZone }) {
       {alert && <p className="flex flex-wrap items-center gap-2 text-sm"><span className="text-ink-muted">Alerte liée :</span><LevelBadge level={alert.level} /> {alert.reason}</p>}
       <div>
         <p className="text-sm font-semibold text-ink">Chronologie</p>
-        <ol className="mt-2 space-y-1.5 border-l-2 border-line pl-4 text-sm">
+        <ol className="mt-3 space-y-2.5 border-l-2 border-line pl-5 text-sm">
           {event.actions.map((a) => (
-            <li key={a.client_action_id}>
+            <li key={a.client_action_id} className="relative">
+              <span className="absolute -left-[1.6rem] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-brand" aria-hidden="true" />
               <span className="tnum text-ink-muted">{formatDateTime(a.at, timeZone)}</span> · <span className="text-ink">{ACTION_LABEL[a.action] ?? a.action}</span>
               {a.action === "outcome_reported" && event.reported_outcome ? ` : « ${event.reported_outcome} »` : ""}
             </li>
@@ -100,14 +103,16 @@ export function DoctorEmergencies({ patientId, timeZone }) {
       <p className="text-sm text-ink-muted">Épisodes où le patient a ouvert l'écran d'urgence. Les actions sont ce que le patient a touché : PULSE ne sait pas si un appel a abouti.</p>
       <Section state={events} what="les épisodes d'urgence">
         {(list) => list.length === 0 ? <EmptyState icon="phone" title="Aucun épisode d'urgence" /> : (
-          <ul className="space-y-3">
+          <ul className="stagger space-y-3">
             {list.map((e) => (
-              <li key={e.id} className="rounded-xl border border-line p-4">
+              <li key={e.id} className="rounded-2xl border border-line bg-surface p-4 shadow-card">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="severe" icon="alert">{TRIGGER_LABEL[e.trigger_reason] ?? e.trigger_reason}</Badge>
                   <span className="text-sm text-ink">{formatDateTime(e.started_at, timeZone)}</span>
                   {e.reported_outcome && <span className="text-sm text-ink-muted">· Suite : « {e.reported_outcome} »</span>}
-                  <Button variant="ghost" className="ml-auto" onClick={() => setOpen(open === e.id ? null : e.id)}>{open === e.id ? "Fermer" : "Voir le rapport"}</Button>
+                  <Button variant="ghost" className="ml-auto" aria-expanded={open === e.id} onClick={() => setOpen(open === e.id ? null : e.id)}>
+                    <Icon name={open === e.id ? "close" : "chevron"} size={16} />{open === e.id ? "Fermer" : "Voir le rapport"}
+                  </Button>
                 </div>
                 {open === e.id && <EventReport eventId={e.id} timeZone={timeZone} />}
               </li>
@@ -177,15 +182,18 @@ export function DoctorCarePlan({ patientId }) {
       ) : (
         <div className="space-y-3">
           {saved && <p role="status" className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success">Plan de suivi enregistré.</p>}
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-line p-4"><dt className="text-xs font-medium uppercase tracking-wide text-ink-subtle">Cible</dt>
-              <dd className="tnum mt-1 text-xl font-semibold text-ink">{c.target_systolic}/{c.target_diastolic} mmHg</dd>
-              <dd className="text-xs text-ink-muted">{c.is_default ? "Cible générale (aucun plan actif)" : `Depuis le ${formatDate(c.effective_from)}`}</dd></div>
-            <div className="rounded-xl border border-line p-4"><dt className="text-xs font-medium uppercase tracking-wide text-ink-subtle">Mesures par jour</dt>
-              <dd className="tnum mt-1 text-xl font-semibold text-ink">{c.monitoring_readings_per_day ?? "—"}</dd>
-              <dd className="text-xs text-ink-muted">{c.review_date ? `Révision le ${formatDate(c.review_date)}` : "Pas de date de révision"}</dd></div>
-            {c.clinician_guidance && <div className="rounded-xl border border-line p-4 text-sm text-ink sm:col-span-2">{c.clinician_guidance}</div>}
-          </dl>
+          <div className="stagger grid gap-3 sm:grid-cols-2">
+            <StatTile label="Cible" icon="pulse" value={`${c.target_systolic}/${c.target_diastolic}`} unit="mmHg"
+              hint={c.is_default ? "Cible générale (aucun plan actif)" : `Depuis le ${formatDate(c.effective_from)}`} />
+            <StatTile label="Mesures par jour" icon="clock" value={c.monitoring_readings_per_day ?? "—"}
+              hint={c.review_date ? `Révision le ${formatDate(c.review_date)}` : "Pas de date de révision"} />
+            {c.clinician_guidance && (
+              <div className="rounded-2xl border border-line bg-surface-muted/50 p-4 text-sm text-ink sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Consigne pour le patient</p>
+                <p className="mt-1.5 whitespace-pre-line">{c.clinician_guidance}</p>
+              </div>
+            )}
+          </div>
           <Button variant="secondary" onClick={() => start(c)}>{c.is_default ? "Définir un plan de suivi" : "Modifier le plan"}</Button>
         </div>
       )}

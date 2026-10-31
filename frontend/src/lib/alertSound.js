@@ -2,8 +2,10 @@
 // One loop for the whole page, at the highest level among the alerts that should ring. Severe: a beep every
 // 5 s; emergency: every 2 s. The loop starts when an eligible alert appears or its level (or count) goes up,
 // never just because a list was refreshed, and stops when no eligible alert is left.
-// "Couper le son" mutes everything for this browser tab's session; only "Réactiver le son" undoes it.
-// Browsers only allow sound after the person clicked or typed on the page; until then the state is "locked".
+// "Couper le son" mutes everything for this browser tab's session; only "Réactiver le son" undoes it. The patient
+// has no mute: their alarm stops only when they confirm with the password (proposed D29).
+// Browsers only allow sound after the person clicked or typed on the page; until then the state is "locked". Any
+// click or key press unlocks it (unlock()), so "Enregistrer la mesure" is enough for the alarm to start at once.
 
 const RANK = { severe: 1, emergency: 2 };
 const PERIOD_MS = { severe: 5000, emergency: 2000 };
@@ -28,6 +30,7 @@ function webAudio() {
   return {
     get running() { return ctx.state === "running"; },
     resume: () => ctx.resume(),
+    onStateChange(listener) { ctx.onstatechange = listener; },
     beep() {
       const t = ctx.currentTime;
       for (const [freq, start] of [[880, 0], [660, 0.18]]) {
@@ -98,6 +101,15 @@ export function createAlertSound({ audio = webAudio, store = sessionStore(), set
       player = audio();
       if (!player) { status = "unsupported"; emit(); return; }
     }
+    // The browser can suspend the sound later (another tab, a phone call): never claim it still plays.
+    player.onStateChange?.(() => {
+      if (status === "ready" && !player.running) {
+        status = "locked";
+        stopLoop();
+        pending = true;  // the next click (unlock) starts it again
+        emit();
+      }
+    });
     try {
       if (!player.running) await player.resume();
     } catch { /* stays suspended */ }
@@ -129,6 +141,20 @@ export function createAlertSound({ audio = webAudio, store = sessionStore(), set
       if (status === "ready" && highestLevel(eligible())) pending = true;
       apply();
     },
+    /** Any click or key press on the page (it must run inside that gesture): the browser then allows the sound. */
+    async unlock() {
+      if (status === "ready" || status === "unsupported") return;
+      await open(true);
+      apply();
+    },
+    /** Patient side (D29): a mute from earlier in this tab never silences an alert waiting for the password. */
+    unmute() {
+      if (!muted) return;
+      muted = false;
+      store.set(false);
+      if (highestLevel(eligible())) pending = true;
+      apply();
+    },
     /** "Couper le son": global for this tab's session; new alerts stay silent until activate(). */
     mute() {
       muted = true;
@@ -157,3 +183,17 @@ export function createAlertSound({ audio = webAudio, store = sessionStore(), set
 
 /** The page-wide instance: one loop for the whole app. */
 export const alertSound = createAlertSound();
+
+/** The sound bar's sentence for a getState() snapshot. canMute=false: the patient (stops with the password). */
+export function soundText(state, canMute = true) {
+  if (state.status === "unsupported" || state.status === "blocked") {
+    return "Ce navigateur ne permet pas de jouer le son. Les alertes restent affichées à l'écran.";
+  }
+  if (state.muted) return "Son des alertes coupé pour cette session.";
+  if (state.status === "locked") return "Son des alertes inactif : le navigateur demande d'abord un clic.";
+  if (state.playing) {
+    return `Alerte sonore en cours (${state.playing === "emergency" ? "urgence" : "tension très élevée"}).${
+      canMute ? "" : " Elle s'arrête quand vous confirmez l'alerte avec votre mot de passe."}`;
+  }
+  return "Son des alertes activé.";
+}

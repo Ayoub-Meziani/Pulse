@@ -16,9 +16,16 @@ const TONES = {
   emergency: "border-emergency bg-emergency text-white",
 };
 
-export default function Badge({ tone = "neutral", icon, children, className = "" }) {
+/** `dot` adds a small pulsing dot before the text (the ring only shows when motion is allowed). */
+export default function Badge({ tone = "neutral", icon, dot = false, children, className = "" }) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${TONES[tone] ?? TONES.neutral} ${className}`}>
+    <span className={`badge inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${TONES[tone] ?? TONES.neutral} ${className}`}>
+      {dot && (
+        <span className="relative mr-0.5 flex h-2 w-2" aria-hidden="true">
+          <span className="absolute inset-0 animate-pulse-ring rounded-full bg-current" />
+          <span className="relative h-2 w-2 rounded-full bg-current" />
+        </span>
+      )}
       {icon && <Icon name={icon} size={13} />}
       {children}
     </span>

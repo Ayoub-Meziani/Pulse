@@ -1,5 +1,6 @@
 """CSV text parsers for file imports (no database)."""
 from datetime import timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -69,3 +70,22 @@ def test_ring_missing_column():
 ])
 def test_simulated_marker_is_the_first_line_only(text, expected):
     assert declares_simulated(text) is expected
+
+
+# ---------------------------------------------------------------- docs/data/csv-examples (README promises)
+EXAMPLES = Path(__file__).resolve().parents[2] / "docs" / "data" / "csv-examples"
+
+
+@pytest.mark.parametrize("name,parser,kept,rejected", [
+    ("cuff_minimal.csv", parse_bp, 4, []),
+    ("cuff_all_columns.csv", parse_bp, 4, []),
+    ("cuff_with_errors.csv", parse_bp, 4, [(4, ("not_integer_systolic",)), (5, ("missing_diastolic",)),
+                                           (6, ("unsupported_unit",)), (7, ("invalid_position",)),
+                                           (8, ("invalid_timestamp",))]),
+    ("ring_export.csv", parse_ring, 7, [(10, ("unknown_metric",))]),   # heart rate 400: refused by the database
+])
+def test_documented_examples_parse_as_the_readme_says(name, parser, kept, rejected):
+    text = (EXAMPLES / name).read_text(encoding="utf-8")
+    rows, rejections = parser(text, ALGIERS)
+    assert declares_simulated(text)                                       # fictional values, labelled
+    assert (len(rows), [(r.row, r.reasons) for r in rejections]) == (kept, rejected)

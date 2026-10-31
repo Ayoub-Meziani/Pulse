@@ -103,6 +103,18 @@ def test_demo_csv_today_is_simulated_and_never_in_the_future(tmp_path):
     assert later.read_bytes() != path.read_bytes()                                        # another sha each run
 
 
+def test_test_csv_now_writes_one_fresh_reading_per_case_and_labels_only_the_simulated_one(tmp_path):
+    now = datetime(2026, 10, 31, 10, 7, 42, tzinfo=ZoneInfo("Africa/Algiers"))
+    paths = simulate.write_test_csvs(tmp_path, now)
+    assert {p.stem for p in paths} == set(simulate.TEST_CASES)
+    for p in paths:
+        text = p.read_text(encoding="utf-8")
+        readings, rejected = parse_csv(p, "UTC")
+        assert not rejected and len(readings) == 1
+        assert readings[0].measured_at == now.replace(second=0, microsecond=0)   # this minute, never after now
+        assert text.startswith("# SIMULATED") == simulate.TEST_CASES[p.stem][3]
+
+
 @pytest.mark.parametrize("url, env, ok", [
     ("postgresql://postgres:postgres@127.0.0.1:55322/postgres", {}, True),
     ("postgresql://postgres:postgres@localhost:55322/postgres", {"PGHOST": "db.example.com"}, True),

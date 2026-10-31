@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
-import { addEmergencyActions, getEmergencyCard, getEmergencyConfig, patchEmergencyEvent, startEmergencyEvent } from "../../api/patient";
+import { getEmergencyCard, getEmergencyConfig } from "../../api/patient";
+import { MedicalCard, NumberButton, TelLink } from "../../components/emergency/EmergencyParts";
+import Button from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
 import Icon from "../../components/ui/Icon";
-import { formatDateTime, originOf } from "../../lib/format";
-import { browserStore, closeIncident, flushIncidents, openIncident, queueAction, queuePatch } from "../../lib/incident";
+import { emergencyScreenOpened } from "../../lib/alertEvents";
+import { flushQueued, incidentStore as store } from "../../lib/emergencyLog";
+import { closeIncident, openIncident, queueAction, queuePatch } from "../../lib/incident";
 import { cacheCard, cacheConfig, readCachedCard, readCachedConfig } from "../../lib/offlineCache";
 
 // Emergency screen (conception §7.3). Order: call the emergency number, the trusted contact, the medical card a
@@ -13,8 +17,6 @@ import { cacheCard, cacheConfig, readCachedCard, readCachedConfig } from "../../
 // knows whether a call connected or a message was sent; the record says "tapped" / "opened".
 // In demo mode only the configured demo number is tappable.
 
-const store = browserStore();
-const API = { start: startEmergencyEvent, actions: addEmergencyActions, patch: patchEmergencyEvent };
 const OUTCOMES = [
   ["felt_better", "Je me sens mieux"],
   ["called_emergency", "J'ai appelé les secours"],
@@ -22,24 +24,6 @@ const OUTCOMES = [
   ["family_came", "Un proche est venu m'aider"],
   ["false_alarm", "Fausse alerte"],
 ];
-
-function telHref(number) {
-  return `tel:${number.replace(/[^0-9+]/g, "")}`;
-}
-
-function NumberButton({ entry, primary, onTap }) {
-  if (!entry.number) {
-    return <p className="rounded-xl bg-warning-soft px-5 py-4 text-sm text-warning" role="alert">{entry.label_fr} : numéro non configuré sur ce serveur.</p>;
-  }
-  return (
-    <a href={telHref(entry.number)} onClick={onTap}
-      className={`flex min-h-16 items-center justify-center gap-3 rounded-2xl px-6 py-4 text-center font-bold shadow-sm ${
-        primary ? "bg-emergency text-xl text-white hover:bg-emergency-hover" : "border-2 border-emergency/40 bg-surface text-emergency"}`}>
-      <Icon name="phone" size={primary ? 26 : 20} />
-      <span>Appeler le {entry.number}<span className="block text-sm font-medium opacity-90">{entry.label_fr}</span></span>
-    </a>
-  );
-}
 
 function locate(timeoutMs = 8000) {
   return new Promise((resolve) => {
@@ -52,51 +36,29 @@ function locate(timeoutMs = 8000) {
   });
 }
 
-function MedicalCard({ card, offline }) {
-  if (!card) return null;
-  const r = card.last_reading;
-  return (
-    <section className="rounded-2xl border border-line bg-surface p-5" aria-labelledby="card-title">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="card-title" className="text-lg font-bold text-ink">Carte médicale</h2>
-        {offline && <span className="text-xs font-medium text-warning">Affichée depuis ce téléphone (hors ligne)</span>}
-      </div>
-      <p className="mt-1 text-sm text-ink-muted">À lire par la personne qui vous aide ou par les secours.</p>
-      <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-        <div><dt className="text-ink-muted">Nom</dt><dd className="font-semibold text-ink">{card.full_name}{card.age ? `, ${card.age} ans` : ""}</dd></div>
-        <div><dt className="text-ink-muted">Antécédents</dt><dd className="text-ink">{card.relevant_conditions.join(", ") || "—"}</dd></div>
-        <div><dt className="text-ink-muted">Allergies</dt><dd className="text-ink">{card.allergies || "—"}</dd></div>
-        <div><dt className="text-ink-muted">Traitement (tel que saisi par le patient)</dt><dd className="text-ink">{card.medication_context || "—"}</dd></div>
-        <div><dt className="text-ink-muted">Médecin traitant</dt><dd className="text-ink">{card.regular_doctor_name || "—"}{card.regular_clinic ? ` · ${card.regular_clinic}` : ""}</dd></div>
-        <div><dt className="text-ink-muted">Dernière tension</dt><dd className="text-ink">
-          {r ? <><span className="tnum font-semibold">{r.systolic}/{r.diastolic} mmHg</span> · {formatDateTime(r.measured_at)} · {originOf(r).label}</> : "—"}
-        </dd></div>
-      </dl>
-    </section>
-  );
-}
-
 function ContactCard({ contact, onCall, onShare, sharing, location, landmark, setLandmark, shareResult }) {
   return (
-    <section className="rounded-2xl border border-line bg-surface p-5" aria-labelledby="contact-title">
-      <h2 id="contact-title" className="text-lg font-bold text-ink">Prévenir un proche</h2>
+    <Card className="p-5 sm:p-6" aria-labelledby="contact-title">
+      <h2 id="contact-title" className="inline-flex items-center gap-2 text-lg font-bold text-ink">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-soft text-brand"><Icon name="users" size={18} /></span>
+        Prévenir un proche
+      </h2>
       {contact ? (
         <>
           <p className="mt-1 text-sm text-ink-muted">Après avoir appelé les secours, ou en même temps. Cela ne remplace pas l'appel aux secours.</p>
-          <a href={telHref(contact.phone)} onClick={onCall}
-            className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 font-semibold text-ink hover:bg-surface-muted">
+          <TelLink number={contact.phone} onClick={onCall}
+            className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 font-semibold text-ink shadow-sm transition-colors hover:border-line-strong hover:bg-surface-muted">
             <Icon name="phone" size={18} />Appeler {contact.name}{contact.relationship ? ` (${contact.relationship})` : ""}
-          </a>
+          </TelLink>
         </>
       ) : <p className="mt-1 text-sm text-ink-muted">Aucun proche enregistré. Vous pouvez en ajouter un dans votre profil.</p>}
       <label className="mt-4 block text-sm font-medium text-ink">Où suis-je ? <span className="font-normal text-ink-muted">(repère, facultatif)</span>
         <input value={landmark} onChange={(e) => setLandmark(e.target.value)} maxLength={200} placeholder="Ex. : entrée du marché, 2e étage"
-          className="mt-1.5 block w-full rounded-xl border border-line px-3.5 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+          className="field mt-1.5 block w-full" />
       </label>
-      <button type="button" onClick={onShare} disabled={sharing}
-        className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 font-semibold text-white hover:bg-brand-hover disabled:opacity-60">
+      <Button onClick={onShare} disabled={sharing} className="mt-3 min-h-12 w-full text-base">
         <Icon name="users" size={18} />{sharing ? "Recherche de la position…" : "Partager ma position"}
-      </button>
+      </Button>
       <p className="mt-2 text-xs text-ink-muted">Votre position est demandée seulement maintenant, avec votre accord, et partagée par votre téléphone : vous choisissez à qui l'envoyer.</p>
       {location?.status === "granted" && (
         <p className="mt-3 text-sm text-ink">Position : <span className="tnum">{location.lat.toFixed(5)}, {location.lon.toFixed(5)}</span> (± {location.accuracy} m) ·{" "}
@@ -106,13 +68,14 @@ function ContactCard({ contact, onCall, onShare, sharing, location, landmark, se
         <p className="mt-3 text-sm text-warning">Position indisponible ({location.status === "timeout" ? "délai dépassé" : "refusée"}). Indiquez un repère ci-dessus.</p>
       )}
       {shareResult && <p className="mt-2 whitespace-pre-line text-sm text-ink-muted" role="status">{shareResult}</p>}
-    </section>
+    </Card>
   );
 }
 
 export default function EmergencyScreen({ reason, nextStep, notSaved = false, initialConfig = null, trigger = "manual", alertId = null, symptoms = [] }) {
   const { user } = useAuth();
   const [config, setConfig] = useState(initialConfig ?? readCachedConfig());
+  useEffect(() => emergencyScreenOpened(), []);  // the alert flag above shrinks to one line
   const [configOffline, setConfigOffline] = useState(false);
   const [card, setCard] = useState(() => readCachedCard(user.id));
   const [cardOffline, setCardOffline] = useState(false);
@@ -123,7 +86,7 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
   const [outcome, setOutcome] = useState(null);
   const incident = useRef(null);
 
-  const flush = () => flushIncidents(store, API, user.id).catch(() => {});
+  const flush = () => flushQueued(user.id);
   const log = (action, detail = null) => {
     if (incident.current) { queueAction(store, incident.current, action, detail); flush(); }
   };
@@ -214,18 +177,25 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
 
   return (
     <section className="mx-auto max-w-2xl space-y-5" aria-labelledby="emergency-title">
-      <div className="rounded-2xl border-2 border-emergency bg-level-severe-soft p-5 sm:p-7">
-        <p className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-emergency"><Icon name="alert" size={18} />Urgence</p>
-        <h1 id="emergency-title" className="mt-2 text-2xl font-bold text-level-severe sm:text-3xl">Si vous vous sentez mal, appelez les secours maintenant</h1>
-        <p className="mt-1 font-medium text-level-severe">Appelez d'abord les secours, puis prévenez un proche.</p>
-        {notSaved && <p className="mt-3 font-medium text-level-severe">Le serveur est injoignable : votre saisie n'a pas été enregistrée.</p>}
-        {(reason || nextStep) && (
-          <div className="mt-4 rounded-xl bg-surface/70 p-4 text-level-severe">
-            {reason && <p>{reason}</p>}
-            {nextStep && <p className="mt-1 font-semibold">{nextStep}</p>}
-            <p className="mt-2 text-xs opacity-80">Consigne du serveur (texte en anglais en attendant la traduction validée).</p>
-          </div>
-        )}
+      <div className="alarm relative overflow-hidden rounded-3xl bg-alarm p-6 text-white shadow-glow-alarm sm:p-8">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-10 h-48 w-48">
+          {["0s", "0.66s", "1.33s"].map((d) => (
+            <span key={d} className="absolute inset-0 animate-pulse-ring rounded-full border-2 border-white/30" style={{ animationDelay: d }} />
+          ))}
+        </div>
+        <div className="relative">
+          <p className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-sm font-bold uppercase tracking-wider text-alarm-2"><Icon name="alert" size={18} />Urgence</p>
+          <h1 id="emergency-title" className="mt-3 text-3xl font-black leading-tight tracking-tight sm:text-4xl">Si vous vous sentez mal, appelez les secours maintenant</h1>
+          <p className="mt-2 text-lg font-semibold text-white/90">Appelez d'abord les secours, puis prévenez un proche.</p>
+          {notSaved && <p className="mt-3 rounded-xl bg-white/15 px-4 py-2 font-semibold">Le serveur est injoignable : votre saisie n'a pas été enregistrée.</p>}
+          {(reason || nextStep) && (
+            <div className="mt-4 rounded-2xl border border-white/25 bg-white/10 p-4">
+              {reason && <p>{reason}</p>}
+              {nextStep && <p className="mt-1 font-semibold">{nextStep}</p>}
+              <p className="mt-2 text-xs text-white/80">Consigne du serveur (texte en anglais en attendant la traduction validée).</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {config?.demo_mode && (
@@ -247,32 +217,38 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
       <MedicalCard card={card} offline={cardOffline} />
 
       {config && (
-        <div className="rounded-2xl border border-line bg-surface p-5 text-sm text-ink">
+        <Card className="p-5 text-sm text-ink sm:p-6">
           <p>{config.disclaimer_fr}</p>
           <p className="mt-3 text-base leading-7" dir="rtl" lang="ar">{config.disclaimer_ar}</p>
           {configOffline && <p className="mt-2 text-xs text-warning">Configuration affichée depuis ce téléphone (hors ligne).</p>}
-        </div>
+        </Card>
       )}
 
-      <section className="rounded-2xl border border-line bg-surface p-5" aria-labelledby="outcome-title">
+      <Card className="p-5 sm:p-6" aria-labelledby="outcome-title">
         <h2 id="outcome-title" className="text-lg font-bold text-ink">Que s'est-il passé ?</h2>
         <p className="mt-1 text-sm text-ink-muted">Votre réponse est ajoutée au dossier de cet épisode. Votre médecin le consultera lors du suivi ; il n'est pas prévenu en temps réel.</p>
         {outcome ? (
-          <p className="mt-3 rounded-xl bg-success-soft px-4 py-3 text-sm font-medium text-success" role="status">
+          <p className="mt-3 flex items-center gap-2 rounded-xl bg-success-soft px-4 py-3 text-sm font-medium text-success" role="status">
+            <Icon name="check" size={18} className="shrink-0" />
             Noté : « {outcome} ». Enregistré sur ce téléphone et envoyé au serveur dès que la connexion le permet.
           </p>
         ) : (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {OUTCOMES.map(([code, label]) => (
               <button key={code} type="button" onClick={() => reportOutcome(code, label)}
-                className="min-h-11 rounded-xl border border-line px-3 text-left text-sm font-medium text-ink hover:bg-surface-muted">{label}</button>
+                className="group flex min-h-14 items-center gap-3 rounded-2xl border-2 border-line bg-surface px-4 text-left text-sm font-semibold text-ink transition-[border-color,background-color,transform] duration-200 hover:border-brand hover:bg-brand-soft active:scale-[.98]">
+                <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-line-strong text-transparent transition-colors group-hover:border-brand group-hover:text-brand">
+                  <Icon name="check" size={14} strokeWidth={3} />
+                </span>
+                {label}
+              </button>
             ))}
           </div>
         )}
-      </section>
+      </Card>
 
       {config && others.length > 0 && (
-        <div className="rounded-2xl border border-line bg-surface p-5 text-sm text-ink-muted">
+        <Card className="p-5 text-sm text-ink-muted sm:p-6">
           <p className="font-semibold text-ink">Autres numéros</p>
           <ul className="mt-3 space-y-2">
             {others.map((n) => (
@@ -284,11 +260,11 @@ export default function EmergencyScreen({ reason, nextStep, notSaved = false, in
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       )}
 
       <p className="text-xs text-ink-subtle">Prototype : PULSE n'appelle personne et ne détecte pas de malaise. Les appels et les partages se font depuis votre téléphone.</p>
-      <Link to="/patient" className="inline-flex items-center gap-1 text-sm font-semibold text-brand"><Icon name="back" size={18} />Retour au tableau de bord</Link>
+      <Link to="/patient" className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-brand hover:underline"><Icon name="back" size={18} />Retour au tableau de bord</Link>
     </section>
   );
 }

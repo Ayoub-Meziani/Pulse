@@ -1,7 +1,37 @@
 // Import display helpers. Fixtures follow ImportResult / RingImportResult / ErrorOut of contract/openapi.json.
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../api/client";
-import { declaresSimulated, importCounts, importErrorText, reasonLabel } from "./importSummary";
+import { csvKind, declaresSimulated, importCounts, importErrorText, reasonLabel } from "./importSummary";
+
+describe("csvKind: which import panel a file belongs to", () => {
+  it("reads the header after comment lines and a BOM, like the server", () => {
+    expect(csvKind("﻿# SIMULATED example\r\nmeasured_at,systolic,diastolic,pulse\r\n2026-10-20 08:00,128,82,70\r\n")).toBe("cuff");
+    expect(csvKind("# SIMULATED ring\nmeasured_at,metric,value,unit,external_id\n")).toBe("ring");
+    expect(csvKind('"Measured_At","Metric","Value"\n')).toBe("ring");
+  });
+
+  it("unknown or ambiguous headers: no guess", () => {
+    expect(csvKind("# only a comment\n")).toBeNull();
+    expect(csvKind("date,top,bottom\n")).toBeNull();
+    expect(csvKind("measured_at,systolic,diastolic,metric,value\n")).toBeNull();
+  });
+});
+
+describe("importErrorText: the server's file errors in French", () => {
+  const fileError = (code, message) => new ApiError(422, "invalid_file", message, [{ field: "csv", code, message }]);
+
+  it("names the missing columns (the cuff example sent to the ring panel)", () => {
+    expect(importErrorText(fileError("missing_column", "The file is missing column(s): metric, value.")))
+      .toBe("Fichier refusé : colonne(s) obligatoire(s) manquante(s) : metric, value.");
+  });
+
+  it("known codes in French, unknown ones as sent", () => {
+    expect(importErrorText(fileError("empty_file", "The file is empty."))).toBe("Fichier refusé : le fichier est vide.");
+    expect(importErrorText(fileError("file_is_simulated", "x"))).toMatch(/importez-le comme données simulées/);
+    expect(importErrorText(fileError("invalid_timezone", "x"))).toMatch(/Mon profil/);
+    expect(importErrorText(fileError("something_new", "Server text."))).toBe("Fichier refusé : Server text.");
+  });
+});
 
 describe("declaresSimulated", () => {
   it("first non-empty line, BOM and case ignored", () => {

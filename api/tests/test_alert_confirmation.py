@@ -143,3 +143,52 @@ def test_doctor_list_is_limited_to_assigned_patients(api, people):
     reading(api, people["patient"], 186, 118)
     assert api.get(f"{API}/doctor/alerts", headers=auth_header(people["stranger"])).json() == []
     assert api.get(f"{API}/doctor/alerts", headers=auth_header(people["patient"])).status_code == 403
+
+
+def test_a_confirmed_severe_alert_raised_to_emergency_rings_again_until_confirmed(api, conn, people):
+    p = people["patient"]
+    alert = reading(api, p, 186, 118)
+    assert confirm(api, alert["id"], p).json()["status"] == "acknowledged"
+    r = api.post(f"{API}/patients/{p}/symptom-reports", json={"symptoms": ["chest_pain"]}, headers=auth_header(p))
+    assert r.status_code == 201 and r.json()["alert"]["id"] == alert["id"]
+    row = conn.execute(text("select alert_class, status, acknowledged_at from public.alerts where id = :id"),
+                       {"id": alert["id"]}).one()
+    assert tuple(row) == ("possible_emergency", "open", None)       # the patient never confirmed the emergency
+    listed = api.get(f"{API}/doctor/alerts", headers=auth_header(people["doctor"])).json()
+    assert [(a["id"], a["level"], a["status"]) for a in listed] == [(alert["id"], "emergency", "open")]
+    assert confirm(api, alert["id"], p).json()["status"] == "acknowledged"
+
+
+def test_a_doctor_review_made_during_the_password_check_is_kept(api, conn, people, monkeypatch):
+    p = people["patient"]
+    alert = reading(api, p, 186, 118)
+    auth = api.app.state.gotrue
+    check = auth.password
+
+    def review_meanwhile(email, password):   # the doctor reviews while Supabase Auth checks the password
+        conn.execute(text("update public.alerts set status = 'reviewed', reviewed_at = now() where id = :id"),
+                     {"id": alert["id"]})
+        return check(email, password)
+    monkeypatch.setattr(auth, "password", review_meanwhile)
+    r = confirm(api, alert["id"], p)
+    assert r.status_code == 409 and r.json()["error"]["details"]["from"] == "reviewed"
+    # Never overwritten to acknowledged. (On the shared test connection the refused request also rolls back the
+    # simulated review; in real use the doctor's review is its own committed transaction.)
+    assert conn.execute(text("select status from public.alerts where id = :id"),
+                        {"id": alert["id"]}).scalar_one() != "acknowledged"
+
+
+def test_a_still_severe_recheck_after_the_patient_confirmed_rings_again(api, conn, people):
+    p = people["patient"]
+    alert = reading(api, p, 186, 118)
+    confirm(api, alert["id"], p)
+    recheck = api.post(f"{API}/patients/{p}/measurements", json={"systolic": 184, "diastolic": 121},
+                       headers=auth_header(p)).json()
+    assert recheck["evaluation"]["rule_id"] == "R-SEV-2" and recheck["alert"]["id"] == alert["id"]
+    assert recheck["alert"]["status"] == "open" and recheck["alert"]["persistent"] is True
+    lower = api.post(f"{API}/patients/{p}/measurements", json={"systolic": 150, "diastolic": 95},
+                     headers=auth_header(p)).json()                     # R-SEV-3: not a new bad reading
+    confirm(api, alert["id"], p)
+    assert lower["evaluation"]["rule_id"] == "R-SEV-3"
+    assert conn.execute(text("select status from public.alerts where id = :id"),
+                        {"id": alert["id"]}).scalar_one() == "acknowledged"

@@ -74,7 +74,7 @@ export function addMeasurement(patientId, body) {
 }
 
 export function addSymptomReport(patientId, body) {
-  return request(`${base(patientId)}/symptom-reports`, { method: "POST", body });
+  return signalling(request(`${base(patientId)}/symptom-reports`, { method: "POST", body }));
 }
 
 // File imports: the CSV text goes in a JSON body (no multipart); the server parses it and decides everything.

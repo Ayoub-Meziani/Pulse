@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { listMeasurements, listSymptomReports } from "../../api/patient";
 import BloodPressureChart from "../../components/charts/BloodPressureChart";
@@ -15,7 +16,8 @@ export default function HistoryPage() {
   const { user } = useAuth();
   const readings = useResource((signal) => listMeasurements(user.id, { limit: 200, signal }), `h:${user.id}`);
   const symptoms = useResource((signal) => listSymptomReports(user.id, { limit: 50, signal }), `sy:${user.id}`);
-  const [importing, setImporting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [importing, setImporting] = useState(() => searchParams.has("importer"));  // ?importer=1: link from the ring panel
   const [importBusy, setImportBusy] = useState(false);  // the panel stays open until the server has answered
 
   return (
@@ -30,8 +32,8 @@ export default function HistoryPage() {
         } />
 
       {importing && (
-        <Card>
-          <CardHeader title="Importer un fichier" subtitle="Le serveur vérifie chaque ligne et décide des alertes, comme pour une saisie."
+        <Card variant="elevated" className="animate-fade-up">
+          <CardHeader icon="upload" title="Importer un fichier" subtitle="Le serveur vérifie chaque ligne et décide des alertes, comme pour une saisie."
             action={<Button variant="ghost" disabled={importBusy} onClick={() => setImporting(false)}>Fermer</Button>} />
           <CardBody><ImportPanel patientId={user.id} timeZone={user.timezone} onImported={readings.reload} onBusy={setImportBusy} /></CardBody>
         </Card>

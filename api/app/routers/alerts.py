@@ -52,6 +52,16 @@ def transition(alert_id: UUID, body: TransitionIn, request: Request,
     return alert_out(alert)
 
 
+def _not_open(alert: Alert, user: CurrentUser) -> AlertOut | None:
+    """None when the alert can be confirmed; the unchanged alert for a repeat; 409 otherwise."""
+    if alert.status == "open":
+        return None
+    if alert.status == "acknowledged" and alert.acknowledged_by == user.id:
+        return alert_out(alert)  # repeat: unchanged
+    raise ApiError(409, "invalid_transition", f"An alert that is {alert.status} cannot be confirmed.",
+                   {"from": alert.status, "to": "acknowledged"})
+
+
 @router.post("/alerts/{alert_id}/patient-confirmation", response_model=AlertOut,
              summary="Patient: re-enter the password to acknowledge an open alert (seen; not a medical resolution)")
 def patient_confirmation(alert_id: UUID, body: PatientConfirmationIn, request: Request,
@@ -59,11 +69,8 @@ def patient_confirmation(alert_id: UUID, body: PatientConfirmationIn, request: R
     alert = alert_service.get_alert(db, alert_id)
     if user.role != "patient" or alert.patient_id != user.id:
         raise ApiError(403, "forbidden", "Only the patient can confirm their own alert.")
-    if alert.status != "open":
-        if alert.status == "acknowledged" and alert.acknowledged_by == user.id:
-            return alert_out(alert)  # repeat: unchanged
-        raise ApiError(409, "invalid_transition", f"An alert that is {alert.status} cannot be confirmed.",
-                       {"from": alert.status, "to": "acknowledged"})
+    if (unchanged := _not_open(alert, user)) is not None:
+        return unchanged
     gotrue = request.app.state.gotrue
     if gotrue is None:
         raise ApiError(503, "auth_unavailable", "Authentication is not configured.")
@@ -76,6 +83,10 @@ def patient_confirmation(alert_id: UUID, body: PatientConfirmationIn, request: R
     if session.get("user", {}).get("id") != str(user.id):
         raise ApiError(403, "reauthentication_failed", "The password is incorrect.")
     gotrue.revoke(session["access_token"])  # the check needed no new session
+    # Read again under a row lock: the doctor may have reviewed the alert during the password check.
+    db.refresh(alert, with_for_update=True)
+    if (unchanged := _not_open(alert, user)) is not None:
+        return unchanged
     alert_service.transition(db, alert, user, "acknowledged", None, request.app.state.clock(), False,
                              password_confirmed=True)
     db.commit()

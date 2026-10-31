@@ -23,10 +23,11 @@ function HomeRedirect() {
 
 function NotFound() {
   return (
-    <section className="mx-auto mt-10 max-w-md rounded-2xl border border-line bg-surface p-8 text-center">
-      <h1 className="text-xl font-bold text-ink">Page introuvable</h1>
+    <section className="card mx-auto mt-10 max-w-md animate-scale-in rounded-3xl border border-line/70 bg-surface p-8 text-center shadow-lift">
+      <p className="text-gradient tnum text-6xl font-extrabold tracking-tight" aria-hidden="true">404</p>
+      <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-ink">Page introuvable</h1>
       <p className="mt-2 text-ink-muted">La page demandée n'existe pas.</p>
-      <ButtonLink to="/" className="mt-5">Retour à l'accueil</ButtonLink>
+      <ButtonLink to="/" className="mt-6">Retour à l'accueil</ButtonLink>
     </section>
   );
 }
