@@ -13,7 +13,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 Role = Literal["patient", "doctor", "admin"]
 Source = Literal["manual", "device_sync", "csv_import", "simulated"]
@@ -516,6 +516,83 @@ class WearableSampleOut(BaseModel):
     source: WearableSource = Field(description="'simulated' samples are generated demo data and must be labelled.")
 
 
+# ---------------------------------------------------------------- file imports (patient)
+# ponytail: the limit is checked after the body is read; add a Content-Length limit if served beyond localhost.
+IMPORT_CSV_MAX_CHARS = 300_000
+IMPORT_TZ_DESCRIPTION = "IANA zone for timestamps without an offset; defaults to the profile time zone."
+
+
+class ReadingsImportIn(BaseModel):
+    """A cuff export sent as CSV text (no multipart upload). Columns: measured_at, systolic, diastolic required;
+    pulse, unit (mmHg only), position, arm, note optional; lines starting with '#' are comments.
+
+    Rows measured within the last hour go through the same rules as a manual reading, oldest first; older rows
+    are history only. Rows declared simulated never create an alert: the rules' result is returned as a preview."""
+    file_name: str = Field(min_length=1, max_length=255)
+    csv: str = Field(min_length=1, max_length=IMPORT_CSV_MAX_CHARS)
+    tz: str | None = Field(None, description=IMPORT_TZ_DESCRIPTION)
+    provenance: Literal["measured", "simulated"] = Field(description=(
+        "What the file really contains. A file whose first comment line starts with '# SIMULATED' or "
+        "'# SYNTHETIC' must be 'simulated'. 'simulated' is accepted only when the server runs in demo mode."))
+
+
+class RingImportIn(BaseModel):
+    """A ring / bracelet export as CSV text. Columns: measured_at, metric (heart_rate, hrv_rmssd, spo2,
+    skin_temperature), value required; unit, external_id optional. Ring data never reaches the rules (D18)."""
+    file_name: str = Field(min_length=1, max_length=255)
+    csv: str = Field(min_length=1, max_length=IMPORT_CSV_MAX_CHARS)
+    tz: str | None = Field(None, description=IMPORT_TZ_DESCRIPTION)
+    source: Literal["csv_import", "simulated"] = Field(description=(
+        "'csv_import' for a real device export, 'simulated' for generated data (demo mode only). A file whose first "
+        "comment line starts with '# SIMULATED' or '# SYNTHETIC' must be 'simulated'."))
+
+
+class RejectedRow(BaseModel):
+    row: int | None = Field(description="Line number in the file (comments and the header count).")
+    reasons: list[str]
+
+
+class ImportStatusCounts(BaseModel):
+    valid: int = 0
+    needs_review: int = 0
+    invalid: int = 0
+
+
+class SimulatedPreview(BaseModel):
+    measured_at: datetime
+    level: Level
+    rule_id: str | None
+
+
+class ImportResult(BaseModel):
+    batch_id: UUID
+    rows_total: int
+    inserted: int
+    duplicates: int = Field(description="Rows identical to a stored reading (time, systolic, diastolic, pulse): skipped.")
+    rejected: list[RejectedRow]
+    by_status: ImportStatusCounts = Field(description="Validation of the inserted rows by the database (policy pulse-v1).")
+    historical: int = Field(description="Inserted rows measured more than one hour ago: history only, no alert.")
+    past_severe: int = Field(description="Historical measured rows at or above 180/120; next_step then asks for a "
+                                         "reading now.")
+    alerts: list[AlertOut] = Field(description="Alerts created or updated by fresh, measured rows.")
+    measurement: MeasurementOut | None = Field(description="The fresh measured reading behind `evaluation`.")
+    evaluation: EvaluationOut | None = Field(description=(
+        "Highest-level rule result among fresh measured rows (ties: the latest); requires_symptom_check is true if "
+        "any fresh row needs it. Drive the symptom check and recheck from it exactly as for a manual reading."))
+    simulated_preview: list[SimulatedPreview] = Field(description="What the rules would have decided for fresh "
+                                                                  "simulated rows. No alert was created.")
+    next_step: str
+
+
+class RingImportResult(BaseModel):
+    device_id: UUID
+    rows_total: int
+    inserted_by_metric: dict[str, int]
+    duplicates: int
+    rejected: list[RejectedRow]
+    next_step: str
+
+
 # ---------------------------------------------------------------- ML (doctor only)
 PREDICTION_LIMITATIONS = ("Experimental model estimate trained on synthetic data only. Not a measurement, "
                           "not clinically validated, never used for alerts or emergency guidance.")
@@ -539,6 +616,101 @@ class PredictionOut(BaseModel):
     trained_on: str | None
     generated_at: datetime | None
     limitations: str = PREDICTION_LIMITATIONS
+
+
+# ---------------------------------------------------------------- ring ML outputs (doctor only, migrations M7/M9)
+# Served only when the server sets PULSE_SERVE_RING_ML (else 404 feature_disabled; proposed decision D26).
+# Vocabularies match the database CHECKs (tests/test_db_models.py compares them).
+FlagMetric = Literal["heart_rate", "hrv_rmssd", "spo2", "skin_temperature", "multivariate", "sleep"]
+FlagKind = Literal["outside_reference", "personal_anomaly", "multivariate_anomaly", "early_warning"]
+WindowKind = Literal["live_10min", "night", "forecast"]
+FlagReviewStatus = Literal["open", "confirmed", "dismissed"]
+BandStatistic = Literal["night_median", "night_min", "live_10min_median"]
+BandStatus = Literal["proposed", "active", "superseded", "rejected"]
+BandBasis = Literal["reference", "model_proposal", "doctor"]
+ControlStatus = Literal["at_or_below_target", "above_target", "insufficient_data"]
+HomeBpCategory = Literal["normal", "elevated", "stage_1_range", "stage_2_range"]
+RING_ML_LIMITATIONS = ("Experimental, not clinically validated. Never an alert and never patient guidance; visible "
+                       "only to the assigned doctor while the screen is open (no notification).")
+
+
+class WearableFlagOut(BaseModel):
+    """A ring flag written by the offline monitor. kind 'early_warning' (window_kind 'forecast') is the live-v1
+    engine: value = forecast in 20 min, score = probability the limit is crossed within 20 min."""
+    id: UUID
+    patient_id: UUID
+    metric: FlagMetric
+    kind: FlagKind
+    window_kind: WindowKind
+    window_start: datetime
+    window_end: datetime
+    value: float | None
+    score: float | None
+    reference_basis: str
+    band_id: UUID | None
+    model_version: str
+    review_status: FlagReviewStatus
+    reviewed_at: datetime | None
+    review_note: str | None
+    created_at: datetime
+    limitations: str = RING_ML_LIMITATIONS
+
+
+class FlagReviewIn(BaseModel):
+    review_status: Literal["confirmed", "dismissed"]
+    review_note: str | None = Field(None, max_length=2000)
+
+
+class WeeklyReportOut(BaseModel):
+    """Weekly report written by the offline job. summary: bp_home, ring, optional pulse_vs_population; mbp_estimate
+    only when it comes from the served BP model and targets today or later (else null)."""
+    id: UUID
+    patient_id: UUID
+    week_start: date
+    home_bp_category: HomeBpCategory | None
+    control_status: ControlStatus
+    next_week_above_target_prob: float | None
+    model_versions: dict
+    summary: dict
+    status: Literal["ready", "reviewed"]
+    reviewed_at: datetime | None
+    doctor_comment: str | None
+    created_at: datetime
+    updated_at: datetime
+    limitations: str = RING_ML_LIMITATIONS
+
+
+class ReportReviewIn(BaseModel):
+    doctor_comment: str | None = Field(None, max_length=4000)
+
+
+class BandOut(BaseModel):
+    """A personal ring range. The model proposes; only the assigned doctor activates (approve) or rejects."""
+    id: UUID
+    patient_id: UUID
+    metric: WearableMetric
+    statistic: BandStatistic
+    low: float
+    high: float
+    basis: BandBasis
+    status: BandStatus
+    proposed_model_version: str | None
+    approved_at: datetime | None
+    effective_from: date | None
+    supersedes_id: UUID | None
+    created_at: datetime
+    limitations: str = RING_ML_LIMITATIONS
+
+
+class BandApproveIn(BaseModel):
+    low: float | None = Field(None, description="Edit the proposed range before approving (basis becomes 'doctor').")
+    high: float | None = None
+
+    @model_validator(mode="after")
+    def _ordered(self):
+        if self.low is not None and self.high is not None and self.low >= self.high:
+            raise ValueError("low must be below high")
+        return self
 
 
 # ---------------------------------------------------------------- errors
