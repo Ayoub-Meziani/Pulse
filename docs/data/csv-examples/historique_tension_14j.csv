@@ -1,0 +1,30 @@
+# SIMULATED fictional cuff history (14 days, morning + evening). Import in Historique as 'Donnees simulees'.
+measured_at,systolic,diastolic,pulse,unit,position,arm,note
+2026-10-17T07:30:00+01:00,132,83,67,mmHg,sitting,left,
+2026-10-17T21:00:00+01:00,130,82,73,mmHg,sitting,left,
+2026-10-18T07:30:00+01:00,132,88,76,mmHg,sitting,left,
+2026-10-18T21:00:00+01:00,133,81,70,mmHg,sitting,left,
+2026-10-19T07:30:00+01:00,128,84,61,mmHg,sitting,left,
+2026-10-19T21:00:00+01:00,136,83,72,mmHg,sitting,left,
+2026-10-20T07:30:00+01:00,138,84,73,mmHg,sitting,left,apres le cafe
+2026-10-20T21:00:00+01:00,133,79,79,mmHg,sitting,left,
+2026-10-21T07:30:00+01:00,136,87,68,mmHg,sitting,left,
+2026-10-21T21:00:00+01:00,129,88,70,mmHg,sitting,left,
+2026-10-22T07:30:00+01:00,135,88,78,mmHg,sitting,left,
+2026-10-22T21:00:00+01:00,122,89,73,mmHg,sitting,left,
+2026-10-23T07:30:00+01:00,142,85,73,mmHg,sitting,left,mal dormi
+2026-10-23T21:00:00+01:00,141,85,69,mmHg,sitting,left,
+2026-10-24T07:30:00+01:00,137,87,75,mmHg,sitting,left,
+2026-10-24T21:00:00+01:00,136,85,75,mmHg,sitting,left,
+2026-10-25T07:30:00+01:00,136,85,83,mmHg,sitting,left,
+2026-10-25T21:00:00+01:00,134,91,72,mmHg,sitting,left,
+2026-10-26T07:30:00+01:00,141,91,68,mmHg,sitting,left,repas sale (pain)
+2026-10-26T21:00:00+01:00,134,87,70,mmHg,sitting,left,
+2026-10-27T07:30:00+01:00,146,95,67,mmHg,sitting,left,
+2026-10-27T21:00:00+01:00,135,90,74,mmHg,sitting,left,
+2026-10-28T07:30:00+01:00,149,89,75,mmHg,sitting,left,
+2026-10-28T21:00:00+01:00,140,84,74,mmHg,sitting,left,
+2026-10-29T07:30:00+01:00,139,93,70,mmHg,sitting,left,stress au travail
+2026-10-29T21:00:00+01:00,141,95,79,mmHg,sitting,left,
+2026-10-30T07:30:00+01:00,149,93,69,mmHg,sitting,left,
+2026-10-30T21:00:00+01:00,148,92,68,mmHg,sitting,left,

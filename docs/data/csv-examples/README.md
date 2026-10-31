@@ -83,3 +83,12 @@ To try again, wait 2 minutes before making new files: the same values within 2 m
 | `simulated_now_severe.csv` (186/118) | Must be imported as **Données simulées**. It shows "Ce que les règles auraient fait: Très élevée", with no alert and no alarm. Use this one on stage. |
 
 The `TEST_` files are fictional readings that the app accepts as measured, so the full real-reading path can be tried. Use them only on the local stack, ideally with a test account. Never use them on a shared database or in the presentation, where the simulated file shows the same rules honestly labelled.
+
+## Larger examples (old dates: they go to the history)
+
+Both are marked `# SIMULATED`: import them as **Données simulées**.
+
+| File | What you should see |
+|---|---|
+| `historique_tension_14j.csv` | 28 readings (morning and evening, 17–30 Oct 2026), slowly rising from about 130/83 to about 148/92, with pulse, position, arm and a few notes. No alert. |
+| `bracelet_3_nuits.csv` | 1,164 ring values: 3 nights, 23:00–07:00, every 5 minutes. On the last night SpO2 drops to about 91–92 % between 02:10 and 03:00 (heart rate up, HRV down). Never an alert. |
