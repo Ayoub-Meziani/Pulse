@@ -137,19 +137,19 @@ function ReadingForm({ recheck, guidance, onSubmit }) {
         <label className={`${label} text-center`}>Systolique
           <span className="block text-xs font-normal text-ink-muted">chiffre du haut</span>
           <input className={big} inputMode="numeric" autoComplete="off" required
-            value={systolic} onChange={(e) => setSystolic(e.target.value)} placeholder="128" aria-describedby="unit-mmhg" />
+            value={systolic} onChange={(e) => setSystolic(e.target.value)} aria-describedby="unit-mmhg" />
         </label>
         <label className={`${label} text-center`}>Diastolique
           <span className="block text-xs font-normal text-ink-muted">chiffre du bas</span>
           <input className={big} inputMode="numeric" autoComplete="off" required
-            value={diastolic} onChange={(e) => setDiastolic(e.target.value)} placeholder="82" aria-describedby="unit-mmhg" />
+            value={diastolic} onChange={(e) => setDiastolic(e.target.value)} aria-describedby="unit-mmhg" />
         </label>
         <p id="unit-mmhg" className="col-span-2 -mt-1 text-center text-xs text-ink-subtle">Valeurs en mmHg.</p>
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className={label}>Pouls <span className="font-normal text-ink-muted">(facultatif, bpm)</span>
-          <input className={`${field} tnum`} inputMode="numeric" autoComplete="off" value={pulse} onChange={(e) => setPulse(e.target.value)} placeholder="72" />
+          <input className={`${field} tnum`} inputMode="numeric" autoComplete="off" value={pulse} onChange={(e) => setPulse(e.target.value)} />
         </label>
         <label className={label}>Date et heure
           <input className={field} type="datetime-local" required value={measuredAt} onChange={(e) => setMeasuredAt(e.target.value)} />

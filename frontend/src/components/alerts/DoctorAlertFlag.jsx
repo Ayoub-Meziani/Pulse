@@ -144,7 +144,25 @@ export default function DoctorAlertFlag({ user }) {
 
       {alerts.length > 0 && (
         <div className="mb-6 space-y-3">
-          {alerts.map((a) => (
+          {/* The most serious alert in full; the others in one line each, so the page stays reachable. */}
+          {alerts.slice(1).length > 0 && (
+            <details className="rounded-2xl border border-line bg-surface px-4 py-3 text-sm shadow-card">
+              <summary className="min-h-11 cursor-pointer content-center font-semibold text-ink">
+                {alerts.length - 1} autre(s) alerte(s) en attente de clôture
+              </summary>
+              <ul className="mt-2 divide-y divide-line">
+                {alerts.slice(1).map((a) => (
+                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span className="text-ink"><strong>{a.level === "emergency" ? "URGENCE" : "TENSION TRÈS ÉLEVÉE"}</strong> — {a.patient_name}
+                      {a.reading && <span className="tnum text-ink-muted"> · {a.reading.systolic}/{a.reading.diastolic} mmHg</span>}
+                      <span className="text-ink-muted"> · {formatAgo(a.created_at)}</span></span>
+                    <Link to={`/doctor/patients/${a.patient_id}?onglet=alertes`} className="inline-flex min-h-11 items-center font-semibold text-brand underline">Ouvrir le dossier</Link>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {alerts.slice(0, 1).map((a) => (
             <AlertFlag key={a.id} alert={a} reading={a.reading} timeZone={user.timezone} who={a.patient_name}>
               <Link to={`/doctor/patients/${a.patient_id}?onglet=alertes`}
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-brand underline shadow-sm hover:bg-brand-soft">

@@ -273,6 +273,11 @@ body::before {
   outline-offset: 2px;
 }
 
+/* main gets focus programmatically (skip link, closing a dialog): no ring around the whole page. */
+#main:focus-visible {
+  outline: none;
+}
+
 /* Inside the red alarm the focus ring is white. */
 .alarm :focus-visible {
   outline-color: #fff;

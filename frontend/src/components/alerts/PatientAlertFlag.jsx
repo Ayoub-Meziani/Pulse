@@ -85,7 +85,8 @@ export default function PatientAlertFlag({ user, config }) {
       const top = list.find((a) => a.status === "open") ?? list[0];
       if (top?.measurement_id) {
         const detail = await getAlert(top.id);
-        const m = detail.measurements.find((x) => x.id === top.measurement_id) ?? detail.measurements[0];
+        // The newest reading of the episode: a recheck that reopened the alert is the one to show (its time is shown).
+        const m = detail.measurements.at(-1) ?? detail.measurements.find((x) => x.id === top.measurement_id);
         if (m) setReadings((r) => ({ ...r, [top.id]: m }));
       }
     } catch {
