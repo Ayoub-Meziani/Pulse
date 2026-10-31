@@ -64,8 +64,8 @@
 </ol>
 <pre><span class="c"># terminal 1: the local database (if it was stopped)</span>
 api\.venv\Scripts\python scripts\dev_stack.py start
-<span class="c"># terminal 1: the API, set to show the AI estimate model</span>
-$env:PULSE_ML_MODEL_VERSION = "mbp-v1.1"; api\.venv\Scripts\python scripts\dev_api.py
+<span class="c"># terminal 1: the API, set to show the AI estimate model and the doctor's ring screens</span>
+$env:PULSE_ML_MODEL_VERSION = "mbp-v1.1"; $env:PULSE_SERVE_RING_ML = "1"; api\.venv\Scripts\python scripts\dev_api.py
 <span class="c"># terminal 2: the website, then open http://localhost:5173</span>
 cd frontend; npm run dev</pre>
 <ol start="3">
@@ -82,8 +82,9 @@ $env:DATABASE_URL = "postgresql://postgres:$([uri]::EscapeDataString($pw))@127.0
 .venv\Scripts\python -m pulse_data.ingest import-wearable-csv --patient patient.b@demo.pulse.test --file data\demo\ring_karim_28_nights.csv --source simulated
 <span class="c"># Nadia's cuff history from before the app (14 days, labelled simulated)</span>
 .venv\Scripts\python -m pulse_data.ingest import-csv --patient patient.a@demo.pulse.test --file data\demo\cuff_nadia_14_days.csv --provenance simulated --method cuff_oscillometric
-<span class="c"># the AI estimate for tomorrow morning, shown in the doctor's Estimation tab</span>
-cd ml; ..\.venv\Scripts\python -m pulse_ml.predict --all; cd ..</pre>
+<span class="c"># the AI estimate for tomorrow morning (doctor's Estimation tab), night flags (Signaux bracelet),
+# weekly reports and personal ranges (Rapport hebdo, Plages)</span>
+cd ml; ..\.venv\Scripts\python -m pulse_ml.predict --all; ..\.venv\Scripts\python -m pulse_ml.monitor --nights; ..\.venv\Scripts\python -m pulse_ml.weekly; cd ..</pre>
 <ol start="5">
   <li>Sign in once with each account to check. Zoom the browser to 110–125 % for the projector.</li>
 </ol>
@@ -102,12 +103,22 @@ cd ml; ..\.venv\Scripts\python -m pulse_ml.predict --all; cd ..</pre>
 <div class="scenario">
 <div class="do"><span class="tag t-do">DO</span><div><b>Nouvelle mesure</b>: enter <b>185 / 125</b>, pulse 95. Answer the symptom questions (for example "no symptoms").</div></div>
 <div class="see"><span class="tag t-see">SEE</span><div>Rule R-SEV-1 (≥ 180 or ≥ 120) opens a <b>severe alert</b> and asks the symptom check first. With no symptom: rest, then a recheck after a 60-second countdown (still ≥ 180/120 → "contact your doctor or seek urgent care"; lower → the alert stays open for the doctor). With a red-flag symptom such as chest pain: "Call emergency services now" and the emergency screen. The <b>Urgence</b> button dials the demo number set for the team, never 14. The guidance text is in English until the clinician-reviewed French version exists.</div></div>
-<div class="say"><span class="tag t-say">SAY</span><div>"These alerts come from fixed, clinician-reviewed rules. No AI is involved in any alert."</div></div>
+<div class="do"><span class="tag t-do">DO</span><div><b>Nouvelle mesure</b> again: enter <b>80 / 50</b>, then <b>1 / 1 / 1</b> (a typing mistake or a failed cuff).</div></div>
+<div class="see"><span class="tag t-see">SEE</span><div>80/50: <b>"Tension basse"</b> and a low-pressure alert for the doctor (R-LOW-1, below 90/60; below 70 systolic, R-LOW-2 also asks the symptom check and a recheck). 1/1/1: the symptom check first, then <b>"Mesure non valide"</b> with the reasons in French; the reading is kept but never used for averages, the chart or alerts. The low-pressure rule is new (proposed decision D27) and waits for clinician review.</div></div>
+<div class="two">
+  <figure><img src="demo/7_low_pressure_80_50.png" alt="Low pressure result"><figcaption>80/50: low blood pressure is flagged.</figcaption></figure>
+  <figure><img src="demo/8_invalid_1_1_1.png" alt="Invalid reading result"><figcaption>1/1/1: invalid, never shown as "all fine".</figcaption></figure>
 </div>
+<div class="do"><span class="tag t-do">DO</span><div>Import a cuff file in the app. In terminal 3 make today's file, then upload it within about 8 minutes: <b>Historique → Importer un fichier</b>, choose <code>data\demo\cuff_nadia_today.csv</code>, keep <b>Données simulées (démo)</b> (the file declares itself simulated, so "Mesures réelles" is locked).</div></div>
+<pre>.venv\Scripts\python -m pulse_data.simulate demo-csv-today</pre>
+<div class="see"><span class="tag t-see">SEE</span><div>The server checks every row: counts, rejected rows, and "Ce que les règles auraient fait": the 186/118 from 2 minutes ago would be <b>Très élevée</b>, but simulated data never creates an alert. The 40-minute-old row joins the history. Uploading the same file again: "Ce fichier a déjà été importé".</div></div>
+<div class="say"><span class="tag t-say">SAY</span><div>"A real cuff export, marked 'Mesures réelles', goes through exactly the same rules as a typed reading: a very high reading from the last 10 minutes opens an alert and asks the symptom check. Older rows go to the history, and if one was very high the app asks to measure now. These alerts come from fixed rules written from public medical guidance. No AI is involved in any alert."</div></div>
+</div>
+<figure><img src="demo/6_import_simulated_preview.png" alt="Simulated import preview"><figcaption>In-app import of today's simulated cuff file: a preview of the rules, no alert.</figcaption></figure>
 
 <div class="scenario">
 <h3>Scenario 2: Karim, a patient with a ring (about 2 min)</h3>
-<div class="do"><span class="tag t-do">DO</span><div>Sign in as Karim (second window). Scroll to <b>Bracelet (facultatif)</b>. Show the import command in the terminal (it prints counts only: 1,701 samples added; running it again adds 0).</div></div>
+<div class="do"><span class="tag t-do">DO</span><div>Sign in as Karim (second window). Scroll to <b>Bracelet (facultatif)</b>. Show the import command in the terminal (it prints counts only: 1,701 samples added; running it again adds 0). The same ring file can also be imported in the app from this panel.</div></div>
 <div class="see"><span class="tag t-see">SEE</span><div>Heart rate, SpO₂, HRV and skin temperature tiles: latest value, how many values, the range. Every tile and the ring itself carry the "Simulé" badge.</div></div>
 <div class="say"><span class="tag t-say">SAY</span><div>"A ring never measures blood pressure here. It adds context for the doctor and never triggers an alert. Blood pressure still comes from the cuff."</div></div>
 </div>
@@ -123,6 +134,15 @@ cd ml; ..\.venv\Scripts\python -m pulse_ml.predict --all; cd ..</pre>
 <figure><img src="demo/3_doctor_karim_ring_live.png" alt="Doctor ring tab"><figcaption>The doctor's "Bracelet" tab for Karim during the live stream (SpO₂ dip).</figcaption></figure>
 
 <div class="scenario">
+<h3>Scenario 3b: the live early warning (start it ~10 minutes before you show it)</h3>
+<div class="do"><span class="tag t-do">DO</span><div>Terminal 4 (in <code>ml\</code>, with the same <code>DATABASE_URL</code>): the live engine. Terminal 3: a falling-oxygen night for Karim. Then doctor → Karim → <b>Signaux bracelet</b> (refreshes every 10 s).</div></div>
+<pre>..\.venv\Scripts\python -m pulse_ml.monitor --follow --every 5
+.venv\Scripts\python -m pulse_data.stream --patient-email patient.b@demo.pulse.test --scenario oxygen_falling --speed 5 --minutes 20</pre>
+<div class="see"><span class="tag t-see">SEE</span><div>The stream first adds 30 minutes of history (the engine needs it), then plays the night 5× faster. About 7–10 minutes in, a <b>"Signal précoce (ML)"</b> appears, before the "Hors référence" flag when the limit is crossed. Every flag is marked "Simulé" because Karim has no real ring. The doctor can confirm or dismiss each flag with a note. Nothing is sent to anyone: no alert, no notification.</div></div>
+<div class="say"><span class="tag t-say">SAY</span><div>"The model warns a few minutes before the limit, on a simulated night. It is experimental, doctor-only, and never an alert. It was tested only on simulated nights; real use needs real data and clinical review."</div></div>
+</div>
+
+<div class="scenario">
 <h3>Scenario 4: the doctor (about 2 min)</h3>
 <div class="do"><span class="tag t-do">DO</span><div>Sign in as the doctor. Show "Mes patients" (refreshes every 15 s). Open Karim: <b>Alertes</b> (his severe reading), <b>Urgences</b> (the recorded emergency episode), <b>Bracelet</b>, then <b>Notes</b>: write an advice note and show it on Karim's side.</div></div>
 <div class="see"><span class="tag t-see">SEE</span><div>The doctor only sees assigned patients; every value shows its origin (manual, imported, simulated).</div></div>
@@ -136,18 +156,19 @@ cd ml; ..\.venv\Scripts\python -m pulse_ml.predict --all; cd ..</pre>
 <h3>Scenario 5: the AI (about 1 min, optional)</h3>
 <div class="do"><span class="tag t-do">DO</span><div>Doctor → Karim → <b>Estimation</b>.</div></div>
 <div class="see"><span class="tag t-see">SEE</span><div>Tomorrow morning's estimated blood pressure with a 90 % range, model <code>mbp-v1.1</code>, clearly labelled experimental, doctor-only, never used by alerts.</div></div>
-<div class="say"><span class="tag t-say">SAY</span><div>"The model was tested day by day for 30 days on 100 patients it had never seen, and beat simple methods on every day. Those patients are simulated; real accuracy needs real PULSE data." For the ring models and the live early warning, switch to the presentation PDF (slides 8–10): they have no screen yet.</div></div>
+<div class="say"><span class="tag t-say">SAY</span><div>"The model was tested day by day for 30 days on 100 patients it had never seen, and beat simple methods on every day. Those patients are simulated; real accuracy needs real PULSE data." For the ring models and the live early warning, show <b>Signaux bracelet</b>, <b>Rapport hebdo</b> (weekly report; the doctor marks it reviewed) and <b>Plages</b> (personal ranges proposed by the model; the doctor approves or rejects, and a rejection sticks). The presentation PDF (slides 8–10) explains how they were tested.</div></div>
 </div>
 <figure><img src="demo/5_doctor_karim_estimate.png" alt="Estimation tab"><figcaption>The Estimation tab (doctor only).</figcaption></figure>
 
-<h2>4. What is not there yet (say it before someone asks)</h2>
+<h2>4. What is done, and what is not (say it before someone asks)</h2>
 <table>
   <tr><th style="width:32%">Item</th><th>Status</th></tr>
   <tr><td>A real ring or watch</td><td><span class="pill no">NO DEVICE</span> Ring data is simulated (CSV + live simulator). The import path is ready for a real export.</td></tr>
-  <tr><td>Upload button in the app</td><td><span class="pill part">TERMINAL</span> CSV import is a command today. An in-app upload needs an API endpoint and a screen (backend and frontend teammates).</td></tr>
-  <tr><td>Alerts on imported readings</td><td><span class="pill part">BY DESIGN TODAY</span> Rules run when a reading is entered in the app; an imported file goes straight to history. A backend import path through the rules is the fix.</td></tr>
+  <tr><td>Upload button in the app</td><td><span class="pill ok">DONE</span> Cuff and ring files (Historique, and the ring panel). Proposed decision D26, waiting for Ayoub's review.</td></tr>
+  <tr><td>Alerts on imported readings</td><td><span class="pill ok">DONE</span> Real cuff rows from the last 10 minutes go through the same rules as a typed reading; older rows are history (a very high one asks to measure now). Simulated rows only show a preview. The 10-minute window waits for clinician sign-off.</td></tr>
+  <tr><td>Low blood pressure</td><td><span class="pill ok">DONE</span> Below 90/60 is flagged; impossible values (1/1) are invalid and ask the symptom check. Proposed decision D27, thresholds and wording wait for clinician review.</td></tr>
   <tr><td>Ring data raising alerts</td><td><span class="pill ok">ON PURPOSE</span> Never (team decision D18).</td></tr>
-  <tr><td>Screens for ring flags, live early warnings, weekly reports</td><td><span class="pill part">DATA ONLY</span> Built and tested; shown in the presentation PDF.</td></tr>
+  <tr><td>Screens for ring flags, live early warnings, weekly reports, personal ranges</td><td><span class="pill ok">DONE</span> Doctor only, behind a server switch (<code>PULSE_SERVE_RING_ML</code>, off by default); experimental, not clinically reviewed; no notification.</td></tr>
   <tr><td>Live warnings in the cloud</td><td><span class="pill part">FROZEN</span> Kept in the database by Ayoub's decision; the engine stays off until he lifts the freeze.</td></tr>
 </table>
 
@@ -165,11 +186,13 @@ cd ml; ..\.venv\Scripts\python -m pulse_ml.predict --all; cd ..</pre>
   <tr><td>Page doesn't load</td><td>Terminal 2: <code>cd frontend; npm run dev</code>. Use <code>localhost</code>, not <code>127.0.0.1</code>.</td></tr>
   <tr><td>Estimation tab says "Aucune estimation disponible"</td><td>The API was started without <code>PULSE_ML_MODEL_VERSION=mbp-v1.1</code>, or the estimate is from an earlier day: run the <code>predict</code> line again (step 2.4).</td></tr>
   <tr><td>Ring panel not moving</td><td>Wait 10 s (auto-refresh) or press F5. Check terminal 3: the stream prints its count when it ends.</td></tr>
+  <tr><td>Doctor tabs "Signaux bracelet", "Rapport hebdo", "Plages" are missing or empty</td><td>The API was started without <code>PULSE_SERVE_RING_ML=1</code> (step 2.2), or the <code>monitor --nights</code> / <code>weekly</code> lines were not run (step 2.4).</td></tr>
+  <tr><td>Imported file: "Ce que les règles auraient fait" is missing</td><td>The newest row is more than 10 minutes old: run <code>demo-csv-today</code> again and upload the new file.</td></tr>
   <tr><td><code>stream</code> says "no simulator device"</td><td>Import Karim's ring file first (step 2.4).</td></tr>
   <tr><td><code>import-csv</code> says "refused: already imported"</td><td>Normal: the same cuff file is never imported twice (duplicate protection, worth showing).</td></tr>
   <tr><td>Start from a clean state</td><td>Local only, deletes the local demo data: <code>dev_stack.py down</code> (type <code>yes</code>), <code>dev_stack.py up</code>, <code>scripts\dev_seed.py</code> (new passwords in <code>.dev\demo-credentials.txt</code>), then step 2.4 again.</td></tr>
 </table>
-<p class="muted">Never point <code>DATABASE_URL</code> at the cloud: the stream refuses a non-local database, and the cloud is frozen. Tools added for this demo: <code>pulse_data.ingest import-wearable-csv</code>, <code>pulse_data.stream --patient-email</code>, <code>pulse_data.simulate demo-csv</code> (branch <code>feat/data-demo-import</code>).</p>
+<p class="muted">Never point <code>DATABASE_URL</code> at the cloud: the stream refuses a non-local database, and the cloud is frozen. Tools added for this demo: <code>pulse_data.ingest import-wearable-csv</code>, <code>pulse_data.stream --patient-email</code>, <code>pulse_data.simulate demo-csv</code> (branch <code>feat/data-demo-import</code>); in-app imports, doctor ring screens, low-pressure rule, <code>demo-csv-today</code> (branch <code>feat/demo-complete</code>).</p>
 
 </body>
 </html>

@@ -28,7 +28,7 @@ FACT (`git diff 00ea3b2 2c3d25b`): 67 files, +9,662 / −226. **No file under `a
 | Live early-warning engine `live-v1` (`ml/pulse_ml/live.py`, `monitor --follow`) + artifact | `ml/` | **Integrated but inactive; requires clinical review** | Would write `early_warning` flags (M9). Simulator-only results. Never started in production (0 rows) |
 | Retrained models `mbp-v1.1`, `ring-v1.1`, `wcls-v1.1`, `mbp-v2.1`, `wrisk-v1`; **`mbp-v1` artifact deleted** | `ml/artifacts/` | **Requires further review** | API serves `mbp-v1` (see §3); `mbp-v1.1` never reviewed for serving |
 | Real-data tooling (`real_data.py`, NHANES bands, backtest) | `ml/` | **Integrated but inactive** | Offline analysis; downloads only when run manually |
-| Simulators `pulse_data/live_sim.py`, `pulse_data/stream.py` (+ `simulate.py` changes) | `pulse_data/` | **Integrated but inactive** | `stream.py` refuses a non-local database without `--i-confirmed-cloud`; `simulate.py ring-demo-sql` generates SQL (not executed by itself) |
+| Simulators `pulse_data/live_sim.py`, `pulse_data/stream.py` (+ `simulate.py` changes) | `pulse_data/` | **Integrated but inactive** | `stream.py` refuses a non-local database without `--i-confirmed-cloud` (unlock removed on `feat/demo-complete`, D26: no unlock); `simulate.py ring-demo-sql` generates SQL (not executed by itself) |
 | Data/ML docs (`docs/data/*`, reports, PDFs, `MODEL_CARD.md`) | `docs/data`, `ml/` | **Requires further review** | Contain claims of approvals and a mentor review that are not confirmed (incident report) |
 | Tests `ml/tests/*`, `tests/*` | `ml/tests`, `tests/` | **Integrated and safe** | Not run by CI; default to local databases; one test deletes `wearable_flags` inside a rolled-back transaction (hazard if pointed at cloud) |
 
