@@ -96,18 +96,25 @@ def episode_measurements(db: Session, alert: Alert) -> list[Measurement]:
 
 
 # ---------------------------------------------------------------- transitions
+CONFIRMED_LEVELS = ("severe", "emergency")  # a patient acknowledges these only after re-entering the password
+
+
 # (from status -> allowed targets) ; who may do it is checked in transition().
 ALLOWED = {"open": {"acknowledged", "reviewed"}, "acknowledged": {"reviewed"}, "reviewed": {"resolved"}}
 
 
 def transition(db: Session, alert: Alert, user: CurrentUser, to: str, note: str | None, now: datetime,
-               is_assigned_doctor: bool) -> Alert:
+               is_assigned_doctor: bool, password_confirmed: bool = False) -> Alert:
     if to not in ALLOWED.get(alert.status, set()):
         raise ApiError(409, "invalid_transition", f"An alert that is {alert.status} cannot become {to}.",
                        {"from": alert.status, "to": to})
     if to == "acknowledged":
         if not (user.id == alert.patient_id or is_assigned_doctor):
             raise ApiError(403, "forbidden", "Only the patient or the assigned doctor can acknowledge.")
+        if (user.id == alert.patient_id and alert_level(alert) in CONFIRMED_LEVELS and not password_confirmed):
+            raise ApiError(403, "password_confirmation_required",
+                           "Confirm a severe or emergency alert with your password "
+                           "(POST /alerts/{id}/patient-confirmation).")
     elif not is_assigned_doctor:
         raise ApiError(403, "forbidden", "Only the assigned doctor can review or resolve.")
     if note is not None and to != "resolved":
@@ -126,3 +133,18 @@ def transition(db: Session, alert: Alert, user: CurrentUser, to: str, note: str 
     db.flush()
     return alert
 
+
+
+def doctor_alerts(db: Session, doctor_id) -> list[tuple[Alert, str, Measurement | None]]:
+    """Severe and emergency alerts of actively assigned patients that the doctor has not resolved yet
+    (open, acknowledged by the patient, or reviewed), most severe then newest first."""
+    from ..models import Assignment, Profile
+    rows = db.execute(
+        select(Alert, Profile.display_name, Measurement)
+        .join(Assignment, (Assignment.patient_id == Alert.patient_id) & (Assignment.doctor_id == doctor_id)
+              & (Assignment.status == "active"))
+        .join(Profile, Profile.id == Alert.patient_id)
+        .outerjoin(Measurement, Measurement.id == Alert.measurement_id)
+        .where(Alert.alert_class.in_([vocab.LEVEL_TO_ALERT_CLASS[lv] for lv in CONFIRMED_LEVELS]),
+               Alert.status.in_(("open", "acknowledged", "reviewed")))).all()
+    return sorted(rows, key=lambda r: (-vocab.LEVEL_RANK[alert_level(r[0])], -r[0].created_at.timestamp()))

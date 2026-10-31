@@ -53,9 +53,11 @@ export default function AlertsPage() {
             ) : (
               <AlertList alerts={list} timeZone={user.timezone}
                 renderActions={(a) => a.status === "open" && (
-                  <Button variant="secondary" disabled={busy === a.id} onClick={() => acknowledge(a)}>
-                    {busy === a.id ? "Envoi…" : "J'ai pris connaissance de cette alerte"}
-                  </Button>
+                  a.level === "severe" || a.level === "emergency"
+                    ? <p className="text-sm font-medium text-ink">Confirmez cette alerte avec votre mot de passe dans le bandeau en haut de la page.</p>
+                    : <Button variant="secondary" disabled={busy === a.id} onClick={() => acknowledge(a)}>
+                      {busy === a.id ? "Envoi…" : "J'ai pris connaissance de cette alerte"}
+                    </Button>
                 )} />
             )}
           </Section>

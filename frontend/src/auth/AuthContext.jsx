@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getMe, hasSession, login as apiLogin, logout as apiLogout, onSessionExpired } from "../api/client";
+import { alertSound } from "../lib/alertSound";
 import { clearOfflineCache } from "../lib/offlineCache";
 
 const AuthContext = createContext(null);
@@ -43,6 +44,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     apiLogout();
     clearOfflineCache();  // emergency card, config and unsent incident steps leave the device with the session
+    alertSound.reset();   // silence, and the next person does not inherit this session's mute
     setState({ status: "anonymous", user: null });
   }, []);
 

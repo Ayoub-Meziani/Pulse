@@ -1,5 +1,6 @@
 // Endpoints of one patient's record (contract/openapi.json). Used by the patient for their own id and by
 // an actively assigned doctor; the server decides who may read what (403 otherwise). Shapes are the server's.
+import { signalling } from "../lib/alertEvents";
 import { request } from "./client";
 
 const base = (patientId) => `/patients/${patientId}`;
@@ -24,7 +25,17 @@ export function listActiveAlerts(patientId, { signal } = {}) {
 }
 
 export function transitionAlert(alertId, to, note) {
-  return request(`/alerts/${alertId}/transition`, { method: "POST", body: note ? { to, note } : { to } });
+  return signalling(request(`/alerts/${alertId}/transition`, { method: "POST", body: note ? { to, note } : { to } }));
+}
+
+export function getAlert(alertId, { signal } = {}) {
+  return request(`/alerts/${alertId}`, { signal });
+}
+
+/** Patient: the password is checked by the server with Supabase Auth and never stored. Acknowledges an open
+ * alert (seen by the patient); it is not a medical resolution, which stays the doctor's. */
+export function confirmAlert(alertId, password) {
+  return signalling(request(`/alerts/${alertId}/patient-confirmation`, { method: "POST", body: { password } }));
 }
 
 export function listSymptomReports(patientId, { limit = 50, signal } = {}) {
@@ -59,7 +70,7 @@ export function listWearableSamples(patientId, { metric, limit = 500, signal } =
 // Reading flow. Each answer carries the server's deterministic evaluation (EvaluationOut).
 /** body.id (uuid) makes the call repeat-safe: the same id returns the stored reading instead of a second one. */
 export function addMeasurement(patientId, body) {
-  return request(`${base(patientId)}/measurements`, { method: "POST", body });
+  return signalling(request(`${base(patientId)}/measurements`, { method: "POST", body }));
 }
 
 export function addSymptomReport(patientId, body) {
@@ -69,7 +80,7 @@ export function addSymptomReport(patientId, body) {
 // File imports: the CSV text goes in a JSON body (no multipart); the server parses it and decides everything.
 /** Cuff export. The same file again answers 409 already_imported; fresh measured rows go through the reading rules. */
 export function importReadings(patientId, body) {
-  return request(`${base(patientId)}/imports/readings`, { method: "POST", body });
+  return signalling(request(`${base(patientId)}/imports/readings`, { method: "POST", body }));
 }
 
 /** Ring export (heart rate, HRV, SpO2, skin temperature). Never read by any rule: no alert, whatever the values. */

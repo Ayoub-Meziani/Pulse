@@ -161,7 +161,9 @@ def test_alert_list_filters_and_permissions(api, people):
 def test_full_lifecycle_of_a_severe_alert(api, people):
     p, doc = people["patient"], people["doctor"]
     alert_id = reading(api, p, 186, 118)["alert"]["id"]
-    ack = move(api, alert_id, p, "acknowledged")
+    plain = move(api, alert_id, p, "acknowledged")  # a patient confirms severe alerts with the password
+    assert plain.status_code == 403 and plain.json()["error"]["code"] == "password_confirmation_required"
+    ack = move(api, alert_id, doc, "acknowledged")
     assert ack.status_code == 200 and ack.json()["status"] == "acknowledged" and ack.json()["acknowledged_at"]
     assert move(api, alert_id, doc, "reviewed").json()["status"] == "reviewed"
     no_note = move(api, alert_id, doc, "resolved")

@@ -5,6 +5,8 @@ import { useAuth } from "../../auth/AuthContext";
 import { homeFor, NAV, ROLE_LABEL } from "../../auth/roles";
 import { initials } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
+import DoctorAlertFlag from "../alerts/DoctorAlertFlag";
+import PatientAlertFlag from "../alerts/PatientAlertFlag";
 import Icon from "../ui/Icon";
 import Logo from "../ui/Logo";
 
@@ -123,6 +125,9 @@ export default function AppLayout() {
       )}
 
       <main id="main" className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        {/* Severe and emergency alerts stay on top of every page until the doctor resolves them. */}
+        {user.role === "patient" && <PatientAlertFlag user={user} />}
+        {user.role === "doctor" && <DoctorAlertFlag user={user} />}
         <Outlet />
       </main>
 
