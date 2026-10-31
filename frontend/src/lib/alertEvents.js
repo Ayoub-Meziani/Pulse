@@ -24,6 +24,23 @@ export function watchAlerts(fn) {
   };
 }
 
+// While an emergency screen is open the patient's flag shrinks to one line, so the call button stays at the top.
+let emergencyScreens = 0;
+const screenListeners = new Set();
+
+/** Called by the emergency screen when it opens; returns the function to call when it closes. */
+export function emergencyScreenOpened() {
+  emergencyScreens += 1;
+  screenListeners.forEach((l) => l());
+  return () => {
+    emergencyScreens -= 1;
+    screenListeners.forEach((l) => l());
+  };
+}
+
+export const subscribeEmergencyScreen = (listener) => { screenListeners.add(listener); return () => screenListeners.delete(listener); };
+export const isEmergencyScreenOpen = () => emergencyScreens > 0;
+
 /** Passes an API answer through and sends the change signal once it succeeded. */
 export function signalling(promise) {
   return promise.then((value) => { alertsChanged(); return value; });

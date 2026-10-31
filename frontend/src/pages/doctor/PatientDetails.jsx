@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { addNote, getLatestPrediction } from "../../api/doctor";
@@ -18,6 +18,7 @@ import WearablePanel from "../../components/wearables/WearablePanel";
 import { DoctorCarePlan, DoctorEmergencies, DoctorJournal } from "../../components/doctor/DoctorRecordSections";
 import { PersonalBands, RingSignals, WeeklyReports } from "../../components/doctor/RingReview";
 import { formatDate, formatDateTime, round, TREND } from "../../lib/format";
+import { watchAlerts } from "../../lib/alertEvents";
 import { useResource } from "../../lib/useResource";
 
 const TABS = [
@@ -103,6 +104,9 @@ function DoctorAlertActions({ alert, onDone }) {
 
 function AlertsBlock({ patientId, status, timeZone }) {
   const alerts = useResource((signal) => listAlerts(patientId, { status, signal }), `da:${patientId}:${status}`);
+  const { reload } = alerts;
+  // Same rhythm as the doctor's alert flag, so an alert flagged there can be reached here at once.
+  useEffect(() => watchAlerts(reload), [reload]);
   return (
     <Section state={alerts} what="les alertes">
       {(list) => list.length === 0

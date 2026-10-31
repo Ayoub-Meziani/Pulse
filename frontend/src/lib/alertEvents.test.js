@@ -37,3 +37,17 @@ describe("change signal", () => {
     delete globalThis.window;
   });
 });
+
+describe("emergency screen signal", () => {
+  it("counts open emergency screens and tells the flag", async () => {
+    const { emergencyScreenOpened, isEmergencyScreenOpen, subscribeEmergencyScreen } = await import("./alertEvents");
+    let calls = 0;
+    const stop = subscribeEmergencyScreen(() => { calls += 1; });
+    const close = emergencyScreenOpened();
+    expect(isEmergencyScreenOpen()).toBe(true);
+    close();
+    expect(isEmergencyScreenOpen()).toBe(false);
+    stop();
+    expect(calls).toBe(2);
+  });
+});

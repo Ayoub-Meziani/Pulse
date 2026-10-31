@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { addEmergencyActions, getEmergencyCard, getEmergencyConfig, patchEmergencyEvent, startEmergencyEvent } from "../../api/patient";
 import Icon from "../../components/ui/Icon";
+import { emergencyScreenOpened } from "../../lib/alertEvents";
 import { formatDateTime, originOf } from "../../lib/format";
 import { browserStore, closeIncident, flushIncidents, openIncident, queueAction, queuePatch } from "../../lib/incident";
 import { cacheCard, cacheConfig, readCachedCard, readCachedConfig } from "../../lib/offlineCache";
@@ -113,6 +114,7 @@ function ContactCard({ contact, onCall, onShare, sharing, location, landmark, se
 export default function EmergencyScreen({ reason, nextStep, notSaved = false, initialConfig = null, trigger = "manual", alertId = null, symptoms = [] }) {
   const { user } = useAuth();
   const [config, setConfig] = useState(initialConfig ?? readCachedConfig());
+  useEffect(() => emergencyScreenOpened(), []);  // the alert flag above shrinks to one line
   const [configOffline, setConfigOffline] = useState(false);
   const [card, setCard] = useState(() => readCachedCard(user.id));
   const [cardOffline, setCardOffline] = useState(false);

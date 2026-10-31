@@ -25,6 +25,27 @@ describe("alert sound", () => {
   });
   afterEach(() => vi.useRealTimers());
 
+  it("a click anywhere unlocks the sound, so a severe reading rings as soon as its alert arrives", async () => {
+    const blocked = fakeAudio({ allowed: false });
+    const s = createAlertSound({ audio: blocked.factory, store: memoryStore() });
+    await s.update("patient-flag", [severe("a")]);       // before any click: the browser refuses
+    expect(s.getState()).toMatchObject({ status: "locked", playing: null });
+    blocked.player.resume.mockImplementation(async () => { blocked.player.running = true; });
+    await s.unlock();                                      // the click on "Enregistrer la mesure"
+    expect(s.getState()).toMatchObject({ status: "ready", playing: "severe" });
+    expect(blocked.player.beeps).toBe(1);
+  });
+
+  it("the patient's alarm cannot stay muted: unmute() restarts it until the password confirms the alert", async () => {
+    await sound.update("patient-flag", [severe("a")]);
+    sound.mute();
+    expect(sound.getState().playing).toBeNull();
+    sound.unmute();
+    expect(sound.getState()).toMatchObject({ muted: false, playing: "severe" });
+    await sound.update("patient-flag", []);               // confirmed with the password: no longer "open"
+    expect(sound.getState().playing).toBeNull();
+  });
+
   it("ignores notice and trend alerts", async () => {
     await sound.update("p", [{ id: "a", level: "notice" }, { id: "b", level: "trend" }]);
     expect(audio.factory).not.toHaveBeenCalled();
@@ -133,5 +154,22 @@ describe("alert sound", () => {
     await sound.update("d", []);
     expect(sound.getState().playing).toBeNull();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("alert sound, browser suspends the audio", () => {
+  it("never claims to ring while the browser has suspended the sound; the next click restarts it", async () => {
+    let onChange = null;
+    const player = { running: false, beeps: 0, resume: vi.fn(async () => { player.running = true; }),
+      beep: () => { player.beeps += 1; }, onStateChange: (l) => { onChange = l; } };
+    const s = createAlertSound({ audio: () => player, store: { get: () => false, set: () => {} },
+      setTimer: () => 1, clearTimer: () => {} });
+    await s.update("patient-flag", [{ id: "a", level: "severe" }]);
+    expect(s.getState().playing).toBe("severe");
+    player.running = false;                                // e.g. a phone call takes the audio
+    onChange();
+    expect(s.getState()).toMatchObject({ status: "locked", playing: null });
+    await s.unlock();                                      // the patient touches the screen again
+    expect(s.getState()).toMatchObject({ status: "ready", playing: "severe" });
   });
 });

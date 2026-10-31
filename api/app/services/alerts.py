@@ -56,17 +56,26 @@ def apply_evaluation(db: Session, patient_id: UUID, ev: Evaluation, *, measureme
             db.add(AlertMeasurement(alert_id=alert.id, measurement_id=measurement_id, patient_id=patient_id))
         if ev.persistent:
             alert.persistent = True
+            _reopen_if_confirmed(alert, ev.level)  # still very high on the recheck: a new bad reading rings again
     elif ev.alert_action == "raise":
         current = vocab.ALERT_CLASS_TO_LEVEL[alert.alert_class]
         if vocab.LEVEL_RANK[ev.level] > vocab.LEVEL_RANK[current]:  # severity never goes down
             alert.alert_class = vocab.LEVEL_TO_ALERT_CLASS[ev.level]
             alert.reason, alert.actions = ev.reason, [ev.next_step]
+            _reopen_if_confirmed(alert, ev.level)  # the patient confirmed the lower level, never this one
             if alert.symptom_report_id is None:
                 alert.symptom_report_id = symptom_report_id
     else:
         raise ValueError(f"Unknown alert_action {ev.alert_action}")
     db.flush()
     return alert
+
+
+def _reopen_if_confirmed(alert: Alert, level: str) -> None:
+    """A new severe or emergency reason on an alert the patient already confirmed: open again, so it rings until the
+    patient confirms it with the password (D28; proposed D29)."""
+    if alert.status == "acknowledged" and level in CONFIRMED_LEVELS:
+        alert.status, alert.acknowledged_at, alert.acknowledged_by = "open", None, None
 
 
 def alert_level(alert: Alert) -> str:
