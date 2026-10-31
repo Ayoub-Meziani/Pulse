@@ -60,8 +60,9 @@ RING_REFERENCE = {
     "skin_temperature": None,
 }
 
-# Proposed backend rule R-RING-1 [review H6]: evaluated by the BACKEND directly on wearable_samples,
-# not by any ML job. Delivered here as a spec and constants only.
+# Proposed backend rule R-RING-1 [review H6]: if built, the BACKEND would evaluate it directly on wearable_samples,
+# never an ML job. Spec and constants only: it is NOT implemented and stays disabled (B26, freeze), so nothing
+# happens when a ring value crosses a limit.
 R_RING_1 = {
     "metric": "spo2", "window_minutes": 10, "statistic": "median", "below": RING_REFERENCE["spo2"]["low"],
     "min_samples": 2,

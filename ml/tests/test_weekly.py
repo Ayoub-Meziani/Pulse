@@ -72,14 +72,21 @@ def test_weekly_reports_and_doctor_band_loop(conn):
     assert first["band_proposals"] > 0
     assert conn.execute("select count(*) from public.patient_bands where status <> 'proposed'").fetchone()[0] == 0
     assert {t: count(t) for t in untouched} == before
+    home = lambda p: conn.execute("select summary->'bp_home' from public.weekly_reports where patient_id = %s",  # noqa: E731
+                                  (p,)).fetchone()[0]
+    assert all(home(p)["simulated"] == home(p)["valid_readings"] for p in assigned)   # the seed is all simulated
 
     karim = next(u.id for u in PATIENTS if u.key == "rising")
+    amina = next(u.id for u in PATIENTS if u.key == "controlled")
+    conn.execute("insert into public.measurements (patient_id, source, provenance, systolic, diastolic, measured_at)"
+                 " values (%s, 'manual', 'measured', 128, 82, now() - interval '1 minute')", (amina,))
     conn.execute("update public.weekly_reports set status = 'reviewed', reviewed_by = %s, reviewed_at = now(),"
                  " doctor_comment = 'seen' where patient_id = %s", (DOCTOR.id, karim))
     second = weekly.run(conn, date.today())   # re-run: no duplicates, reviewed report kept
     assert count("weekly_reports") == len(assigned) and second["band_proposals"] == 0
     assert conn.execute("select status, doctor_comment from public.weekly_reports where patient_id = %s",
                         (karim,)).fetchone() == ("reviewed", "seen")
+    assert home(amina)["simulated"] == home(amina)["valid_readings"] - 1          # her own measured reading
 
     band_id = conn.execute("select id::text from public.patient_bands where patient_id = %s and metric = 'heart_rate'",
                            (karim,)).fetchone()[0]
@@ -92,3 +99,7 @@ def test_weekly_reports_and_doctor_band_loop(conn):
     basis = conn.execute("select distinct reference_basis from public.wearable_flags where patient_id = %s"
                          " and metric = 'heart_rate' and kind = 'personal_anomaly'", (karim,)).fetchall()
     assert (f"band:{band_id}",) in basis
+    third = weekly.run(conn, date.today())    # jobs re-run after the approval: the active band is not re-proposed
+    assert third["band_proposals"] == 0
+    assert conn.execute("select count(*) from public.patient_bands where patient_id = %s and metric = 'heart_rate'"
+                        " and status = 'proposed'", (karim,)).fetchone()[0] == 0

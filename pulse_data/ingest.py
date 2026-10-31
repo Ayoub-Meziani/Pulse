@@ -27,7 +27,9 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-LOCAL_DB = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"  # local Supabase stack only
+from .localdb import require_local
+
+LOCAL_DB ="postgresql://postgres:postgres@127.0.0.1:55322/postgres"  # local Supabase stack only
 REQUIRED = ("measured_at", "systolic", "diastolic")
 POSITIONS = {"sitting", "standing", "lying"}
 ARMS = {"left", "right"}
@@ -318,10 +320,12 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--device", help="devices.id; default: the patient's ring, created if missing")
     w.add_argument("--tz", default="Africa/Algiers", help="time zone for timestamps without an offset")
     a = ap.parse_args(argv)
+    url = os.environ.get("DATABASE_URL", LOCAL_DB)
+    require_local(url)
 
     if a.cmd == "import-wearable-csv":
         samples, rejections = parse_wearable_csv(a.file, a.tz)
-        with psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB), autocommit=True) as conn:
+        with psycopg.connect(url, autocommit=True) as conn:
             patient_id = resolve_patient(conn, a.patient)
             device = a.device or ring_device(conn, patient_id, simulated=a.source == "simulated", create=True)
             summary = import_wearable(conn, patient_id, device, samples, source=a.source, rejections=rejections)
@@ -329,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     readings, rejections = parse_csv(a.file, a.tz)
-    with psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB), autocommit=True) as conn:
+    with psycopg.connect(url, autocommit=True) as conn:
         patient_id = resolve_patient(conn, a.patient)
         try:
             summary = import_readings(conn, patient_id, readings, source="csv_import", provenance=a.provenance,

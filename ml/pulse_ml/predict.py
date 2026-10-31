@@ -19,20 +19,36 @@ import joblib
 import pandas as pd
 import psycopg
 from psycopg import sql
+from psycopg.conninfo import conninfo_to_dict
 
 from .features import daily_table, window_features
 from .train import ARTIFACTS, MODEL_VERSION, TRAINED_ON
 
 LOCAL_DB = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+
+def require_local(url: str) -> None:
+    """SystemExit unless every host the connection could reach is this machine (libpq: the URL's host / hostaddr,
+    else PGHOST / PGHOSTADDR, else localhost; comma lists; a path is a local socket). A copy of
+    pulse_data.localdb.require_local, which cannot be imported when run from ml/. No unlock flag."""
+    info = conninfo_to_dict(url)
+    hosts = (info.get("host") or os.environ.get("PGHOST") or "localhost").split(",")
+    hosts += [h for h in (info.get("hostaddr") or os.environ.get("PGHOSTADDR") or "").split(",") if h]
+    bad = [h for h in hosts if h.strip().lower() not in LOCAL_HOSTS and not h.strip().startswith("/")]
+    if bad:
+        raise SystemExit(f"refusing a non-local database ({', '.join(bad)}); the ML jobs run on the local stack only")
 
 
 def connect(**kw) -> psycopg.Connection:
-    """DATABASE_URL (default: local stack). PULSE_DB_ROLE, if set, is assumed right after login: the Supabase CLI's
-    temporary login (scripts/run_cloud_jobs.ps1) must act as postgres, and the pooler drops startup options."""
+    """DATABASE_URL (default: local stack); any non-local host is refused, so the frozen cloud path
+    (scripts/run_cloud_jobs.ps1) fails closed. PULSE_DB_ROLE, if set, is assumed right after login."""
+    url = os.environ.get("DATABASE_URL", LOCAL_DB)
+    require_local(url)
     role = os.environ.get("PULSE_DB_ROLE")
     for attempt in range(6 if role else 1):
         try:
-            conn = psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB), **kw)
+            conn = psycopg.connect(url, **kw)
             break
         except psycopg.OperationalError:
             if attempt == (5 if role else 0):

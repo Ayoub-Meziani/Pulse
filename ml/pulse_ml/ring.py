@@ -2,7 +2,8 @@
 
 ONE path from raw samples to windows, used by training (CSV) and serving (DB) [review H2]:
     from_csv / from_db -> night_table / live_buckets -> baselines -> night_flags / live_flags
-Flags never create alerts and are not the safety path [review H6]; the backend evaluates R-RING-1 itself.
+Flags never create alerts and are not the safety path [review H6]. R-RING-1 is not implemented and stays disabled
+(B26): nothing happens when a ring limit is crossed.
 """
 from __future__ import annotations
 

@@ -6,7 +6,8 @@
         live 10-minute windows, polling new samples by created_at with a 5-minute overlap [review M6], plus the
         live-v1 early warnings (pulse_ml.live: forecast of the next 20 minutes, restless night) for the newest minute
 
-Uses DATABASE_URL (default: local stack). Prints counts only, never health values.
+Uses DATABASE_URL (default: local stack; a non-local host is refused). Prints counts only, never health values;
+the --follow startup line names the database as host:port.
 """
 from __future__ import annotations
 
@@ -169,7 +170,8 @@ def main() -> None:
             print(json.dumps({"mode": "nights", "flags_written": run_nights(conn, load_forest(), a.days)}))
             return
         watermark, bundle = datetime.now(timezone.utc) - timedelta(minutes=1), load_live()
-        print(json.dumps({"mode": "follow", "every_s": a.every, "early_warnings": bundle is not None}), flush=True)
+        print(json.dumps({"mode": "follow", "every_s": a.every, "early_warnings": bundle is not None,
+                          "db": f"{conn.info.host}:{conn.info.port}"}), flush=True)      # never the password
         while True:
             watermark, n = poll_once(conn, watermark, bundle)
             if n:

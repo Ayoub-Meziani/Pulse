@@ -12,7 +12,8 @@ how a real decline differs from a passing dip, wake-up or loose ring.
 Limits: SpO2 94 % (COPD 88 %), resting HR 100 bpm (or the doctor's live band), skin temperature personal normal
 + 1.0 C. Every feature at minute t uses minutes <= t only (rolling windows look back), so scoring a whole night at
 once equals replaying it minute by minute (checked in tests and in live_test.py).
-Never an alert and never the safety path: R-RING-1 and the symptom rules in the backend decide anything urgent.
+Never an alert and never the safety path. R-RING-1 is not implemented and stays disabled (B26): nothing happens when
+a ring limit is crossed (no alert, no patient guidance); the backend's BP and symptom rules decide anything urgent.
 """
 from __future__ import annotations
 
