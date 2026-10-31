@@ -66,6 +66,17 @@ export function addSymptomReport(patientId, body) {
   return request(`${base(patientId)}/symptom-reports`, { method: "POST", body });
 }
 
+// File imports: the CSV text goes in a JSON body (no multipart); the server parses it and decides everything.
+/** Cuff export. The same file again answers 409 already_imported; fresh measured rows go through the reading rules. */
+export function importReadings(patientId, body) {
+  return request(`${base(patientId)}/imports/readings`, { method: "POST", body });
+}
+
+/** Ring export (heart rate, HRV, SpO2, skin temperature). Never read by any rule: no alert, whatever the values. */
+export function importRing(patientId, body) {
+  return request(`${base(patientId)}/imports/ring`, { method: "POST", body });
+}
+
 /** Public: numbers, disclaimer, demo flag and the offline fallback values (EmergencyConfigOut). */
 export function getEmergencyConfig({ signal } = {}) {
   return request("/config/emergency", { signal });

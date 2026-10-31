@@ -16,12 +16,14 @@ import Icon from "../../components/ui/Icon";
 import { EmptyState, ErrorState, Loading, Section } from "../../components/ui/States";
 import WearablePanel from "../../components/wearables/WearablePanel";
 import { DoctorCarePlan, DoctorEmergencies, DoctorJournal } from "../../components/doctor/DoctorRecordSections";
+import { PersonalBands, RingSignals, WeeklyReports } from "../../components/doctor/RingReview";
 import { formatDate, formatDateTime, round, TREND } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
 
 const TABS = [
   ["apercu", "Vue d'ensemble"], ["mesures", "Mesures"], ["symptomes", "Symptômes"], ["alertes", "Alertes"],
-  ["urgences", "Urgences"], ["journal", "Journal"], ["bracelet", "Bracelet"], ["estimation", "Estimation"],
+  ["urgences", "Urgences"], ["journal", "Journal"], ["bracelet", "Bracelet"], ["signaux", "Signaux bracelet"],
+  ["rapport", "Rapport hebdo"], ["plages", "Plages"], ["estimation", "Estimation"],
   ["notes", "Notes"], ["plan", "Plan de suivi"],
 ];
 
@@ -293,6 +295,24 @@ export default function PatientDetails() {
         <Card>
           <CardHeader title="Bracelet et appareils" subtitle="Données complémentaires, sans effet sur les alertes." />
           <CardBody><WearablePanel patientId={patientId} timeZone={tz} emptyText="Ce patient n'utilise pas de bracelet. Son suivi repose sur ses mesures saisies." /></CardBody>
+        </Card>
+      )}
+      {tab === "signaux" && (
+        <Card>
+          <CardHeader title="Signaux du bracelet" subtitle="Actualisés toutes les 10 secondes tant que cet onglet est ouvert." />
+          <CardBody><RingSignals patientId={patientId} timeZone={tz} /></CardBody>
+        </Card>
+      )}
+      {tab === "rapport" && (
+        <Card>
+          <CardHeader title="Rapport hebdomadaire" />
+          <CardBody><WeeklyReports patientId={patientId} timeZone={tz} /></CardBody>
+        </Card>
+      )}
+      {tab === "plages" && (
+        <Card>
+          <CardHeader title="Plages personnelles du bracelet" />
+          <CardBody><PersonalBands patientId={patientId} /></CardBody>
         </Card>
       )}
       {tab === "estimation" && (
