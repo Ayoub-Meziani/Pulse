@@ -65,6 +65,26 @@ def test_training_is_deterministic():
     assert a["test_metrics_mmHg"] == b["test_metrics_mmHg"] and a["algorithm"] == b["algorithm"]
 
 
+@pytest.mark.parametrize("url, env, ok", [
+    ("postgresql://postgres:postgres@127.0.0.1:55322/postgres", {}, True),
+    ("postgresql://postgres:postgres@localhost:55322/postgres", {"PGHOST": "db.example.com"}, True),
+    ("postgresql://postgres.ref:x@aws-0-eu-central-1.pooler.supabase.com:6543/postgres", {}, False),
+    ("postgresql://", {"PGHOST": "aws-0-eu-central-1.pooler.supabase.com"}, False),
+    ("postgresql://127.0.0.1/postgres", {"PGHOSTADDR": "203.0.113.7"}, False),
+])
+def test_jobs_refuse_any_non_local_database(monkeypatch, url, env, ok):
+    from pulse_ml import predict
+    for k in ("PGHOST", "PGHOSTADDR", "PULSE_DB_ROLE"):
+        monkeypatch.delenv(k, raising=False)
+    for k, v in {"DATABASE_URL": url, **env}.items():
+        monkeypatch.setenv(k, v)
+    if ok:
+        predict.require_local(url)
+    else:
+        with pytest.raises(SystemExit):
+            predict.connect()                     # refused before any connection attempt (no unlock flag)
+
+
 def test_prediction_job_writes_only_predictions_for_assigned_patients():
     psycopg = pytest.importorskip("psycopg")
     from pulse_ml.predict import LOCAL_DB, run

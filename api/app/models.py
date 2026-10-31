@@ -10,7 +10,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import (ARRAY, Boolean, Date, DateTime, FetchedValue, Float, ForeignKey, Numeric,
+from sqlalchemy import (ARRAY, Boolean, Date, DateTime, FetchedValue, Float, ForeignKey, Integer, Numeric,
                         SmallInteger, Text)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -97,6 +97,7 @@ class Measurement(Base):
     arm: Mapped[str | None] = mapped_column(Text)
     context: Mapped[str | None] = mapped_column(Text)
     rested_5_min: Mapped[bool | None] = mapped_column(Boolean)  # migration M3
+    ingestion_batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # set by file imports
     # Set by the pulse-v1 validation trigger; never written by the API.
     validation_status: Mapped[str] = _server(Text)
     quality_flags: Mapped[list[str]] = _server(TEXT_ARRAY)
@@ -221,7 +222,23 @@ class MlPrediction(Base):  # migration M4; written only by the ML batch job
     created_at: Mapped[datetime] = _server(TS)
 
 
-class Device(Base):  # read only: devices are registered by the device sync / simulator, not by the API
+class IngestionBatch(Base):  # one per imported file (core schema); rejections hold row numbers, never values
+    __tablename__ = "ingestion_batches"
+    id: Mapped[uuid.UUID] = _id()
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    source: Mapped[str] = mapped_column(Text)
+    file_name: Mapped[str | None] = mapped_column(Text)
+    file_sha256: Mapped[str | None] = mapped_column(Text)
+    rows_total: Mapped[int] = _server(Integer)
+    rows_inserted: Mapped[int] = _server(Integer)
+    rows_duplicate: Mapped[int] = _server(Integer)
+    rows_rejected: Mapped[int] = _server(Integer)
+    rejections: Mapped[list] = _server(JSONB)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = _server(TS)
+
+
+class Device(Base):  # registered by the device sync / simulator, or by a patient's ring file import
     __tablename__ = "devices"
     id: Mapped[uuid.UUID] = _id()
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
@@ -233,7 +250,7 @@ class Device(Base):  # read only: devices are registered by the device sync / si
     created_at: Mapped[datetime] = _server(TS)
 
 
-class WearableSample(Base):  # migration M6; read only, never an input to rules, alerts or emergency guidance
+class WearableSample(Base):  # migration M6; never an input to rules, alerts or emergency guidance
     __tablename__ = "wearable_samples"
     id: Mapped[uuid.UUID] = _id()
     patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
@@ -243,4 +260,66 @@ class WearableSample(Base):  # migration M6; read only, never an input to rules,
     unit: Mapped[str] = mapped_column(Text)
     measured_at: Mapped[datetime] = mapped_column(TS)
     source: Mapped[str] = mapped_column(Text)
+    external_id: Mapped[str | None] = mapped_column(Text)  # sample id from the export; never invented
     created_at: Mapped[datetime] = _server(TS)
+
+
+# ---------------------------------------------------------------- ring ML outputs (migrations M7, M9)
+# Written by the offline jobs in ml/ (monitor, weekly); the API reads them for the assigned doctor only
+# (decision M4) and records the doctor's review. Advisory: never read by rules, alerts or emergency guidance.
+class PatientBand(Base):
+    __tablename__ = "patient_bands"
+    id: Mapped[uuid.UUID] = _id()
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    metric: Mapped[str] = mapped_column(Text)
+    statistic: Mapped[str] = mapped_column(Text)
+    low: Mapped[Decimal] = mapped_column(Numeric(6, 2))
+    high: Mapped[Decimal] = mapped_column(Numeric(6, 2))
+    basis: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = _server(Text)
+    proposed_model_version: Mapped[str | None] = mapped_column(Text)
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    approved_at: Mapped[datetime | None] = mapped_column(TS)
+    effective_from: Mapped[date | None] = mapped_column(Date)
+    supersedes_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = _server(TS)
+
+
+class WearableFlag(Base):
+    __tablename__ = "wearable_flags"
+    id: Mapped[uuid.UUID] = _id()
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    metric: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(Text)
+    window_kind: Mapped[str] = mapped_column(Text)
+    window_start: Mapped[datetime] = mapped_column(TS)
+    window_end: Mapped[datetime] = mapped_column(TS)
+    value: Mapped[Decimal | None] = mapped_column(Numeric(7, 2))
+    score: Mapped[Decimal | None] = mapped_column(Numeric(8, 3))
+    reference_basis: Mapped[str] = mapped_column(Text)
+    band_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    model_version: Mapped[str] = mapped_column(Text)
+    review_status: Mapped[str] = _server(Text)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    reviewed_at: Mapped[datetime | None] = mapped_column(TS)
+    review_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _server(TS)
+
+
+class WeeklyReport(Base):
+    __tablename__ = "weekly_reports"
+    __mapper_args__ = {"eager_defaults": True}
+    id: Mapped[uuid.UUID] = _id()
+    patient_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    week_start: Mapped[date] = mapped_column(Date)
+    home_bp_category: Mapped[str | None] = mapped_column(Text)
+    control_status: Mapped[str] = mapped_column(Text)
+    next_week_above_target_prob: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
+    model_versions: Mapped[dict] = _server(JSONB)
+    summary: Mapped[dict] = _server(JSONB)
+    status: Mapped[str] = _server(Text)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    reviewed_at: Mapped[datetime | None] = mapped_column(TS)
+    doctor_comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _server(TS)
+    updated_at: Mapped[datetime] = mapped_column(TS, server_default=FetchedValue(), server_onupdate=FetchedValue())

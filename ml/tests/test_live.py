@@ -55,6 +55,25 @@ def test_whole_night_equals_minute_by_minute(bundle):
     assert expected                                       # and it did warn
 
 
+def test_stream_oxygen_falling_at_speed_5_warns_before_the_limit(bundle):
+    """The on-stage demo: pulse_data.stream --patient-email --scenario oxygen_falling --speed 5 (5 s ticks)."""
+    from pulse_data import stream
+    from pulse_data.simulate import RingProfile
+    rp = RingProfile(hr=65.0, hrv=34.0, spo2=96.5, temp=34.0)              # a normal profile (no COPD / AF)
+    by_minute, start = stream.situation_minutes(rp, (), "oxygen_falling", seed=0)
+    rows = [(-ago, m, v) for ago, samples in stream.warm_up(by_minute, start) for m, v, _ in samples]
+    sent = set()
+    for tick in range(12 * 20):                                           # 20 real minutes, real minute = e // 60
+        e = tick * 5
+        rows += [(e // 60, m, v) for m, v, _ in stream.tick_samples(by_minute, stream.situation_minute(start, e, 5), sent)]
+    t = live.table(pd.DataFrame(rows, columns=["minute", "metric", "value"]))
+    ctx = live.Context(personal={"heart_rate": rp.hr, "spo2": rp.spo2, "hrv_rmssd": rp.hrv, "skin_temperature": rp.temp})
+    warned = [w["window_start"] for w in live.night_warnings(t, ctx, bundle) if w["metric"] == "spo2"]
+    below = t.index[t["spo2"].rolling(3, min_periods=2).median() < 94]
+    assert warned and len(below)
+    assert 0 <= min(warned) < below[0]                    # after the warm-up, before the 3-minute median is < 94
+
+
 def test_limits_follow_conditions_and_bands():
     ctx = live.Context(personal={"skin_temperature": 34.0})
     assert live.limit_for("spo2", ctx)[1] == 94 and live.limit_for("heart_rate", ctx)[1] == 100

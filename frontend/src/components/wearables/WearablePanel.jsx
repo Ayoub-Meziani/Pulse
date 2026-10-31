@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { listDevices, listWearableSamples } from "../../api/patient";
 import { useResource } from "../../lib/useResource";
 import { DEVICE_TYPE, formatDateTime, WEARABLE_METRIC } from "../../lib/format";
@@ -34,6 +35,12 @@ function Stat({ metric, samples, timeZone }) {
 export default function WearablePanel({ patientId, timeZone, emptyText }) {
   const devices = useResource((signal) => listDevices(patientId, { signal }), `dev:${patientId}`);
   const samples = useResource((signal) => listWearableSamples(patientId, { limit: 500, signal }), `ws:${patientId}`);
+  const reloadSamples = samples.reload;
+  // Ring data arrives whenever the device syncs: refresh every 10 s, like the doctor's patient list (every 15 s).
+  useEffect(() => {
+    const id = setInterval(reloadSamples, 10000);
+    return () => clearInterval(id);
+  }, [reloadSamples]);
 
   return (
     <Section state={devices} what="les appareils">

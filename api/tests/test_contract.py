@@ -16,7 +16,9 @@ from app.db import require_session
 from app.main import create_app
 
 API = "/api/v1"
-PID, AID, EID, CID, JID = (uuid4() for _ in range(5))
+PID, AID, EID, CID, JID, FID, RID, BID = (uuid4() for _ in range(8))
+CSV_BODY = {"file_name": "x.csv", "csv": "measured_at,systolic,diastolic\n", "provenance": "simulated"}
+RING_BODY = {"file_name": "r.csv", "csv": "measured_at,metric,value\n", "source": "simulated"}
 AUTH = {"Authorization": "Bearer test-token"}
 
 # (method, path, json body) for every protected route in contract v1.
@@ -58,6 +60,15 @@ PROTECTED = [
     ("GET", f"/patients/{PID}/journal", None),
     ("POST", f"/patients/{PID}/journal", {"category": "question", "entry_text": "x"}),
     ("POST", f"/journal/{JID}/review", None),
+    ("POST", f"/patients/{PID}/imports/readings", CSV_BODY),
+    ("POST", f"/patients/{PID}/imports/ring", RING_BODY),
+    ("GET", f"/patients/{PID}/wearable-flags", None),
+    ("POST", f"/wearable-flags/{FID}/review", {"review_status": "confirmed"}),
+    ("GET", f"/patients/{PID}/weekly-reports", None),
+    ("POST", f"/weekly-reports/{RID}/review", {"doctor_comment": "x"}),
+    ("GET", f"/patients/{PID}/bands", None),
+    ("POST", f"/bands/{BID}/approve", {}),
+    ("POST", f"/bands/{BID}/reject", None),
 ]
 
 
@@ -79,7 +90,12 @@ BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/p
          ("GET", f"/patients/{PID}/notes"), ("POST", f"/patients/{PID}/notes"),  # test_notes.py
          ("GET", f"/patients/{PID}/symptom-reports"), ("GET", f"/patients/{PID}/devices"),
          ("GET", f"/patients/{PID}/wearable-samples"),  # test_patient_records.py
-         ("GET", f"/patients/{PID}/journal"), ("POST", f"/patients/{PID}/journal"), ("POST", f"/journal/{JID}/review")}  # test_journal.py
+         ("GET", f"/patients/{PID}/journal"), ("POST", f"/patients/{PID}/journal"), ("POST", f"/journal/{JID}/review"),  # test_journal.py
+         ("POST", f"/patients/{PID}/imports/readings"), ("POST", f"/patients/{PID}/imports/ring"),  # test_imports.py
+         ("GET", f"/patients/{PID}/wearable-flags"), ("POST", f"/wearable-flags/{FID}/review"),
+         ("GET", f"/patients/{PID}/weekly-reports"), ("POST", f"/weekly-reports/{RID}/review"),
+         ("GET", f"/patients/{PID}/bands"), ("POST", f"/bands/{BID}/approve"),
+         ("POST", f"/bands/{BID}/reject")}  # test_ring_review.py
 UNBUILT = [p for p in PROTECTED if (p[0], p[1]) not in BUILT]
 
 
@@ -159,9 +175,24 @@ def test_every_contract_route_is_covered_by_these_tests(client):
     routes = {(m.upper(), p.removeprefix(API)) for p, ops in spec["paths"].items() for m in ops}
     routes -= {("GET", "/health"), ("GET", "/config/emergency"), ("POST", "/auth/login"), ("POST", "/auth/refresh")}
     covered = {(m, p.replace(str(PID), "{patient_id}").replace(str(AID), "{alert_id}")
-                .replace(str(EID), "{event_id}").replace(str(CID), "{contact_id}").replace(str(JID), "{entry_id}"))
+                .replace(str(EID), "{event_id}").replace(str(CID), "{contact_id}").replace(str(JID), "{entry_id}")
+                .replace(str(FID), "{flag_id}").replace(str(RID), "{report_id}").replace(str(BID), "{band_id}"))
                for m, p, _ in PROTECTED}
     assert routes == covered
+
+
+@pytest.mark.parametrize("path,body", [
+    (f"/patients/{PID}/imports/readings", {**CSV_BODY, "csv": "x" * 300_001}),       # over the size limit
+    (f"/patients/{PID}/imports/readings", {**CSV_BODY, "provenance": "estimated"}),   # not a file label
+    (f"/patients/{PID}/imports/readings", {k: v for k, v in CSV_BODY.items() if k != "provenance"}),  # required
+    (f"/patients/{PID}/imports/ring", {**RING_BODY, "source": "device_sync"}),
+    (f"/wearable-flags/{FID}/review", {"review_status": "open"}),
+    (f"/weekly-reports/{RID}/review", {"doctor_comment": "x" * 4001}),
+    (f"/bands/{BID}/approve", {"low": 70, "high": 60}),
+])
+def test_import_and_review_bodies_are_validated(validating_client, path, body):
+    r = validating_client.post(API + path, headers=AUTH, json=body)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_request"
 
 
 # ---------------------------------------------------------------- emergency config (implemented)

@@ -15,7 +15,7 @@ from .config import Settings, load_settings
 from .db import make_engine, make_session_factory
 from .errors import install_error_handlers
 from .gotrue import GoTrue
-from .routers import alerts, auth, emergency, followup, patients, profile, wearables
+from .routers import alerts, auth, emergency, followup, imports, patients, profile, ring_review, wearables
 
 API_PREFIX = "/api/v1"
 API_VERSION = "1.0.0-contract"
@@ -46,6 +46,6 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] =
         return {"status": "ok"}
 
     for r in (auth.router, patients.router, profile.router, alerts.router, emergency.public,
-              emergency.router, followup.router, wearables.router):
+              emergency.router, followup.router, wearables.router, imports.router, ring_review.router):
         app.include_router(r, prefix=API_PREFIX)
     return app

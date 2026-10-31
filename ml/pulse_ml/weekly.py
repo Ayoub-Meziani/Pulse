@@ -38,7 +38,7 @@ PROPOSE = """
     insert into public.patient_bands (patient_id, metric, statistic, low, high, basis, status, proposed_model_version)
     select %s, %s, %s, %s, %s, 'model_proposal', 'proposed', %s
     where not exists (select 1 from public.patient_bands where patient_id = %s and metric = %s and statistic = %s
-                      and status = 'proposed')"""   # one open proposal per metric at a time
+                      and status in ('proposed', 'active'))"""   # one open proposal at a time; none over a doctor's band
 
 
 def monday(d: date) -> date:
@@ -51,13 +51,14 @@ def week_window(week_start: date, tz: str) -> tuple[datetime, datetime]:
 
 
 def bp_part(conn, patient: str, start: datetime, end: datetime) -> tuple[dict, str | None, str]:
-    s, d, n = conn.execute("select avg(systolic), avg(diastolic), count(*) from public.measurements where patient_id = %s"
-                           " and validation_status = 'valid' and measured_at >= %s and measured_at < %s",
-                           (patient, start, end)).fetchone()
+    s, d, n, simulated = conn.execute(
+        "select avg(systolic), avg(diastolic), count(*), count(*) filter (where provenance = 'simulated')"
+        " from public.measurements where patient_id = %s and validation_status = 'valid' and measured_at >= %s"
+        " and measured_at < %s", (patient, start, end)).fetchone()
     plan = conn.execute("select target_systolic, target_diastolic from public.care_plans where patient_id = %s"
                         " and status = 'active' and target_systolic is not null", (patient,)).fetchone()
     target, source = (plan, "care_plan") if plan else (DEFAULT_TARGET, "default")
-    part = {"valid_readings": n, "target": list(target), "target_source": source}
+    part = {"valid_readings": n, "simulated": simulated, "target": list(target), "target_source": source}
     if n < MIN_WEEK_READINGS:
         return part, None, "insufficient_data"
     s, d = float(s), float(d)

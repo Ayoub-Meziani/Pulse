@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useAuth } from "../../auth/AuthContext";
 import { listMeasurements, listSymptomReports } from "../../api/patient";
 import BloodPressureChart from "../../components/charts/BloodPressureChart";
+import ImportPanel from "../../components/readings/ImportPanel";
 import ReadingList from "../../components/readings/ReadingList";
-import { ButtonLink } from "../../components/ui/Button";
+import Button, { ButtonLink } from "../../components/ui/Button";
 import { Card, CardBody, CardHeader, PageHeader } from "../../components/ui/Card";
 import Icon from "../../components/ui/Icon";
 import { EmptyState, Section } from "../../components/ui/States";
@@ -13,12 +15,26 @@ export default function HistoryPage() {
   const { user } = useAuth();
   const readings = useResource((signal) => listMeasurements(user.id, { limit: 200, signal }), `h:${user.id}`);
   const symptoms = useResource((signal) => listSymptomReports(user.id, { limit: 50, signal }), `sy:${user.id}`);
+  const [importing, setImporting] = useState(false);
 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Espace patient" title="Historique"
         subtitle="Toutes vos mesures, avec leur origine, et vos symptômes signalés."
-        action={<ButtonLink to="/patient/mesure"><Icon name="plus" size={18} />Nouvelle mesure</ButtonLink>} />
+        action={
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink to="/patient/mesure"><Icon name="plus" size={18} />Nouvelle mesure</ButtonLink>
+            <Button variant="secondary" aria-expanded={importing} onClick={() => setImporting((v) => !v)}><Icon name="upload" size={18} />Importer un fichier</Button>
+          </div>
+        } />
+
+      {importing && (
+        <Card>
+          <CardHeader title="Importer un fichier" subtitle="Le serveur vérifie chaque ligne et décide des alertes, comme pour une saisie."
+            action={<Button variant="ghost" onClick={() => setImporting(false)}>Fermer</Button>} />
+          <CardBody><ImportPanel patientId={user.id} timeZone={user.timezone} onImported={readings.reload} /></CardBody>
+        </Card>
+      )}
 
       <Card>
         <CardHeader title="Évolution" />

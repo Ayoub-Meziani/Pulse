@@ -346,6 +346,170 @@
         "title": "AlertOut",
         "type": "object"
       },
+      "BandApproveIn": {
+        "properties": {
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Edit the proposed range before approving (basis becomes 'doctor').",
+            "title": "Low"
+          }
+        },
+        "title": "BandApproveIn",
+        "type": "object"
+      },
+      "BandOut": {
+        "description": "A personal ring range. The model proposes; only the assigned doctor activates (approve) or rejects.",
+        "properties": {
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "basis": {
+            "enum": [
+              "reference",
+              "model_proposal",
+              "doctor"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "high": {
+            "title": "High",
+            "type": "number"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "limitations": {
+            "default": "Experimental, not clinically validated. Never an alert and never patient guidance; visible only to the assigned doctor while the screen is open (no notification).",
+            "title": "Limitations",
+            "type": "string"
+          },
+          "low": {
+            "title": "Low",
+            "type": "number"
+          },
+          "metric": {
+            "enum": [
+              "heart_rate",
+              "hrv_rmssd",
+              "spo2",
+              "skin_temperature"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "proposed_model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed Model Version"
+          },
+          "statistic": {
+            "enum": [
+              "night_median",
+              "night_min",
+              "live_10min_median"
+            ],
+            "title": "Statistic",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "active",
+              "superseded",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "supersedes_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Id"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "metric",
+          "statistic",
+          "low",
+          "high",
+          "basis",
+          "status",
+          "proposed_model_version",
+          "approved_at",
+          "effective_from",
+          "supersedes_id",
+          "created_at"
+        ],
+        "title": "BandOut",
+        "type": "object"
+      },
       "CarePlanIn": {
         "properties": {
           "clinician_guidance": {
@@ -1406,6 +1570,158 @@
           "show_emergency"
         ],
         "title": "EvaluationOut",
+        "type": "object"
+      },
+      "FlagReviewIn": {
+        "properties": {
+          "review_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "review_status": {
+            "enum": [
+              "confirmed",
+              "dismissed"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "review_status"
+        ],
+        "title": "FlagReviewIn",
+        "type": "object"
+      },
+      "ImportResult": {
+        "properties": {
+          "alerts": {
+            "description": "Alerts created or updated by fresh, measured rows.",
+            "items": {
+              "$ref": "#/components/schemas/AlertOut"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "batch_id": {
+            "format": "uuid",
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "by_status": {
+            "$ref": "#/components/schemas/ImportStatusCounts",
+            "description": "Validation of the inserted rows by the database (policy pulse-v1)."
+          },
+          "duplicates": {
+            "description": "Rows identical to a stored reading (time, systolic, diastolic, pulse): skipped.",
+            "title": "Duplicates",
+            "type": "integer"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Highest-level rule result among fresh measured rows (ties: the latest); requires_symptom_check is true if any fresh row needs it. Drive the symptom check and recheck from it exactly as for a manual reading."
+          },
+          "historical": {
+            "description": "Inserted rows measured more than one hour ago: history only, no alert.",
+            "title": "Historical",
+            "type": "integer"
+          },
+          "inserted": {
+            "title": "Inserted",
+            "type": "integer"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasurementOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The fresh measured reading behind `evaluation`."
+          },
+          "next_step": {
+            "title": "Next Step",
+            "type": "string"
+          },
+          "past_severe": {
+            "description": "Historical measured rows at or above 180/120; next_step then asks for a reading now.",
+            "title": "Past Severe",
+            "type": "integer"
+          },
+          "rejected": {
+            "items": {
+              "$ref": "#/components/schemas/RejectedRow"
+            },
+            "title": "Rejected",
+            "type": "array"
+          },
+          "rows_total": {
+            "title": "Rows Total",
+            "type": "integer"
+          },
+          "simulated_preview": {
+            "description": "What the rules would have decided for fresh simulated rows. No alert was created.",
+            "items": {
+              "$ref": "#/components/schemas/SimulatedPreview"
+            },
+            "title": "Simulated Preview",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batch_id",
+          "rows_total",
+          "inserted",
+          "duplicates",
+          "rejected",
+          "by_status",
+          "historical",
+          "past_severe",
+          "alerts",
+          "measurement",
+          "evaluation",
+          "simulated_preview",
+          "next_step"
+        ],
+        "title": "ImportResult",
+        "type": "object"
+      },
+      "ImportStatusCounts": {
+        "properties": {
+          "invalid": {
+            "default": 0,
+            "title": "Invalid",
+            "type": "integer"
+          },
+          "needs_review": {
+            "default": 0,
+            "title": "Needs Review",
+            "type": "integer"
+          },
+          "valid": {
+            "default": 0,
+            "title": "Valid",
+            "type": "integer"
+          }
+        },
+        "title": "ImportStatusCounts",
         "type": "object"
       },
       "Interval": {
@@ -2497,6 +2813,51 @@
         "title": "ProfileOut",
         "type": "object"
       },
+      "ReadingsImportIn": {
+        "description": "A cuff export sent as CSV text (no multipart upload). Columns: measured_at, systolic, diastolic required;\npulse, unit (mmHg only), position, arm, note optional; lines starting with '#' are comments.\n\nRows measured within the last hour go through the same rules as a manual reading, oldest first; older rows\nare history only. Rows declared simulated never create an alert: the rules' result is returned as a preview.",
+        "properties": {
+          "csv": {
+            "maxLength": 300000,
+            "minLength": 1,
+            "title": "Csv",
+            "type": "string"
+          },
+          "file_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "File Name",
+            "type": "string"
+          },
+          "provenance": {
+            "description": "What the file really contains. A file whose first comment line starts with '# SIMULATED' or '# SYNTHETIC' must be 'simulated'. 'simulated' is accepted only when the server runs in demo mode.",
+            "enum": [
+              "measured",
+              "simulated"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "tz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IANA zone for timestamps without an offset; defaults to the profile time zone.",
+            "title": "Tz"
+          }
+        },
+        "required": [
+          "file_name",
+          "csv",
+          "provenance"
+        ],
+        "title": "ReadingsImportIn",
+        "type": "object"
+      },
       "RefreshIn": {
         "properties": {
           "refresh_token": {
@@ -2508,6 +2869,143 @@
           "refresh_token"
         ],
         "title": "RefreshIn",
+        "type": "object"
+      },
+      "RejectedRow": {
+        "properties": {
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Line number in the file (comments and the header count).",
+            "title": "Row"
+          }
+        },
+        "required": [
+          "row",
+          "reasons"
+        ],
+        "title": "RejectedRow",
+        "type": "object"
+      },
+      "ReportReviewIn": {
+        "properties": {
+          "doctor_comment": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doctor Comment"
+          }
+        },
+        "title": "ReportReviewIn",
+        "type": "object"
+      },
+      "RingImportIn": {
+        "description": "A ring / bracelet export as CSV text. Columns: measured_at, metric (heart_rate, hrv_rmssd, spo2,\nskin_temperature), value required; unit, external_id optional. Ring data never reaches the rules (D18).",
+        "properties": {
+          "csv": {
+            "maxLength": 300000,
+            "minLength": 1,
+            "title": "Csv",
+            "type": "string"
+          },
+          "file_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "File Name",
+            "type": "string"
+          },
+          "source": {
+            "description": "'csv_import' for a real device export, 'simulated' for generated data (demo mode only). A file whose first comment line starts with '# SIMULATED' or '# SYNTHETIC' must be 'simulated'.",
+            "enum": [
+              "csv_import",
+              "simulated"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "tz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IANA zone for timestamps without an offset; defaults to the profile time zone.",
+            "title": "Tz"
+          }
+        },
+        "required": [
+          "file_name",
+          "csv",
+          "source"
+        ],
+        "title": "RingImportIn",
+        "type": "object"
+      },
+      "RingImportResult": {
+        "properties": {
+          "device_id": {
+            "format": "uuid",
+            "title": "Device Id",
+            "type": "string"
+          },
+          "duplicates": {
+            "title": "Duplicates",
+            "type": "integer"
+          },
+          "inserted_by_metric": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Inserted By Metric",
+            "type": "object"
+          },
+          "next_step": {
+            "title": "Next Step",
+            "type": "string"
+          },
+          "rejected": {
+            "items": {
+              "$ref": "#/components/schemas/RejectedRow"
+            },
+            "title": "Rejected",
+            "type": "array"
+          },
+          "rows_total": {
+            "title": "Rows Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "device_id",
+          "rows_total",
+          "inserted_by_metric",
+          "duplicates",
+          "rejected",
+          "next_step"
+        ],
+        "title": "RingImportResult",
         "type": "object"
       },
       "SessionMean": {
@@ -2565,6 +3063,44 @@
           "user"
         ],
         "title": "SessionOut",
+        "type": "object"
+      },
+      "SimulatedPreview": {
+        "properties": {
+          "level": {
+            "enum": [
+              "none",
+              "notice",
+              "trend",
+              "severe",
+              "emergency"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "measured_at": {
+            "format": "date-time",
+            "title": "Measured At",
+            "type": "string"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Id"
+          }
+        },
+        "required": [
+          "measured_at",
+          "level",
+          "rule_id"
+        ],
+        "title": "SimulatedPreview",
         "type": "object"
       },
       "SummaryOut": {
@@ -3155,6 +3691,166 @@
         "title": "UserOut",
         "type": "object"
       },
+      "WearableFlagOut": {
+        "description": "A ring flag written by the offline monitor. kind 'early_warning' (window_kind 'forecast') is the live-v1\nengine: value = forecast in 20 min, score = probability the limit is crossed within 20 min.",
+        "properties": {
+          "band_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "outside_reference",
+              "personal_anomaly",
+              "multivariate_anomaly",
+              "early_warning"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "limitations": {
+            "default": "Experimental, not clinically validated. Never an alert and never patient guidance; visible only to the assigned doctor while the screen is open (no notification).",
+            "title": "Limitations",
+            "type": "string"
+          },
+          "metric": {
+            "enum": [
+              "heart_rate",
+              "hrv_rmssd",
+              "spo2",
+              "skin_temperature",
+              "multivariate",
+              "sleep"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "reference_basis": {
+            "title": "Reference Basis",
+            "type": "string"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "review_status": {
+            "enum": [
+              "open",
+              "confirmed",
+              "dismissed"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "window_end": {
+            "format": "date-time",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_kind": {
+            "enum": [
+              "live_10min",
+              "night",
+              "forecast"
+            ],
+            "title": "Window Kind",
+            "type": "string"
+          },
+          "window_start": {
+            "format": "date-time",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "metric",
+          "kind",
+          "window_kind",
+          "window_start",
+          "window_end",
+          "value",
+          "score",
+          "reference_basis",
+          "band_id",
+          "model_version",
+          "review_status",
+          "reviewed_at",
+          "review_note",
+          "created_at"
+        ],
+        "title": "WearableFlagOut",
+        "type": "object"
+      },
       "WearableSampleOut": {
         "description": "Optional, additional data. A patient without a wearable has a complete record without it. Heart rate,\nHRV, SpO2 and skin temperature are not blood-pressure readings, and no sample is ever an input to the\nsafety rules, alerts or emergency guidance.",
         "properties": {
@@ -3218,6 +3914,136 @@
           "source"
         ],
         "title": "WearableSampleOut",
+        "type": "object"
+      },
+      "WeeklyReportOut": {
+        "description": "Weekly report written by the offline job. summary: bp_home, ring, optional pulse_vs_population; mbp_estimate\nonly when it comes from the served BP model and targets today or later (else null).",
+        "properties": {
+          "control_status": {
+            "enum": [
+              "at_or_below_target",
+              "above_target",
+              "insufficient_data"
+            ],
+            "title": "Control Status",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "doctor_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doctor Comment"
+          },
+          "home_bp_category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "normal",
+                  "elevated",
+                  "stage_1_range",
+                  "stage_2_range"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Bp Category"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "limitations": {
+            "default": "Experimental, not clinically validated. Never an alert and never patient guidance; visible only to the assigned doctor while the screen is open (no notification).",
+            "title": "Limitations",
+            "type": "string"
+          },
+          "model_versions": {
+            "additionalProperties": true,
+            "title": "Model Versions",
+            "type": "object"
+          },
+          "next_week_above_target_prob": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Week Above Target Prob"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "reviewed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "week_start": {
+            "format": "date",
+            "title": "Week Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "week_start",
+          "home_bp_category",
+          "control_status",
+          "next_week_above_target_prob",
+          "model_versions",
+          "summary",
+          "status",
+          "reviewed_at",
+          "doctor_comment",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WeeklyReportOut",
         "type": "object"
       }
     },
@@ -3661,6 +4487,232 @@
         "summary": "Exchange a refresh token for a new session",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/bands/{band_id}/approve": {
+      "post": {
+        "operationId": "approve_band_api_v1_bands__band_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "band_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Band Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BandApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BandOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor: activate a proposed range, optionally edited; the previous one is superseded",
+        "tags": [
+          "ring review"
+        ]
+      }
+    },
+    "/api/v1/bands/{band_id}/reject": {
+      "post": {
+        "operationId": "reject_band_api_v1_bands__band_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "band_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Band Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BandOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor: reject a proposed range",
+        "tags": [
+          "ring review"
         ]
       }
     },
@@ -4478,6 +5530,118 @@
         ]
       }
     },
+    "/api/v1/patients/{patient_id}/bands": {
+      "get": {
+        "operationId": "list_bands_api_v1_patients__patient_id__bands_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BandOut"
+                  },
+                  "title": "Response List Bands Api V1 Patients  Patient Id  Bands Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor: personal ring ranges (proposed first, then active)",
+        "tags": [
+          "ring review"
+        ]
+      }
+    },
     "/api/v1/patients/{patient_id}/care-plan": {
       "get": {
         "operationId": "get_care_plan_api_v1_patients__patient_id__care_plan_get",
@@ -5281,6 +6445,242 @@
         "summary": "Patient: open an emergency event; repeating the same client id returns the stored event",
         "tags": [
           "emergency"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/imports/readings": {
+      "post": {
+        "operationId": "import_readings_api_v1_patients__patient_id__imports_readings_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingsImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: import a cuff CSV; fresh measured rows go through the reading rules, simulated never alert",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/imports/ring": {
+      "post": {
+        "operationId": "import_ring_api_v1_patients__patient_id__imports_ring_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RingImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RingImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patient: import a ring CSV (heart rate, HRV, SpO2, skin temperature); never raises an alert",
+        "tags": [
+          "imports"
         ]
       }
     },
@@ -7012,6 +8412,173 @@
         ]
       }
     },
+    "/api/v1/patients/{patient_id}/wearable-flags": {
+      "get": {
+        "operationId": "list_flags_api_v1_patients__patient_id__wearable_flags_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "outside_reference",
+                    "personal_anomaly",
+                    "multivariate_anomaly",
+                    "early_warning"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "review_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "open",
+                    "confirmed",
+                    "dismissed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Review Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WearableFlagOut"
+                  },
+                  "title": "Response List Flags Api V1 Patients  Patient Id  Wearable Flags Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor: ring flags and live early warnings, newest first (advisory)",
+        "tags": [
+          "ring review"
+        ]
+      }
+    },
     "/api/v1/patients/{patient_id}/wearable-samples": {
       "get": {
         "operationId": "list_wearable_samples_api_v1_patients__patient_id__wearable_samples_get",
@@ -7206,6 +8773,130 @@
         "summary": "Wearable samples, newest first; optional, advisory, never used for alerts or guidance",
         "tags": [
           "wearables"
+        ]
+      }
+    },
+    "/api/v1/patients/{patient_id}/weekly-reports": {
+      "get": {
+        "operationId": "list_reports_api_v1_patients__patient_id__weekly_reports_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 8,
+              "maximum": 52,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WeeklyReportOut"
+                  },
+                  "title": "Response List Reports Api V1 Patients  Patient Id  Weekly Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor: weekly reports, newest week first",
+        "tags": [
+          "ring review"
         ]
       }
     },
@@ -7423,6 +9114,242 @@
         "summary": "Patient only; a new phone number needs a new contact with consent (422)",
         "tags": [
           "profile"
+        ]
+      }
+    },
+    "/api/v1/wearable-flags/{flag_id}/review": {
+      "post": {
+        "operationId": "review_flag_api_v1_wearable_flags__flag_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flag_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Flag Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlagReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WearableFlagOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor: confirm or dismiss a flag (the first reviewer's decision stands)",
+        "tags": [
+          "ring review"
+        ]
+      }
+    },
+    "/api/v1/weekly-reports/{report_id}/review": {
+      "post": {
+        "operationId": "review_report_api_v1_weekly_reports__report_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Missing or invalid token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Invalid request"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not implemented yet"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Authentication service or database unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assigned doctor: mark a weekly report reviewed, with an optional comment",
+        "tags": [
+          "ring review"
         ]
       }
     }

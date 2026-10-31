@@ -138,3 +138,59 @@ export const DEVICE_TYPE = {
   phone_app: "Application",
   simulator: "Simulateur",
 };
+
+/** 0.734 -> "73 %". For model probabilities, never a measurement. */
+export function formatPercent(p) {
+  return p === null || p === undefined ? "—" : `${Math.round(p * 100)} %`;
+}
+
+// Ring model outputs shown to the doctor (WearableFlagOut, WeeklyReportOut, BandOut). Advisory, never an alert.
+export const FLAG_KIND = {
+  early_warning: "Alerte précoce (prévision)",
+  outside_reference: "Hors référence",
+  personal_anomaly: "Inhabituel pour ce patient",
+  multivariate_anomaly: "Anomalie combinée",
+};
+
+export const FLAG_WINDOW = { live_10min: "direct (10 min)", night: "nuit", forecast: "prévision" };
+
+// Flag metrics beyond the four ring metrics of WEARABLE_METRIC.
+const FLAG_ONLY_METRIC = { multivariate: "Plusieurs mesures combinées", sleep: "Sommeil (nuit agitée)" };
+
+export function flagMetricLabel(metric) {
+  return WEARABLE_METRIC[metric]?.label ?? FLAG_ONLY_METRIC[metric] ?? metric;
+}
+
+export const FLAG_REVIEW = {
+  open: { label: "À examiner", tone: "warning" },
+  confirmed: { label: "Confirmé", tone: "brand" },
+  dismissed: { label: "Écarté", tone: "neutral" },
+};
+
+export const HOME_BP_CATEGORY = { normal: "normale", elevated: "élevée", stage_1_range: "stade 1", stage_2_range: "stade 2" };
+
+export const CONTROL_STATUS = {
+  at_or_below_target: "à la cible ou en dessous",
+  above_target: "au-dessus de la cible",
+  insufficient_data: "données insuffisantes",
+};
+
+export const REPORT_STATUS = {
+  ready: { label: "À examiner", tone: "warning" },
+  reviewed: { label: "Examiné", tone: "success" },
+};
+
+export const BAND_STATISTIC = {
+  night_median: "médiane de nuit",
+  night_min: "minimum de nuit",
+  live_10min_median: "médiane 10 min en direct",
+};
+
+export const BAND_STATUS = {
+  proposed: { label: "Proposée", tone: "warning" },
+  active: { label: "Active", tone: "success" },
+  superseded: { label: "Remplacée", tone: "neutral" },
+  rejected: { label: "Refusée", tone: "neutral" },
+};
+
+export const BAND_BASIS = { reference: "référence générale", model_proposal: "proposée par le modèle", doctor: "fixée par le médecin" };

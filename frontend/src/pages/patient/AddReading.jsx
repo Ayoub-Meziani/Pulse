@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { ApiError } from "../../api/client";
 import { addMeasurement, addSymptomReport, getEmergencyConfig } from "../../api/patient";
@@ -248,7 +248,9 @@ export default function AddReading() {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const symptomOnly = params.get("mode") === "symptomes";
-  const [step, setStep] = useState(symptomOnly ? { kind: "symptoms", result: null } : { kind: "form", recheck: false });
+  // A file import whose fresh reading needs a symptom check arrives with its result (ImportPanel): same flow as here.
+  const imported = useLocation().state?.result ?? null;
+  const [step, setStep] = useState(symptomOnly ? { kind: "symptoms", result: imported } : { kind: "form", recheck: false });
   const [config, setConfig] = useState(null);
   const pending = useRef(null);  // last request: same values -> same id (repeat-safe)
 

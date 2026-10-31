@@ -1,8 +1,10 @@
 """The ORM mappings and vocabularies match the migrated schema (catches drift from supabase/migrations)."""
+from typing import get_args
+
 import pytest
 from sqlalchemy import inspect, select, text
 
-from app import models, vocab
+from app import models, schemas, vocab
 from app.analysis.rules import KNOWN_SYMPTOMS
 from app.db import Base
 
@@ -30,7 +32,26 @@ def test_all_api_tables_are_mapped():
     names = {m.local_table.name for m in MAPPED}
     assert {"profiles", "patient_profiles", "doctor_patient_assignments", "care_plans", "measurements",
             "symptom_reports", "alerts", "alert_measurements", "trusted_contacts", "emergency_events",
-            "doctor_notes", "journal_entries", "ml_predictions", "users", "devices", "wearable_samples"} <= names
+            "doctor_notes", "journal_entries", "ml_predictions", "users", "devices", "wearable_samples",
+            "ingestion_batches", "wearable_flags", "weekly_reports", "patient_bands"} <= names
+
+
+@pytest.mark.parametrize("literal,constraint", [
+    (schemas.FlagMetric, "wearable_flags_metric_check"),
+    (schemas.FlagKind, "wearable_flags_kind_check"),
+    (schemas.WindowKind, "wearable_flags_window_kind_check"),
+    (schemas.FlagReviewStatus, "wearable_flags_review_status_check"),
+    (schemas.BandStatistic, "patient_bands_statistic_check"),
+    (schemas.BandStatus, "patient_bands_status_check"),
+    (schemas.BandBasis, "patient_bands_basis_check"),
+    (schemas.ControlStatus, "weekly_reports_control_status_check"),
+    (schemas.HomeBpCategory, "weekly_reports_home_bp_category_check"),
+])
+def test_ring_ml_vocabularies_match_database(conn, literal, constraint):
+    definition = _check(conn, constraint)
+    values = set(get_args(literal))
+    assert {v for v in values if f"'{v}'" in definition} == values
+    assert len(definition.split("'")) // 2 == len(values)  # and the database allows nothing more
 
 
 def test_alert_classes_exist_in_database(conn):

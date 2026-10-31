@@ -77,7 +77,7 @@ Still outside the database (by design): the emergency number (backend config), p
 BMI is computed when read (`weight_kg / (height_cm/100)^2`, using the latest height). Abdominal obesity uses the STEPS cut-offs: waist > 94 cm for men, > 80 cm for women.
 
 ## M7 `ml_monitoring` (built as required by PULSE_ML_phase2_review.pdf)
-Everything in M7 is **advisory**: no safety rule reads these tables (review H6). The proposed ring safety rule R-RING-1 is evaluated by the backend directly on `wearable_samples` (spec in `ml/pulse_ml/reference.py`).
+Everything in M7 is **advisory**: no safety rule reads these tables (review H6). The proposed ring safety rule R-RING-1 (spec in `ml/pulse_ml/reference.py`) is **not implemented and stays disabled** (B26, freeze): nothing happens when a ring value crosses a limit.
 
 | Object | What | Access |
 |---|---|---|
@@ -105,7 +105,7 @@ Everything in M7 is **advisory**: no safety rule reads these tables (review H6).
 - **Cloud, 30 Oct 2026 (without Ayoub's confirmed approval; see `docs/incidents/2026-10-30-unapproved-live-changes.md`):** M8 applied and the ring demo refreshed. Read-only check: 8/8 migrations in sync, 24 public tables all with RLS, readings 730 (unchanged), 12 ring patients × 1,736 samples = 20,832, 0 non-simulated ring samples, 1 COPD, 1 atrial fibrillation.
 
 ## M9 `live_early_warning`
-The live ring engine (`ml/pulse_ml/live.py`, model `live-v1`) runs inside `monitor --follow` on every new minute. It warns the **doctor** before a limit is crossed. Advisory only: no safety rule reads `wearable_flags`, patients cannot read it (M4), and R-RING-1 and the symptom rules stay the safety path in the backend.
+The live ring engine (`ml/pulse_ml/live.py`, model `live-v1`) runs inside `monitor --follow` on every new minute. It warns the **doctor** before a limit is crossed. Advisory only: no safety rule reads `wearable_flags` and patients cannot read it (M4). The safety path is the deterministic blood-pressure and symptom rules in the backend; R-RING-1 is not implemented and stays disabled (B26). The assigned doctor sees these rows in the "Signaux bracelet" tab when the API runs with `PULSE_SERVE_RING_ML` (proposed D26); no notification is sent.
 
 | Row | Meaning |
 |---|---|

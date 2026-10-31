@@ -16,7 +16,8 @@ import pytest
 psycopg = pytest.importorskip("psycopg")
 
 from pulse_data import simulate as sim  # noqa: E402
-from pulse_data.ingest import LOCAL_DB, DuplicateFileError, Reading, import_readings  # noqa: E402
+from pulse_data.ingest import (LOCAL_DB, DuplicateFileError, Reading, import_readings, import_wearable,  # noqa: E402
+                               parse_wearable_csv, ring_device)
 
 DB = os.environ.get("PULSE_TEST_DATABASE_URL", LOCAL_DB)
 IDS = {u.key: u.id for u in sim.PATIENTS}
@@ -334,6 +335,32 @@ def test_wearable_samples(db):
     db.execute("reset role")
     as_user(db, AMINA)
     assert visible_patients(db, "wearable_samples") == {AMINA}   # every demo patient has a simulated ring
+
+
+def test_wearable_csv_import_creates_ring_dedups_and_doctor_sees_it(db, tmp_path):
+    patient = new_user(db)
+    db.execute("insert into public.doctor_patient_assignments (doctor_id, patient_id) values (%s, %s)",
+               (sim.DOCTOR.id, patient))
+    path = tmp_path / "ring.csv"
+    path.write_text("measured_at,metric,value,unit,external_id\n"
+                    "2026-10-20T02:00:00+01:00,heart_rate,58,bpm,a1\n"
+                    "2026-10-20T02:00:00+01:00,spo2,96.5,%,\n"           # no id: de-duplicated by instant
+                    "2026-10-20T03:00:00+01:00,heart_rate,400,bpm,a2\n"  # refused by the database range check
+                    "2026-10-20T03:00:00+01:00,steps,900,count,a3\n", encoding="utf-8")
+    samples, rejections = parse_wearable_csv(path, "Africa/Algiers")
+    with pytest.raises(SystemExit):
+        ring_device(db, patient, simulated=True, create=False)       # the live stream never invents a ring
+    ring = ring_device(db, patient, simulated=True, create=True)
+    assert db.execute("select device_type, bp_capability from public.devices where id = %s",
+                      (ring,)).fetchone() == ("simulator", "simulated")
+    first = import_wearable(db, patient, ring, samples, source="simulated", rejections=rejections)
+    assert (first["rows_inserted"], first["rows_rejected"]) == (2, 2)
+    again = import_wearable(db, patient, ring, samples, source="simulated")
+    assert (again["rows_inserted"], again["rows_duplicate"], again["rows_rejected"]) == (0, 2, 1)
+    assert ring_device(db, patient, simulated=True, create=False) == ring
+    as_user(db, sim.DOCTOR.id)
+    assert db.execute("select count(*) from public.wearable_samples where patient_id = %s",
+                      (patient,)).fetchone()[0] == 2
 
 
 # ---------------------------------------------------------------- M7 ml_monitoring (review M1-M4, M8)

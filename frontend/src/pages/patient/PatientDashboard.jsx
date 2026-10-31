@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 import { getProfile, getSummary, listAlerts, listMeasurements, listNotes } from "../../api/patient";
@@ -9,6 +10,7 @@ import { ButtonLink } from "../../components/ui/Button";
 import { Card, CardBody, CardHeader, PageHeader } from "../../components/ui/Card";
 import Icon from "../../components/ui/Icon";
 import { EmptyState, ErrorState, Loading, Section } from "../../components/ui/States";
+import RingImportPanel from "../../components/wearables/RingImportPanel";
 import WearablePanel from "../../components/wearables/WearablePanel";
 import { formatAgo, formatDate, formatDateTime, round, TREND } from "../../lib/format";
 import { useResource } from "../../lib/useResource";
@@ -117,6 +119,7 @@ export default function PatientDashboard() {
   const profile = useResource((signal) => getProfile(id, { signal }), `p:${id}`);
   const notes = useResource((signal) => listNotes(id, { signal }), `n:${id}`);
   const firstName = (user.full_name ?? "").split(" ")[0];
+  const [ringImports, setRingImports] = useState(0);  // a new key reloads the ring panel (devices and samples)
 
   return (
     <div className="space-y-6">
@@ -178,7 +181,10 @@ export default function PatientDashboard() {
 
       <Card>
         <CardHeader title="Bracelet (facultatif)" subtitle="Données complémentaires, sans effet sur les alertes" />
-        <CardBody><WearablePanel patientId={id} timeZone={tz} /></CardBody>
+        <CardBody className="space-y-5">
+          <WearablePanel key={ringImports} patientId={id} timeZone={tz} />
+          <RingImportPanel patientId={id} onImported={() => setRingImports((n) => n + 1)} />
+        </CardBody>
       </Card>
     </div>
   );

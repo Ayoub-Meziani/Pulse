@@ -23,6 +23,13 @@ NEXT_STEP = {
     "DATA-INVALID": "Check the cuff and the numbers, then measure again. If you feel unwell, "
                     "use the Urgence button or call emergency services.",
     None: "Reading saved.",
+    # File imports (proposed decision D26; wording pending clinician review).
+    "IMPORT-PAST-SEVERE": "Some imported readings were 180/120 or higher. Measure your blood pressure now. "
+                          "If you feel unwell, call emergency services.",
+    "IMPORT-SIMULATED": "Simulated readings are labelled and never raise an alert.",
+    "IMPORT-HISTORY": "Older readings were added to your history; they count in your weekly average.",
+    "IMPORT-NOTHING": "Nothing new was added: these readings were already in your history.",
+    "IMPORT-RING": "Ring data is context for your doctor and never raises an alert.",
 }
 
 # Plain words for the database's `invalid` flags (policy pulse-v1), shown with DATA-INVALID.
