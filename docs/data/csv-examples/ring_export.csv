@@ -1,0 +1,10 @@
+# SIMULATED example ring export (fictional values): import it from the "Bracelet" panel as simulated
+measured_at,metric,value,unit,external_id
+2026-10-25T01:00:00+01:00,heart_rate,58,bpm,ex-1
+2026-10-25T01:00:00+01:00,spo2,96.5,%,ex-2
+2026-10-25T01:00:00+01:00,hrv_rmssd,42.1,ms,ex-3
+2026-10-25T01:00:00+01:00,skin_temperature,34.6,°C,ex-4
+2026-10-25T03:00:00+01:00,heart_rate,55,bpm,ex-5
+2026-10-25T03:00:00+01:00,spo2,95.8,%,ex-6
+2026-10-25T03:00:00+01:00,heart_rate,400,bpm,ex-7
+2026-10-25T03:00:00+01:00,blood_sugar,5.4,mmol/L,ex-8
