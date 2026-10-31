@@ -1,11 +1,14 @@
 """SIMULATED live ring stream for the demo: inserts 'now' samples for the demo ring patients.
 
     python -m pulse_data.stream [--interval 5] [--minutes 3] [--scenario NAME] [--patient cohort_1] [--speed 5]
+    python -m pulse_data.stream --patient-email patient.b@demo.pulse.test [--scenario spo2_dip]   # one patient's ring
 
 Scenarios: spo2_dip / hr_rise (a constant shift), or a live situation from pulse_data.live_sim that unfolds minute
 by minute (oxygen_falling, heart_rate_climbing, fever_starting, bad_sleep, sleep_apnea, false_alarm_traps,
 normal_night). A live situation starts 15 situation-minutes before its onset; --speed N plays N situation-minutes per
 real minute (demo only: the live engine then sees faster slopes than a real night).
+--patient-email streams heart rate + SpO2 to that patient's existing simulated ring in whichever local database
+DATABASE_URL points to (e.g. the local dev stack behind the website); only spo2_dip / hr_rise apply there.
 Every row is source = 'simulated' with a fresh external_id. Local stack by default; a non-local
 DATABASE_URL is refused unless --i-confirmed-cloud is given (backend review + user confirmation, review M9).
 Prints counts only.
@@ -23,7 +26,7 @@ from urllib.parse import urlparse
 import psycopg
 
 from . import live_sim
-from .ingest import LOCAL_DB
+from .ingest import LOCAL_DB, resolve_patient, ring_device
 from .simulate import GENERATOR_VERSION, PATIENTS, WEARABLE_KEYS, demo_id, ring_profile, risk_factors
 
 SCENARIOS = {"spo2_dip": ("spo2", -7.0), "hr_rise": ("heart_rate", 40.0)}
@@ -58,13 +61,18 @@ def tick_rows(rng: random.Random, scenario: str | None, scenario_key: str, live_
         if live_samples is not None and key == scenario_key:
             rows += [(user.id, device, m, v, u, f"live-{uuid.uuid4().hex[:16]}") for m, v, u in live_samples]
             continue
-        hr, spo2 = rng.gauss(rp.hr + 12, 10 if rp.af else 4), min(100.0, rng.gauss(rp.spo2, 0.6))
-        if scenario in SCENARIOS and key == scenario_key:
-            metric, shift = SCENARIOS[scenario]
-            hr, spo2 = (hr + shift, spo2) if metric == "heart_rate" else (hr, spo2 + shift)
-        rows += [(user.id, device, "heart_rate", round(hr), "bpm", f"live-{uuid.uuid4().hex[:16]}"),
-                 (user.id, device, "spo2", round(spo2, 1), "percent", f"live-{uuid.uuid4().hex[:16]}")]
+        rows += ring_rows(rng, rp, user.id, device, scenario if key == scenario_key else None)
     return rows
+
+
+def ring_rows(rng: random.Random, rp, patient_id: str, device: str, scenario: str | None) -> list[tuple]:
+    """One awake-time heart rate + SpO2 pair around the personal normal, shifted by a constant scenario."""
+    hr, spo2 = rng.gauss(rp.hr + 12, 10 if rp.af else 4), min(100.0, rng.gauss(rp.spo2, 0.6))
+    if scenario in SCENARIOS:
+        metric, shift = SCENARIOS[scenario]
+        hr, spo2 = (hr + shift, spo2) if metric == "heart_rate" else (hr, spo2 + shift)
+    return [(patient_id, device, "heart_rate", round(hr), "bpm", f"live-{uuid.uuid4().hex[:16]}"),
+            (patient_id, device, "spo2", round(spo2, 1), "percent", f"live-{uuid.uuid4().hex[:16]}")]
 
 
 def main() -> None:
@@ -75,17 +83,32 @@ def main() -> None:
     ap.add_argument("--patient", default="severe_event", choices=WEARABLE_KEYS,
                     help="who gets the scenario (default Nadia; Fatima has COPD, so her SpO2 limit is 88 %%)")
     ap.add_argument("--speed", type=float, default=1.0, help="live situations: situation-minutes per real minute")
+    ap.add_argument("--patient-email", help="stream to this patient's existing simulated ring instead of the seed rings")
     ap.add_argument("--i-confirmed-cloud", action="store_true")
     a = ap.parse_args()
     url = os.environ.get("DATABASE_URL", LOCAL_DB)
     if urlparse(url).hostname not in ("127.0.0.1", "localhost") and not a.i_confirmed_cloud:
         raise SystemExit("refusing to stream into a non-local database without --i-confirmed-cloud "
                          "(needs backend review + user confirmation)")
+    if a.patient_email and a.scenario in LIVE_SITUATIONS:
+        raise SystemExit("--patient-email supports only the constant scenarios: " + ", ".join(sorted(SCENARIOS)))
     situation = situation_minutes(a.patient, a.scenario) if a.scenario in LIVE_SITUATIONS else None
     rng, sent, began = random.Random(), 0, time.monotonic()
     end, sent_minutes = began + a.minutes * 60, set()
     with psycopg.connect(url, autocommit=True) as conn:
+        target = None
+        if a.patient_email:
+            pid = resolve_patient(conn, a.patient_email)
+            target = (pid, ring_device(conn, pid, simulated=True, create=False),
+                      ring_profile(random.Random(f"{GENERATOR_VERSION}:stream:{a.patient_email}")))
         while time.monotonic() < end:
+            if target:
+                pid, device, rp = target
+                for row in ring_rows(rng, rp, pid, device, a.scenario):
+                    conn.execute(INSERT, row)
+                    sent += 1
+                time.sleep(a.interval)
+                continue
             live_samples = None
             if situation:
                 by_minute, start = situation

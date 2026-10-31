@@ -6,6 +6,11 @@ Schema/format checks happen here. Plausibility validation is done by the databas
 
     python -m pulse_data.ingest import-csv --patient amina.demo@pulse.test \
         --file samples/readings_sample.csv --provenance simulated --tz Africa/Algiers
+
+Ring / bracelet samples (heart rate, HRV, SpO2, skin temperature; never blood pressure, never an alert input):
+
+    python -m pulse_data.ingest import-wearable-csv --patient patient.b@demo.pulse.test \
+        --file data/demo/ring_karim_28_nights.csv --source simulated
 """
 from __future__ import annotations
 
@@ -26,6 +31,9 @@ LOCAL_DB = "postgresql://postgres:postgres@127.0.0.1:55322/postgres"  # local Su
 REQUIRED = ("measured_at", "systolic", "diastolic")
 POSITIONS = {"sitting", "standing", "lying"}
 ARMS = {"left", "right"}
+WEARABLE_REQUIRED = ("measured_at", "metric", "value")
+WEARABLE_UNITS = {"heart_rate": "bpm", "hrv_rmssd": "ms", "spo2": "percent", "skin_temperature": "celsius"}
+UNIT_ALIASES = {"%": "percent", "°c": "celsius", "c": "celsius", "beats/min": "bpm"}
 
 
 @dataclass(frozen=True)
@@ -45,6 +53,17 @@ class Reading:
 
 
 @dataclass(frozen=True)
+class WearableSample:
+    """One ring / bracelet value, as stored in public.wearable_samples."""
+    measured_at: datetime            # timezone-aware
+    metric: str                      # a WEARABLE_UNITS key
+    value: float
+    unit: str
+    external_id: str | None = None   # sample id from the export; never invented
+    row: int | None = None
+
+
+@dataclass(frozen=True)
 class Rejection:
     row: int | None
     reasons: tuple[str, ...]
@@ -61,21 +80,9 @@ def parse_csv(path: str | Path, default_tz: str) -> tuple[list[Reading], list[Re
     external_id, position, arm, note optional. Naive timestamps are read in `default_tz`.
     """
     tz = ZoneInfo(default_tz)  # raises for unknown zones
-    with open(path, newline="", encoding="utf-8-sig") as f:
-        lines = [(n, line) for n, line in enumerate(f, 1) if not line.lstrip().startswith("#")]
-    reader = csv.DictReader(line for _, line in lines)
-    if reader.fieldnames is None:
-        raise ValueError("CSV is empty")
-    reader.fieldnames = [(h or "").strip().lower() for h in reader.fieldnames]
-    missing = [c for c in REQUIRED if c not in reader.fieldnames]
-    if missing:
-        raise ValueError(f"CSV is missing required column(s): {', '.join(missing)}")
-
     readings: list[Reading] = []
     rejections: list[Rejection] = []
-    for raw in reader:
-        line = lines[reader.line_num - 1][0]
-        row = {k: (v or "").strip() for k, v in raw.items() if k}
+    for line, row in _csv_rows(path, REQUIRED):
         reasons: list[str] = []
 
         def integer(name: str, required: bool) -> int | None:
@@ -92,16 +99,7 @@ def parse_csv(path: str | Path, default_tz: str) -> tuple[list[Reading], list[Re
         systolic, diastolic, pulse = integer("systolic", True), integer("diastolic", True), integer("pulse", False)
         if (row.get("unit") or "mmHg").lower() != "mmhg":
             reasons.append("unsupported_unit")
-        measured_at = None
-        if not row.get("measured_at"):
-            reasons.append("missing_measured_at")
-        else:
-            try:
-                measured_at = datetime.fromisoformat(row["measured_at"])
-                if measured_at.tzinfo is None:
-                    measured_at = measured_at.replace(tzinfo=tz)
-            except ValueError:
-                reasons.append("invalid_timestamp")
+        measured_at = _timestamp(row, tz, reasons)
         position, arm = row.get("position", "").lower() or None, row.get("arm", "").lower() or None
         if position and position not in POSITIONS:
             reasons.append("invalid_position")
@@ -114,6 +112,60 @@ def parse_csv(path: str | Path, default_tz: str) -> tuple[list[Reading], list[Re
         readings.append(Reading(measured_at, systolic, diastolic, pulse, default_tz, row.get("external_id") or None,
                                 position, arm, (row.get("note") or "")[:500] or None, row=line))
     return readings, rejections
+
+
+def _csv_rows(path: str | Path, required: tuple[str, ...]) -> list[tuple[int, dict]]:
+    """(source line, row) pairs with lower-case headers; lines starting with '#' are comments."""
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        lines = [(n, line) for n, line in enumerate(f, 1) if not line.lstrip().startswith("#")]
+    reader = csv.DictReader(line for _, line in lines)
+    if reader.fieldnames is None:
+        raise ValueError("CSV is empty")
+    reader.fieldnames = [(h or "").strip().lower() for h in reader.fieldnames]
+    missing = [c for c in required if c not in reader.fieldnames]
+    if missing:
+        raise ValueError(f"CSV is missing required column(s): {', '.join(missing)}")
+    return [(lines[reader.line_num - 1][0], {k: (v or "").strip() for k, v in raw.items() if k}) for raw in reader]
+
+
+def _timestamp(row: dict, tz: ZoneInfo, reasons: list[str]) -> datetime | None:
+    if not row.get("measured_at"):
+        reasons.append("missing_measured_at")
+        return None
+    try:
+        at = datetime.fromisoformat(row["measured_at"])
+    except ValueError:
+        reasons.append("invalid_timestamp")
+        return None
+    return at if at.tzinfo else at.replace(tzinfo=tz)
+
+
+def parse_wearable_csv(path: str | Path, default_tz: str) -> tuple[list[WearableSample], list[Rejection]]:
+    """Parse a ring / bracelet export. Columns: measured_at, metric, value required; unit, external_id optional.
+    Metrics: heart_rate (bpm), hrv_rmssd (ms), spo2 (percent), skin_temperature (celsius). Plausible ranges are
+    checked by the database, which refuses the row."""
+    tz = ZoneInfo(default_tz)
+    samples: list[WearableSample] = []
+    rejections: list[Rejection] = []
+    for line, row in _csv_rows(path, WEARABLE_REQUIRED):
+        reasons: list[str] = []
+        metric = row.get("metric", "").lower()
+        if metric not in WEARABLE_UNITS:
+            reasons.append("unknown_metric")
+        unit = row.get("unit", "").lower()
+        unit = UNIT_ALIASES.get(unit, unit) or WEARABLE_UNITS.get(metric, "")
+        if metric in WEARABLE_UNITS and unit != WEARABLE_UNITS[metric]:
+            reasons.append("unsupported_unit")
+        try:
+            value = float(row["value"])
+        except ValueError:
+            reasons.append("not_number_value")
+        measured_at = _timestamp(row, tz, reasons)
+        if reasons:
+            rejections.append(Rejection(line, tuple(reasons)))
+            continue
+        samples.append(WearableSample(measured_at, metric, value, unit, row.get("external_id") or None, line))
+    return samples, rejections
 
 
 def file_sha256(path: str | Path) -> str:
@@ -179,6 +231,57 @@ def import_readings(conn, patient_id: str, readings: list[Reading], *, source: s
     return summary
 
 
+def ring_device(conn, patient_id: str, *, simulated: bool, create: bool) -> str:
+    """The patient's ring: their first simulator device for simulated data, their first real wearable otherwise.
+    With create=True a missing ring is added (a simulator is always labelled simulated, by database rule)."""
+    kind = "simulator" if simulated else "wearable"
+    found = conn.execute("select id from public.devices where patient_id = %s and device_type = %s"
+                         " order by created_at, id limit 1", (patient_id, kind)).fetchone()
+    if found:
+        return str(found[0])
+    if not create:
+        raise SystemExit(f"this patient has no {kind} device; import a ring CSV first")
+    label = "Bague simulée (import CSV)" if simulated else "Bague (import CSV)"
+    return str(conn.execute(
+        "insert into public.devices (patient_id, device_type, bp_capability, manufacturer, model, label)"
+        " values (%s, %s, %s, %s, %s, %s) returning id",
+        (patient_id, kind, "simulated" if simulated else "none", "PULSE" if simulated else None,
+         "Simulateur" if simulated else None, label)).fetchone()[0])
+
+
+def import_wearable(conn, patient_id: str, device_id: str, samples: list[WearableSample], *, source: str,
+                    rejections: list[Rejection] = ()) -> dict:
+    """Store ring samples; returns counts only. A sample already stored for the same device (same external_id,
+    or same metric at the same instant when the export has no id) is skipped, so re-importing a file adds nothing."""
+    import psycopg
+
+    rejected = [{"row": r.row, "reasons": list(r.reasons)} for r in rejections]
+    inserted: Counter[str] = Counter()
+    duplicates = 0
+    with conn.transaction():
+        for s in samples:
+            try:
+                with conn.transaction():  # savepoint: one refused row must not abort the import
+                    row = conn.execute(
+                        "insert into public.wearable_samples (patient_id, device_id, metric, value, unit, measured_at,"
+                        " source, external_id) select %s::uuid, %s::uuid, %s::text, %s::numeric, %s::text,"
+                        " %s::timestamptz, %s::text, %s::text where not exists (select 1 from public.wearable_samples"
+                        " where device_id = %s::uuid and metric = %s::text and measured_at = %s::timestamptz)"
+                        " on conflict (device_id, external_id) where external_id is not null do nothing returning id",
+                        (patient_id, device_id, s.metric, s.value, s.unit, s.measured_at, source, s.external_id,
+                         device_id, s.metric, s.measured_at)).fetchone()
+            except (psycopg.errors.IntegrityError, psycopg.errors.DataError) as e:
+                rejected.append({"row": s.row, "reasons": [f"refused_by_database:{e.diag.constraint_name or e.sqlstate}"]})
+                continue
+            if row is None:
+                duplicates += 1
+            else:
+                inserted[s.metric] += 1
+    return {"device_id": device_id, "rows_total": len(samples) + len(rejections),
+            "rows_inserted": sum(inserted.values()), "rows_duplicate": duplicates, "rows_rejected": len(rejected),
+            "inserted_by_metric": dict(inserted), "rejections": rejected}
+
+
 def resolve_patient(conn, who: str) -> str:
     try:
         pid = str(uuid.UUID(who))
@@ -207,7 +310,23 @@ def main(argv: list[str] | None = None) -> int:
                    choices=["cuff_oscillometric", "cuff_auscultatory", "wearable_estimate", "unknown"])
     c.add_argument("--tz", default="Africa/Algiers", help="time zone for timestamps without an offset")
     c.add_argument("--device", help="devices.id, required if the CSV has external_id")
+    w = sub.add_parser("import-wearable-csv", help="import ring / bracelet samples (HR, HRV, SpO2, skin temperature)")
+    w.add_argument("--patient", required=True, help="patient email or uuid")
+    w.add_argument("--file", required=True, type=Path)
+    w.add_argument("--source", required=True, choices=["simulated", "csv_import"],
+                   help="what the file really contains; synthetic files must say 'simulated'")
+    w.add_argument("--device", help="devices.id; default: the patient's ring, created if missing")
+    w.add_argument("--tz", default="Africa/Algiers", help="time zone for timestamps without an offset")
     a = ap.parse_args(argv)
+
+    if a.cmd == "import-wearable-csv":
+        samples, rejections = parse_wearable_csv(a.file, a.tz)
+        with psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB), autocommit=True) as conn:
+            patient_id = resolve_patient(conn, a.patient)
+            device = a.device or ring_device(conn, patient_id, simulated=a.source == "simulated", create=True)
+            summary = import_wearable(conn, patient_id, device, samples, source=a.source, rejections=rejections)
+        print(json.dumps(summary, indent=2))
+        return 0
 
     readings, rejections = parse_csv(a.file, a.tz)
     with psycopg.connect(os.environ.get("DATABASE_URL", LOCAL_DB), autocommit=True) as conn:

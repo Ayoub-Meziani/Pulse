@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PULSE Demo Runbook</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm; }
+  :root { --ink:#0b0b0b; --ink2:#52514e; --muted:#898781; --line:#e1e0d9; --blue:#2a78d6; --orange:#eb6834; --aqua:#1baf7a; --red:#d03b3b; --soft:#f7f7f4; }
+  html, body { margin: 0; background: #fff; color: var(--ink); font: 10.5pt/1.45 "Segoe UI", Arial, sans-serif; }
+  h1 { font-size: 21pt; margin: 0 0 4px; }
+  h2 { font-size: 14pt; margin: 18px 0 6px; padding-top: 6px; border-top: 2px solid var(--blue); break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 12px 0 4px; break-after: avoid; }
+  p { margin: 4px 0 6px; }
+  ul, ol { margin: 4px 0 8px; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  code, pre { font-family: Consolas, monospace; font-size: 8.8pt; }
+  code { background: #f0efea; padding: 0 3px; border-radius: 3px; }
+  pre { background: #10233f; color: #e8eef7; padding: 8px 10px; border-radius: 6px; white-space: pre-wrap; break-inside: avoid; margin: 4px 0 8px; }
+  pre .c { color: #8fb3e0; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.6pt; margin: 4px 0 8px; break-inside: avoid; }
+  th { text-align: left; color: var(--ink2); border-bottom: 2px solid #c3c2b7; padding: 4px 6px; }
+  td { border-bottom: 1px solid var(--line); padding: 4px 6px; vertical-align: top; }
+  .muted { color: var(--ink2); }
+  .box { background: var(--soft); border-left: 4px solid var(--blue); padding: 6px 10px; border-radius: 4px; margin: 6px 0; break-inside: avoid; }
+  .warn { background: #fff3ea; border-left-color: var(--orange); }
+  .scenario { break-inside: avoid; }
+  .do, .see, .say { display: grid; grid-template-columns: 82px 1fr; gap: 6px; margin: 3px 0; }
+  .tag { font-size: 8pt; font-weight: 700; color: #fff; border-radius: 8px; padding: 1px 7px; height: fit-content; text-align: center; }
+  .t-do { background: var(--blue); } .t-see { background: var(--aqua); } .t-say { background: var(--orange); }
+  figure { margin: 6px 0 10px; break-inside: avoid; }
+  figure { text-align: center; }
+  figure img { width: 72%; border: 1px solid var(--line); border-radius: 6px; }
+  .two figure img { width: 100%; }
+  figcaption { font-size: 8.8pt; color: var(--ink2); margin-top: 2px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cover { border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 6px; }
+  .pill { display: inline-block; font-size: 8pt; font-weight: 700; padding: 1px 7px; border-radius: 8px; color: #fff; }
+  .ok { background: var(--aqua); } .no { background: var(--red); } .part { background: var(--orange); }
+  .page { break-before: page; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>PULSE: presenter guide for the live demo</h1>
+  <p class="muted">31 October 2026 · Data/AI workstream · Everything runs on this laptop (no internet needed, the cloud is never touched).
+  All data shown is fictional and labelled <b>Simulé / Simulée</b>: there is no real ring yet, so ring data comes from CSV files and a live simulator.</p>
+</div>
+
+<h2>1. The story in one minute</h2>
+<table>
+  <tr><th style="width:21%">Who</th><th>What it shows</th><th style="width:22%">Login</th></tr>
+  <tr><td><b>Nadia</b>, no ring</td><td>The app works fully with a blood-pressure cuff only: readings, history (including an imported cuff file), alerts and the emergency screen.</td><td><code>patient.a@demo.pulse.test</code></td></tr>
+  <tr><td><b>Karim</b>, with a ring</td><td>Ring data (heart rate, HRV, SpO₂, skin temperature) imported from a ring export file, then <b>live</b> values arriving every 5 s.</td><td><code>patient.b@demo.pulse.test</code></td></tr>
+  <tr><td><b>Dr Leïla Mansouri</b></td><td>Both patients side by side: readings, alerts, emergencies, ring tab, the AI estimate, notes and the care plan.</td><td><code>medecin@demo.pulse.test</code></td></tr>
+</table>
+<p>Passwords: open <code>.dev\demo-credentials.txt</code> (local, never in GitHub). Use <b>two browser windows</b>: one for a patient, one for the doctor. Each tab keeps its own login.</p>
+<div class="box"><b>Three sentences to repeat:</b> (1) Alerts come from fixed medical rules, never from AI. (2) A ring adds context; it never measures blood pressure here and never triggers an alert. (3) Everything on screen is simulated and labelled; real public data was only used to calibrate and check.</div>
+
+<h2>2. Before you present (morning of the presentation)</h2>
+<ol>
+  <li><b>Docker Desktop</b> is running (whale icon steady). The laptop clock is set automatically (checked 31 Oct).</li>
+  <li>Open a terminal in <code>C:\Users\Lenovo\Desktop\pulse</code> and start the three parts:</li>
+</ol>
+<pre><span class="c"># terminal 1: the local database (if it was stopped)</span>
+api\.venv\Scripts\python scripts\dev_stack.py start
+<span class="c"># terminal 1: the API, set to show the AI estimate model</span>
+$env:PULSE_ML_MODEL_VERSION = "mbp-v1.1"; api\.venv\Scripts\python scripts\dev_api.py
+<span class="c"># terminal 2: the website, then open http://localhost:5173</span>
+cd frontend; npm run dev</pre>
+<ol start="3">
+  <li>In terminal 3, point the data tools at the website's database (this reads the local password without showing it):</li>
+</ol>
+<pre>$pw = (Get-Content .dev\stack.json | ConvertFrom-Json).db_password
+$env:DATABASE_URL = "postgresql://postgres:$([uri]::EscapeDataString($pw))@127.0.0.1:55442/postgres"</pre>
+<ol start="4">
+  <li>Prepare today's data (about 1 minute). Re-running is safe: nothing is ever duplicated.</li>
+</ol>
+<pre><span class="c"># fresh demo files ending yesterday (data\demo\, git-ignored, labelled SIMULATED)</span>
+.venv\Scripts\python -m pulse_data.simulate demo-csv
+<span class="c"># Karim's ring export: 28 nights of heart rate, HRV, SpO2, skin temperature</span>
+.venv\Scripts\python -m pulse_data.ingest import-wearable-csv --patient patient.b@demo.pulse.test --file data\demo\ring_karim_28_nights.csv --source simulated
+<span class="c"># Nadia's cuff history from before the app (14 days, labelled simulated)</span>
+.venv\Scripts\python -m pulse_data.ingest import-csv --patient patient.a@demo.pulse.test --file data\demo\cuff_nadia_14_days.csv --provenance simulated --method cuff_oscillometric
+<span class="c"># the AI estimate for tomorrow morning, shown in the doctor's Estimation tab</span>
+cd ml; ..\.venv\Scripts\python -m pulse_ml.predict --all; cd ..</pre>
+<ol start="5">
+  <li>Sign in once with each account to check. Zoom the browser to 110–125 % for the projector.</li>
+</ol>
+
+<h2>3. The demo, scenario by scenario</h2>
+
+<div class="scenario">
+<h3>Scenario 1: Nadia, a patient without a ring (about 3 min)</h3>
+<div class="do"><span class="tag t-do">DO</span><div>Sign in as Nadia. Show the dashboard: last reading, 7-day average and trend, the target 135/85 set by her doctor, the doctor's advice.</div></div>
+<div class="see"><span class="tag t-see">SEE</span><div>Everything works with the cuff alone. At the bottom, "Bracelet (facultatif)" says no device is connected.</div></div>
+<figure><img src="demo/1_nadia_dashboard.png" alt="Nadia's dashboard"><figcaption>Nadia's dashboard: last reading, 7-day average, trend, care team.</figcaption></figure>
+<div class="do"><span class="tag t-do">DO</span><div>Open <b>Historique</b>. Explain that her cuff history from before PULSE was imported from the cuff's CSV export.</div></div>
+<div class="see"><span class="tag t-see">SEE</span><div>Imported readings appear as hollow points ("valeur simulée") from 5 to 19 Oct, then her own entries.</div></div>
+</div>
+<figure><img src="demo/1c_nadia_history_imported.png" alt="Nadia's history"><figcaption>History: hollow points are the imported (simulated) cuff file; filled points are readings typed in the app.</figcaption></figure>
+<div class="scenario">
+<div class="do"><span class="tag t-do">DO</span><div><b>Nouvelle mesure</b>: enter <b>185 / 125</b>, pulse 95. Answer the symptom questions (for example "no symptoms").</div></div>
+<div class="see"><span class="tag t-see">SEE</span><div>Rule R-SEV-1 (≥ 180 or ≥ 120) opens a <b>severe alert</b> and asks the symptom check first. With no symptom: rest, then a recheck after a 60-second countdown (still ≥ 180/120 → "contact your doctor or seek urgent care"; lower → the alert stays open for the doctor). With a red-flag symptom such as chest pain: "Call emergency services now" and the emergency screen. The <b>Urgence</b> button dials the demo number set for the team, never 14. The guidance text is in English until the clinician-reviewed French version exists.</div></div>
+<div class="say"><span class="tag t-say">SAY</span><div>"These alerts come from fixed, clinician-reviewed rules. No AI is involved in any alert."</div></div>
+</div>
+
+<div class="scenario">
+<h3>Scenario 2: Karim, a patient with a ring (about 2 min)</h3>
+<div class="do"><span class="tag t-do">DO</span><div>Sign in as Karim (second window). Scroll to <b>Bracelet (facultatif)</b>. Show the import command in the terminal (it prints counts only: 1,701 samples added; running it again adds 0).</div></div>
+<div class="see"><span class="tag t-see">SEE</span><div>Heart rate, SpO₂, HRV and skin temperature tiles: latest value, how many values, the range. Every tile and the ring itself carry the "Simulé" badge.</div></div>
+<div class="say"><span class="tag t-say">SAY</span><div>"A ring never measures blood pressure here. It adds context for the doctor and never triggers an alert. Blood pressure still comes from the cuff."</div></div>
+</div>
+<figure><img src="demo/2_karim_ring.png" alt="Karim's ring panel"><figcaption>Karim's ring panel. The counts refer to the latest 500 values the panel loads.</figcaption></figure>
+
+<div class="scenario">
+<h3>Scenario 3: live data (about 2 min)</h3>
+<div class="do"><span class="tag t-do">DO</span><div>In terminal 3 (with <code>DATABASE_URL</code> set, step 2.3) start the live ring for Karim. Keep his ring panel (or the doctor's "Bracelet" tab) on screen.</div></div>
+<pre>.venv\Scripts\python -m pulse_data.stream --patient-email patient.b@demo.pulse.test --minutes 5 --scenario spo2_dip</pre>
+<div class="see"><span class="tag t-see">SEE</span><div>Every 5 s a new heart rate and SpO₂ arrive. The panel refreshes itself every 10 s ("Dernière valeur" moves, counts grow). With <code>spo2_dip</code> the SpO₂ drops by about 7 points (to around 89–90 %): still <b>no alert</b>, by design. Other options: no <code>--scenario</code> (normal values) or <code>hr_rise</code> (heart rate up 40).</div></div>
+<div class="say"><span class="tag t-say">SAY</span><div>"Today the ring is simulated. A real ring would feed the same tables, through a file export or a device link, which is the next step."</div></div>
+</div>
+<figure><img src="demo/3_doctor_karim_ring_live.png" alt="Doctor ring tab"><figcaption>The doctor's "Bracelet" tab for Karim during the live stream (SpO₂ dip).</figcaption></figure>
+
+<div class="scenario">
+<h3>Scenario 4: the doctor (about 2 min)</h3>
+<div class="do"><span class="tag t-do">DO</span><div>Sign in as the doctor. Show "Mes patients" (refreshes every 15 s). Open Karim: <b>Alertes</b> (his severe reading), <b>Urgences</b> (the recorded emergency episode), <b>Bracelet</b>, then <b>Notes</b>: write an advice note and show it on Karim's side.</div></div>
+<div class="see"><span class="tag t-see">SEE</span><div>The doctor only sees assigned patients; every value shows its origin (manual, imported, simulated).</div></div>
+</div>
+<div class="two">
+  <figure><img src="demo/4_doctor_patients.png" alt="Doctor's patients"><figcaption>Patient list.</figcaption></figure>
+  <figure><img src="demo/4b_doctor_karim_alerts.png" alt="Karim's alerts"><figcaption>Karim's alerts.</figcaption></figure>
+</div>
+
+<div class="scenario">
+<h3>Scenario 5: the AI (about 1 min, optional)</h3>
+<div class="do"><span class="tag t-do">DO</span><div>Doctor → Karim → <b>Estimation</b>.</div></div>
+<div class="see"><span class="tag t-see">SEE</span><div>Tomorrow morning's estimated blood pressure with a 90 % range, model <code>mbp-v1.1</code>, clearly labelled experimental, doctor-only, never used by alerts.</div></div>
+<div class="say"><span class="tag t-say">SAY</span><div>"The model was tested day by day for 30 days on 100 patients it had never seen, and beat simple methods on every day. Those patients are simulated; real accuracy needs real PULSE data." For the ring models and the live early warning, switch to the presentation PDF (slides 8–10): they have no screen yet.</div></div>
+</div>
+<figure><img src="demo/5_doctor_karim_estimate.png" alt="Estimation tab"><figcaption>The Estimation tab (doctor only).</figcaption></figure>
+
+<h2>4. What is not there yet (say it before someone asks)</h2>
+<table>
+  <tr><th style="width:32%">Item</th><th>Status</th></tr>
+  <tr><td>A real ring or watch</td><td><span class="pill no">NO DEVICE</span> Ring data is simulated (CSV + live simulator). The import path is ready for a real export.</td></tr>
+  <tr><td>Upload button in the app</td><td><span class="pill part">TERMINAL</span> CSV import is a command today. An in-app upload needs an API endpoint and a screen (backend and frontend teammates).</td></tr>
+  <tr><td>Alerts on imported readings</td><td><span class="pill part">BY DESIGN TODAY</span> Rules run when a reading is entered in the app; an imported file goes straight to history. A backend import path through the rules is the fix.</td></tr>
+  <tr><td>Ring data raising alerts</td><td><span class="pill ok">ON PURPOSE</span> Never (team decision D18).</td></tr>
+  <tr><td>Screens for ring flags, live early warnings, weekly reports</td><td><span class="pill part">DATA ONLY</span> Built and tested; shown in the presentation PDF.</td></tr>
+  <tr><td>Live warnings in the cloud</td><td><span class="pill part">FROZEN</span> Kept in the database by Ayoub's decision; the engine stays off until he lifts the freeze.</td></tr>
+</table>
+
+<h3>Likely questions</h3>
+<ul>
+  <li><b>Is this real patient data?</b> No: fictional and labelled. Real public data (NHANES, a real home-BP series, sleep-lab nights) was used to calibrate the simulator and check the rules.</li>
+  <li><b>How would a real ring connect?</b> Its app exports a file (CSV / Health export) that PULSE imports today; next steps are a direct link (Bluetooth from the browser, or the maker's cloud API).</li>
+  <li><b>Why doesn't the low SpO₂ raise an alert?</b> Consumer ring readings are not reliable enough to act on alone; they are context for the doctor. Alerts come from blood pressure and symptoms.</li>
+</ul>
+
+<h2>5. If something goes wrong</h2>
+<table>
+  <tr><th style="width:36%">Symptom</th><th>Fix</th></tr>
+  <tr><td>Login fails / "network error"</td><td>Docker Desktop off or the stack stopped: <code>api\.venv\Scripts\python scripts\dev_stack.py start</code>, then restart the API (terminal 1).</td></tr>
+  <tr><td>Page doesn't load</td><td>Terminal 2: <code>cd frontend; npm run dev</code>. Use <code>localhost</code>, not <code>127.0.0.1</code>.</td></tr>
+  <tr><td>Estimation tab says "Aucune estimation disponible"</td><td>The API was started without <code>PULSE_ML_MODEL_VERSION=mbp-v1.1</code>, or the estimate is from an earlier day: run the <code>predict</code> line again (step 2.4).</td></tr>
+  <tr><td>Ring panel not moving</td><td>Wait 10 s (auto-refresh) or press F5. Check terminal 3: the stream prints its count when it ends.</td></tr>
+  <tr><td><code>stream</code> says "no simulator device"</td><td>Import Karim's ring file first (step 2.4).</td></tr>
+  <tr><td><code>import-csv</code> says "refused: already imported"</td><td>Normal: the same cuff file is never imported twice (duplicate protection, worth showing).</td></tr>
+  <tr><td>Start from a clean state</td><td>Local only, deletes the local demo data: <code>dev_stack.py down</code> (type <code>yes</code>), <code>dev_stack.py up</code>, <code>scripts\dev_seed.py</code> (new passwords in <code>.dev\demo-credentials.txt</code>), then step 2.4 again.</td></tr>
+</table>
+<p class="muted">Never point <code>DATABASE_URL</code> at the cloud: the stream refuses a non-local database, and the cloud is frozen. Tools added for this demo: <code>pulse_data.ingest import-wearable-csv</code>, <code>pulse_data.stream --patient-email</code>, <code>pulse_data.simulate demo-csv</code> (branch <code>feat/data-demo-import</code>).</p>
+
+</body>
+</html>
