@@ -166,6 +166,10 @@ venv/
 # ---- PULSE data/AI (Python, Supabase, data)
 .env
 .env.*
+# any other env, key or certificate file (templates such as api/.env.example are tracked with git add -f)
+*.env
+*.pem
+*.key
 # regenerate with: python -m pulse_data.simulate csv
 /data/
 # generated, contains the demo password hash input: PULSE_DEMO_PASSWORD=... python -m pulse_data.simulate seed

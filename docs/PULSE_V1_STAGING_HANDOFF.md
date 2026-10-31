@@ -52,7 +52,7 @@ the product. Details and sources: `docs/PULSE_SCOPE_AUDIT.md`.
 
 | Environment | State |
 |---|---|
-| Local | Working. `scripts/dev_stack.py` (Supabase Postgres 17.11.0.003, GoTrue v2.197.0 signing ES256, Kong 2.8.1) on 127.0.0.1, migrations up to `LIVE_UNTIL` (M8). Fictional accounts via `scripts/dev_seed.py` |
+| Local | Working. `scripts/dev_stack.py` (Supabase Postgres 17.11.0.003, GoTrue v2.197.0 signing ES256, Kong 2.8.1) on 127.0.0.1, migrations up to `LIVE_UNTIL` (M9 since 2026-10-31). Fictional accounts via `scripts/dev_seed.py` |
 | Staging | **Not created — blocked on Q7.** No staging project exists. The Supabase CLI login of this machine sees two organisations: `lwiza` (holds production `pulse`) and Ayoub's personal organisation. Creating a project is a billable/organisational decision; a staging project inside `lwiza` would also be reachable by the accounts that applied unapproved changes to production |
 | Production | Supabase `pulse` (ref `nfmfdhpxipdndggxtqho`). Not touched by this work except read-only checks. **Now M1–M9** (M9 applied by someone else, see incident §10d). No API or frontend is deployed |
 
@@ -66,9 +66,9 @@ the product. Details and sources: `docs/PULSE_SCOPE_AUDIT.md`.
 3. Migrations: from a scratch folder outside the repository containing a copy of `supabase/config.toml` and
    **only** the migration files up to `LIVE_UNTIL` (as `dev_stack.py` does), run `supabase link --project-ref
    <staging ref>`, `supabase migration list --linked` (empty), `supabase db push --linked --dry-run`, review,
-   then `supabase db push --linked`. Verify: history = M1–M8, schema dump vs the M1–M8 test database with
+   then `supabase db push --linked`. Verify: history = M1–M9, schema dump vs the M1–M9 test database with
    `scripts/compare_schemas.py` = 0 differences, RLS on every table, no grants to `anon`.
-   M9 is applied to staging only if Ayoub approves it (Q6).
+   Staging mirrors production M1–M9 (Ayoub, Q7, 2026-10-31). Full procedure: `docs/STAGING_SETUP.md`.
 4. Auth: enable ES256 signing keys in the staging project (Authentication → JWT signing keys), disable public
    sign-up, keep email confirmation off for the provisioned accounts.
 5. Accounts: create Patient A, Patient B and the doctor with the Auth admin API or the dashboard (passwords
@@ -88,10 +88,10 @@ the product. Details and sources: `docs/PULSE_SCOPE_AUDIT.md`.
 | Version | Name | Local dev stack | Test profile `live` | Test profile `latest`, CI | Production `pulse` |
 |---|---|---|---|---|---|
 | M1–M7 | core … ml_monitoring | ✓ | ✓ | ✓ | ✓ |
-| M8 `20261030160000` | chronic_conditions | ✓ | ✓ (`LIVE_UNTIL`) | ✓ | ✓ (applied before review, incident) |
-| M9 `20261030170000` | live_early_warning | ✗ | ✗ | ✓ (since PR #4) | ✓ (applied between 21:47 and 22:58 UTC on 30 Oct, not approved by Ayoub) |
+| M8 `20261030160000` | chronic_conditions | ✓ | ✓ | ✓ | ✓ (applied before review, incident) |
+| M9 `20261030170000` | live_early_warning | ✓ (since 2026-10-31) | ✓ (`LIVE_UNTIL`) | ✓ (since PR #4) | ✓ (applied between 21:47 and 22:58 UTC on 30 Oct without Ayoub's confirmed approval; kept by decision, not approved retroactively) |
 
-The backend does not use M9. `LIVE_UNTIL` stays at M8 until Ayoub decides Q6.
+The backend does not use M9. `LIVE_UNTIL` = M9 since 2026-10-31 (Q6: keep). Nothing writes `early_warning` flags (live-v1 inactive).
 
 ## 7. Demo accounts (local)
 
