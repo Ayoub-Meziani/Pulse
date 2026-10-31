@@ -47,6 +47,8 @@ PROTECTED = [
     ("PUT", f"/patients/{PID}/care-plan", {"target_systolic": 135, "target_diastolic": 85, "clinician_guidance": "x"}),
     ("GET", f"/alerts/{AID}", None),
     ("POST", f"/alerts/{AID}/transition", {"to": "acknowledged"}),
+    ("POST", f"/alerts/{AID}/patient-confirmation", {"password": "x"}),
+    ("GET", "/doctor/alerts", None),
     ("GET", f"/patients/{PID}/emergency-card", None),
     ("POST", f"/patients/{PID}/emergency-events",
      {"id": str(uuid4()), "trigger_reason": "manual", "started_at": "2026-10-30T10:00:00+01:00"}),
@@ -78,6 +80,7 @@ FAKE_PATIENT = CurrentUser(id=PID, role="patient", full_name="Test", email="t@pu
 BUILT = {("GET", "/me"), ("POST", f"/patients/{PID}/measurements"), ("GET", f"/patients/{PID}/measurements"),
          ("POST", f"/patients/{PID}/symptom-reports"), ("GET", f"/patients/{PID}/alerts"),
          ("GET", f"/alerts/{AID}"), ("POST", f"/alerts/{AID}/transition"),  # test_alerts.py
+         ("POST", f"/alerts/{AID}/patient-confirmation"), ("GET", "/doctor/alerts"),  # test_alert_confirmation.py
          ("GET", "/patients"), ("GET", f"/patients/{PID}/summary"), ("GET", f"/patients/{PID}/profile"),
          ("PUT", f"/patients/{PID}/profile"), ("GET", f"/patients/{PID}/trusted-contacts"),
          ("POST", f"/patients/{PID}/trusted-contacts"), ("PATCH", f"/trusted-contacts/{CID}"),

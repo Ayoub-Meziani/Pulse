@@ -5,6 +5,11 @@ export function listMyPatients({ signal } = {}) {
   return request("/patients", { signal });
 }
 
+/** Severe and emergency alerts of my patients not resolved yet (open, acknowledged, reviewed), with the reading. */
+export function listDoctorAlerts({ signal } = {}) {
+  return request("/doctor/alerts", { signal });
+}
+
 /** Experimental estimate written offline by the ML job. status: ok | insufficient_history | model_unavailable. */
 export function getLatestPrediction(patientId, { signal } = {}) {
   return request(`/patients/${patientId}/predictions/latest`, { signal });

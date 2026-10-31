@@ -186,6 +186,24 @@ class AlertDetail(AlertOut):
     measurements: list[MeasurementOut] = Field(description="Readings attached to this alert episode, oldest first.")
 
 
+class PatientConfirmationIn(BaseModel):
+    password: str = Field(min_length=1, max_length=200, description=(
+        "The patient's account password, checked with Supabase Auth and never stored or logged."))
+
+
+class AlertReading(BaseModel):
+    systolic: int
+    diastolic: int
+    measured_at: datetime
+    source: Source
+    provenance: Provenance
+
+
+class DoctorAlertOut(AlertOut):
+    patient_name: str
+    reading: AlertReading | None = Field(description="The reading that triggered the alert (null for symptom alerts).")
+
+
 class TransitionIn(BaseModel):
     to: Literal["acknowledged", "reviewed", "resolved"]
     note: str | None = Field(None, max_length=2000, description="Required to resolve a severe or emergency alert.")
